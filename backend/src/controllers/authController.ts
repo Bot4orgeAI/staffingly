@@ -3,10 +3,7 @@ import jwt, { type SignOptions } from "jsonwebtoken";
 import bcrypt from "bcryptjs";
 import crypto from "crypto";
 import prisma from "../lib/prisma.js";
-import {
-  getGoogleAuthUrl,
-  authenticateWithGoogleCode,
-} from "../services/googleAuthService.js";
+import { getGoogleAuthUrl, authenticateWithGoogleCode } from "../services/googleAuthService.js";
 import { sendPasswordResetEmail } from "../services/emailService.js";
 import type {
   AuthenticatedRequest,
@@ -64,7 +61,8 @@ export const register = async (
   if (existingUser) {
     res.status(400).json({
       success: false,
-      message: "An account with this email already exists. Please sign in instead or use a different email.",
+      message:
+        "An account with this email already exists. Please sign in instead or use a different email.",
     });
     return;
   }
@@ -245,10 +243,7 @@ export const logout = async (
 
 const FRONTEND_URL = process.env.FRONTEND_URL || "http://localhost:3010";
 
-export const googleAuth = async (
-  req: AuthenticatedRequest,
-  res: Response
-): Promise<void> => {
+export const googleAuth = async (req: AuthenticatedRequest, res: Response): Promise<void> => {
   const returnUrl = (req.query.returnUrl as string) || "/";
 
   // Encode the return URL in state to redirect after auth
@@ -258,10 +253,7 @@ export const googleAuth = async (
   res.redirect(authUrl);
 };
 
-export const googleCallback = async (
-  req: AuthenticatedRequest,
-  res: Response
-): Promise<void> => {
+export const googleCallback = async (req: AuthenticatedRequest, res: Response): Promise<void> => {
   const { code, state, error } = req.query;
 
   // Parse state to get return URL
@@ -277,7 +269,9 @@ export const googleCallback = async (
 
   // Handle OAuth errors
   if (error) {
-    const errorMessage = encodeURIComponent("Google sign-in was cancelled. Please try again or sign in with your email.");
+    const errorMessage = encodeURIComponent(
+      "Google sign-in was cancelled. Please try again or sign in with your email."
+    );
     res.redirect(`${FRONTEND_URL}/login?error=${errorMessage}`);
     return;
   }
@@ -306,7 +300,9 @@ export const googleCallback = async (
     });
 
     if (!userWithClient) {
-      const errorMessage = encodeURIComponent("Something went wrong setting up your account. Please try again.");
+      const errorMessage = encodeURIComponent(
+        "Something went wrong setting up your account. Please try again."
+      );
       res.redirect(`${FRONTEND_URL}/login?error=${errorMessage}`);
       return;
     }
@@ -323,7 +319,9 @@ export const googleCallback = async (
     });
 
     // Redirect to frontend with token
-    res.redirect(`${FRONTEND_URL}/auth/callback?token=${token}&returnUrl=${encodeURIComponent(returnUrl)}`);
+    res.redirect(
+      `${FRONTEND_URL}/auth/callback?token=${token}&returnUrl=${encodeURIComponent(returnUrl)}`
+    );
   } catch (err) {
     console.error("Google auth error:", err);
     const errorMessage = encodeURIComponent(
@@ -353,7 +351,8 @@ export const forgotPassword = async (
   if (!user) {
     res.json({
       success: true,
-      message: "If an account exists with this email, you will receive a password reset link shortly.",
+      message:
+        "If an account exists with this email, you will receive a password reset link shortly.",
     });
     return;
   }
@@ -362,7 +361,8 @@ export const forgotPassword = async (
   if (!user.passwordHash && user.googleId) {
     res.json({
       success: true,
-      message: "If an account exists with this email, you will receive a password reset link shortly.",
+      message:
+        "If an account exists with this email, you will receive a password reset link shortly.",
     });
     return;
   }
@@ -390,7 +390,8 @@ export const forgotPassword = async (
 
   res.json({
     success: true,
-    message: "If an account exists with this email, you will receive a password reset link shortly.",
+    message:
+      "If an account exists with this email, you will receive a password reset link shortly.",
   });
 };
 
@@ -455,6 +456,7 @@ export const resetPassword = async (
 
   res.json({
     success: true,
-    message: "Your password has been reset successfully. You can now sign in with your new password.",
+    message:
+      "Your password has been reset successfully. You can now sign in with your new password.",
   });
 };

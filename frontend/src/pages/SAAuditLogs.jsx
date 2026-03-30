@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { api } from "@/lib/api";
 import StaffinglyLayout from "@/components/staffingly/StaffinglyLayout";
-import { Search, Download, AlertTriangle, CheckCircle, Info, Lock } from "lucide-react";
+import { Search, Download, Lock } from "lucide-react";
 
 const DUMMY_LOGS = [
   {

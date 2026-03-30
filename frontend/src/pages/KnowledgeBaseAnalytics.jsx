@@ -1,14 +1,7 @@
 import { useState, useEffect } from "react";
 import { api } from "@/lib/api";
 import StaffinglyLayout from "@/components/staffingly/StaffinglyLayout";
-import {
-  BookOpen,
-  TrendingUp,
-  AlertTriangle,
-  MessageSquare,
-  BarChart2,
-  Loader2,
-} from "lucide-react";
+import { BookOpen, TrendingUp, AlertTriangle, MessageSquare, Loader2 } from "lucide-react";
 
 const ALLOWED_ROLES = ["super_admin", "staffingly_admin"];
 

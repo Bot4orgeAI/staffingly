@@ -11,7 +11,6 @@ import {
   FileText,
   CreditCard,
   Crown,
-  Lock,
   LogOut,
   ChevronRight,
   Activity,

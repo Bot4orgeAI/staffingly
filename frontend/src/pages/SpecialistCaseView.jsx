@@ -6,7 +6,6 @@ import { createPageUrl } from "@/lib/utils/page";
 import {
   ChevronLeft,
   Search,
-  RefreshCw,
   Loader2,
   CheckSquare,
   Square,

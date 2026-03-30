@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { api } from "@/lib/api";
 import StaffinglyLayout from "@/components/staffingly/StaffinglyLayout";
-import { Plus, Search, Edit2, X, Shield, Lock, Unlock, Monitor } from "lucide-react";
+import { Plus, Search, Edit2, X, Lock, Unlock, Monitor } from "lucide-react";
 
 const ROLES = [
   "super_admin",

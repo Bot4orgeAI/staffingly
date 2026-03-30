@@ -1,4 +1,4 @@
-import { DollarSign, FileText, Calendar, TrendingUp } from "lucide-react";
+import { FileText, Calendar, TrendingUp } from "lucide-react";
 
 export default function FinanceDashboardCards() {
   return (

@@ -2,18 +2,7 @@ import { useState, useEffect } from "react";
 import { api } from "@/lib/api";
 import { createPageUrl } from "@/lib/utils/page";
 import AppHeader from "@/components/insuverif/AppHeader";
-import {
-  Search,
-  Edit2,
-  Trash2,
-  X,
-  CheckCircle,
-  XCircle,
-  Wifi,
-  WifiOff,
-  RefreshCw,
-  ShieldCheck,
-} from "lucide-react";
+import { Search, Edit2, Trash2, X, Wifi, WifiOff } from "lucide-react";
 import AvailityApiSection from "@/components/insuverif/AvailityApiSection";
 
 const EMR_LIST = [

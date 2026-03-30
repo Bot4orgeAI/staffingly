@@ -1,4 +1,5 @@
 import type { Response } from "express";
+import type { File as MulterFile } from "multer";
 import path from "path";
 import fs from "fs/promises";
 import { fileURLToPath } from "url";
@@ -8,7 +9,7 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 interface MulterRequest extends AuthenticatedRequest {
-  file?: Express.Multer.File;
+  file?: MulterFile;
 }
 
 export const uploadFile = async (req: MulterRequest, res: Response): Promise<void> => {

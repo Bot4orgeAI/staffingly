@@ -24,7 +24,11 @@ export async function sendEmail({
   html,
 }: SendEmailParams): Promise<EmailResult> {
   if (!process.env.RESEND_API_KEY) {
-    console.log("Email queued (RESEND_API_KEY not set):", { to, subject, preview: body?.substring(0, 100) });
+    console.log("Email queued (RESEND_API_KEY not set):", {
+      to,
+      subject,
+      preview: body?.substring(0, 100),
+    });
     return { success: true, messageId: `mock-${Date.now()}` };
   }
 

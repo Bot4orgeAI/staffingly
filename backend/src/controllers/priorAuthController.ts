@@ -231,7 +231,8 @@ export const createCase = async (req: AuthenticatedRequest, res: Response): Prom
   const caseNumber = `PA-${String(count + 1).padStart(6, "0")}`;
 
   // Validate status is a valid enum value
-  const status = data.status && VALID_STATUSES.includes(data.status) ? data.status : PriorAuthStatus.INTAKE;
+  const status =
+    data.status && VALID_STATUSES.includes(data.status) ? data.status : PriorAuthStatus.INTAKE;
 
   const priorAuthCase = await prisma.priorAuthCase.create({
     data: {

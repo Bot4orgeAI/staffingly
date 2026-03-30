@@ -5,7 +5,6 @@ import { createPageUrl } from "@/lib/utils/page";
 import ClientPortalLayout from "@/components/portal/ClientPortalLayout";
 import {
   ChevronLeft,
-  Upload,
   Send,
   Loader2,
   CheckCircle,
@@ -13,7 +12,6 @@ import {
   FileText,
   MessageSquare,
   Clock,
-  AlertTriangle,
   Plus,
 } from "lucide-react";
 

@@ -8,12 +8,10 @@ import {
   CheckCircle,
   AlertCircle,
   Play,
-  X,
   Plus,
   Trash2,
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
-import { createPageUrl } from "@/lib/utils/page";
 
 const EMPTY_ROW = {
   first_name: "",

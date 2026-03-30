@@ -45,7 +45,10 @@ async function getAccessToken(): Promise<string> {
   return cachedToken;
 }
 
-async function throttledFetch(url: string, opts: RequestInit): Promise<Response> {
+async function throttledFetch(
+  url: string,
+  opts: globalThis.RequestInit
+): Promise<globalThis.Response> {
   const now = Date.now();
   const elapsed = now - lastRequestAt;
 

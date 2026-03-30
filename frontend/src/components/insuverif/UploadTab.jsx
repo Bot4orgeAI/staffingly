@@ -1,5 +1,5 @@
 import { useState, useRef } from "react";
-import { Upload, FileImage, CheckCircle, Loader2, Edit2 } from "lucide-react";
+import { Upload, FileImage, CheckCircle, Loader2 } from "lucide-react";
 import ManualEntryTab from "./ManualEntryTab";
 
 const DOC_TYPES = [

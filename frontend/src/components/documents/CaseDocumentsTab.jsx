@@ -1,18 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { api } from "@/lib/api";
-import {
-  Upload,
-  CheckCircle,
-  XCircle,
-  AlertTriangle,
-  Loader2,
-  FileText,
-  Cloud,
-  User,
-  Package,
-  Plus,
-  Eye,
-} from "lucide-react";
+import { Upload, CheckCircle, XCircle, AlertTriangle, Loader2, FileText, Plus } from "lucide-react";
 
 const MAX_FILE_SIZE_MB = 25;
 const ALLOWED_TYPES = [

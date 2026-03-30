@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { createPageUrl } from "@/lib/utils/page";
 import { api } from "@/lib/api";
-import { Check, Loader2, ShieldCheck, AlertTriangle } from "lucide-react";
+import { Check, Loader2, ShieldCheck } from "lucide-react";
 
 const STEPS = [
   {

@@ -51,10 +51,15 @@ export default function Register() {
     <div className="min-h-screen flex items-center justify-center bg-white font-['Plus_Jakarta_Sans'] py-12 px-4">
       <div className="w-full max-w-[420px]">
         <div className="mb-2">
-          <Link to="/login" className="inline-flex items-center text-sm font-semibold text-slate-500 hover:text-[#0f172a] mb-6 transition-colors">
+          <Link
+            to="/login"
+            className="inline-flex items-center text-sm font-semibold text-slate-500 hover:text-[#0f172a] mb-6 transition-colors"
+          >
             <ArrowLeft className="w-4 h-4 mr-2" /> Back to sign in
           </Link>
-          <h1 className="text-[28px] font-extrabold text-[#0f172a] text-center leading-tight mb-8">Create your account</h1>
+          <h1 className="text-[28px] font-extrabold text-[#0f172a] text-center leading-tight mb-8">
+            Create your account
+          </h1>
         </div>
 
         <button
@@ -119,7 +124,10 @@ export default function Register() {
           </div>
 
           <div>
-            <label htmlFor="email" className="block text-sm font-bold text-slate-700 mb-2 text-left">
+            <label
+              htmlFor="email"
+              className="block text-sm font-bold text-slate-700 mb-2 text-left"
+            >
               Email
             </label>
             <div className="relative">
@@ -139,7 +147,10 @@ export default function Register() {
           </div>
 
           <div>
-            <label htmlFor="password" className="block text-sm font-bold text-slate-700 mb-2 text-left">
+            <label
+              htmlFor="password"
+              className="block text-sm font-bold text-slate-700 mb-2 text-left"
+            >
               Password
             </label>
             <div className="relative">

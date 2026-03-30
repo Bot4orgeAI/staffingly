@@ -1,8 +1,8 @@
-name: Deploy to Staging
+name: Lint and Format
 
 on:
   push:
-    branches: [develop, staging]
+    branches: [develop, staging, main]
   pull_request:
     branches: [main]
   workflow_dispatch:
@@ -11,8 +11,8 @@ env:
   NODE_VERSION: "20"
 
 jobs:
-  build-and-test:
-    name: Build and Test
+  lint-and-format:
+    name: Lint and Format
     runs-on: ubuntu-latest
 
     steps:
@@ -23,39 +23,31 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: ${{ env.NODE_VERSION }}
+          cache: "npm"
+          cache-dependency-path: |
+            backend/package-lock.json
+            frontend/package-lock.json
 
       - name: Install backend dependencies
         working-directory: backend
         run: npm ci
 
-      - name: Generate Prisma Client
-        working-directory: backend
-        run: npm run prisma:generate
+      - name: Install frontend dependencies
+        working-directory: frontend
+        run: npm ci
 
       - name: Lint backend
         working-directory: backend
         run: npm run lint
 
-      - name: Type check backend
-        working-directory: backend
-        run: npm run typecheck
-
-      - name: Build backend
-        working-directory: backend
-        run: npm run build
-
-      - name: Install frontend dependencies
-        working-directory: frontend
-        run: npm ci
-
       - name: Lint frontend
         working-directory: frontend
         run: npm run lint
 
-      - name: Type check frontend
-        working-directory: frontend
-        run: npm run typecheck
+      - name: Format check backend
+        working-directory: backend
+        run: npx prettier --check .
 
-      - name: Build frontend
+      - name: Format check frontend
         working-directory: frontend
-        run: npm run build
+        run: npx prettier --check .

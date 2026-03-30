@@ -87,7 +87,9 @@ export async function checkEligibility(req: AuthenticatedRequest, res: Response)
       providerNpi,
       serviceTypeCode,
       serviceDate: serviceDate ? new Date(serviceDate) : null,
-      coverageStatus: result.success ? (result.coverageStatus?.toUpperCase() as CoverageStatus) : null,
+      coverageStatus: result.success
+        ? (result.coverageStatus?.toUpperCase() as CoverageStatus)
+        : null,
       planName: result.planName,
       planType: result.planType,
       networkStatus: result.networkStatus,

@@ -1,5 +1,4 @@
 import { useState } from "react";
-import { api } from "@/lib/api";
 import { Save, Plus, X, Loader2 } from "lucide-react";
 
 const URGENCY_OPTIONS = ["Routine", "Urgent"];

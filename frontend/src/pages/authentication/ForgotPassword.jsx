@@ -35,7 +35,8 @@ export default function ForgotPassword() {
             Check your email
           </h1>
           <p className="text-slate-500 font-medium mb-8">
-            If an account exists for <span className="text-slate-700">{email}</span>, you'll receive a password reset link shortly.
+            If an account exists for <span className="text-slate-700">{email}</span>, you'll receive
+            a password reset link shortly.
           </p>
           <p className="text-sm text-slate-400 mb-6">
             Didn't receive the email? Check your spam folder or try again.

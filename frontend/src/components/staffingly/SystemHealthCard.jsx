@@ -1,4 +1,4 @@
-import { Server, Activity, AlertTriangle, Users, CheckCircle } from "lucide-react";
+import { Server, CheckCircle } from "lucide-react";
 
 const HEALTH_ITEMS = [
   { label: "Database", value: "Healthy", detail: "99.98% uptime", status: "ok" },

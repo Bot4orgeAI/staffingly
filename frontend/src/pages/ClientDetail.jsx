@@ -8,7 +8,6 @@ import {
   Edit2,
   Trash2,
   X,
-  ChevronRight,
   User,
   Stethoscope,
   Users,

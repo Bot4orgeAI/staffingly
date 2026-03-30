@@ -1,16 +1,7 @@
 import { useState, useEffect } from "react";
 import { api } from "@/lib/api";
 import StaffinglyLayout from "@/components/staffingly/StaffinglyLayout";
-import {
-  Save,
-  CheckCircle,
-  Loader2,
-  AlertTriangle,
-  RefreshCw,
-  FolderOpen,
-  HardDrive,
-  Cloud,
-} from "lucide-react";
+import { Save, CheckCircle, Loader2, AlertTriangle, RefreshCw, FolderOpen } from "lucide-react";
 
 const STORAGE_OPTIONS = [
   {

@@ -1,17 +1,7 @@
 import { useState, useEffect } from "react";
 import { api } from "@/lib/api";
 import StaffinglyLayout from "@/components/staffingly/StaffinglyLayout";
-import {
-  Shield,
-  Globe,
-  Clock,
-  Key,
-  Monitor,
-  Bell,
-  Save,
-  AlertTriangle,
-  CheckCircle,
-} from "lucide-react";
+import { Shield, Globe, Key, Bell, Save, CheckCircle } from "lucide-react";
 
 const DEFAULT_GLOBAL = {
   session_timeout_hours: 8,

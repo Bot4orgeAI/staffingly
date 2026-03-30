@@ -1,16 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { api } from "@/lib/api";
-import {
-  MessageSquare,
-  X,
-  Send,
-  Loader2,
-  Bot,
-  User,
-  BookOpen,
-  RotateCcw,
-  ChevronDown,
-} from "lucide-react";
+import { MessageSquare, X, Send, Loader2, Bot, RotateCcw, ChevronDown } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 
 const SESSION_KEY = "staffingly_chat_session";

@@ -6,7 +6,7 @@ export interface AppError extends Error {
 }
 
 export const asyncHandler = <T>(
-  fn: (req: Request, res: Response, next: NextFunction) => Promise<T>
+  fn: (_req: Request, _res: Response, _next: NextFunction) => Promise<T>
 ): RequestHandler => {
   return (req: Request, res: Response, next: NextFunction): void => {
     Promise.resolve(fn(req, res, next)).catch(next);

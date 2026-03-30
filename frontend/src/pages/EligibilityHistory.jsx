@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { api } from "@/lib/api";
 import StaffinglyLayout from "@/components/staffingly/StaffinglyLayout";
 import ConnectionMethodBadge from "@/components/eligibility/ConnectionMethodBadge";
-import { Search, Download, Filter, Eye, ClipboardList, ChevronDown, ChevronUp } from "lucide-react";
+import { Search, Download, Eye, ClipboardList, ChevronDown, ChevronUp } from "lucide-react";
 
 const DUMMY_HISTORY = [
   {

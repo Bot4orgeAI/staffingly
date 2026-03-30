@@ -76,7 +76,11 @@ class ApiClient {
       if (response.status === 401) {
         this.setToken(null);
       }
-      throw new ApiError(data.message || data.error || "Something went wrong. Please try again.", response.status, data);
+      throw new ApiError(
+        data.message || data.error || "Something went wrong. Please try again.",
+        response.status,
+        data
+      );
     }
 
     return data;

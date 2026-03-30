@@ -10,7 +10,6 @@ import {
   ShieldCheck,
   AlertTriangle,
   Crown,
-  TrendingUp,
   CheckCircle,
 } from "lucide-react";
 

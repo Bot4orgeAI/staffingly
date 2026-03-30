@@ -5,8 +5,6 @@ import {
   Bell,
   ShieldCheck,
   ChevronRight,
-  Wifi,
-  WifiOff,
   AlertTriangle,
   X,
   RefreshCw,

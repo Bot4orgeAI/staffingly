@@ -3,15 +3,7 @@ import { Link } from "react-router-dom";
 import { createPageUrl } from "@/lib/utils/page";
 import { api } from "@/lib/api";
 import StaffinglyLayout from "@/components/staffingly/StaffinglyLayout";
-import {
-  CheckCircle,
-  XCircle,
-  AlertTriangle,
-  ChevronRight,
-  Loader2,
-  MessageSquare,
-  ArrowUp,
-} from "lucide-react";
+import { CheckCircle, ChevronRight, Loader2, MessageSquare, ArrowUp } from "lucide-react";
 
 export default function SupervisorApprovalQueue() {
   const [user, setUser] = useState(null);

@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { api } from "@/api";
-import { Upload, CheckCircle, XCircle, AlertTriangle, Loader2, FileText, Plus } from "lucide-react";
+import { Upload, CheckCircle, XCircle, AlertTriangle, Loader2 } from "lucide-react";
 
 const DEFAULT_CHECKLIST = [
   "Clinical Notes / Progress Notes",

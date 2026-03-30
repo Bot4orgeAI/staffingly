@@ -1,21 +1,8 @@
 import { useState, useEffect } from "react";
 import { api } from "@/lib/api";
 import StaffinglyLayout from "@/components/staffingly/StaffinglyLayout";
-import { Link } from "react-router-dom";
 import { createPageUrl } from "@/lib/utils/page";
-import {
-  Users,
-  AlertTriangle,
-  Trophy,
-  BarChart2,
-  Clock,
-  CheckCircle,
-  Loader2,
-  ChevronRight,
-  Flag,
-  ToggleLeft,
-  ToggleRight,
-} from "lucide-react";
+import { Users, Trophy, Loader2, Flag, ToggleLeft, ToggleRight } from "lucide-react";
 
 const ALLOWED_ROLES = ["staffingly_supervisor", "staffingly_admin", "super_admin"];
 

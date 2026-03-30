@@ -1,15 +1,7 @@
 import { useState, useEffect } from "react";
 import { api } from "@/lib/api";
 import ClientPortalLayout from "@/components/portal/ClientPortalLayout";
-import {
-  CreditCard,
-  Download,
-  AlertTriangle,
-  CheckCircle,
-  Clock,
-  Loader2,
-  XCircle,
-} from "lucide-react";
+import { CreditCard, Download, AlertTriangle, CheckCircle, Clock, Loader2 } from "lucide-react";
 
 const STATUS_STYLES = {
   paid: { bg: "#f0fdf4", text: "#15803d", icon: CheckCircle },

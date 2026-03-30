@@ -5,7 +5,7 @@ import { api } from "@/lib/api";
 import StaffinglyLayout from "@/components/staffingly/StaffinglyLayout";
 import PAEligibilityCheck from "@/components/priorauth/PAEligibilityCheck.jsx";
 import PACaseTracker from "@/components/priorauth/PACaseTracker.jsx";
-import { ClipboardList, Search, Plus } from "lucide-react";
+import { ClipboardList, Plus } from "lucide-react";
 
 export default function PriorAuth() {
   const [user, setUser] = useState(null);

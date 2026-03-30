@@ -97,9 +97,7 @@ export default function ResetPassword() {
           <h1 className="text-[28px] font-extrabold text-[#0f172a] leading-tight mb-2">
             Create new password
           </h1>
-          <p className="text-slate-500 font-medium mb-8">
-            Enter your new password below.
-          </p>
+          <p className="text-slate-500 font-medium mb-8">Enter your new password below.</p>
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-5">

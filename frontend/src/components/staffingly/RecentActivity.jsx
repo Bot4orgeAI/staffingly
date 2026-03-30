@@ -1,4 +1,4 @@
-import { CheckCircle, XCircle, Clock, AlertTriangle, Activity } from "lucide-react";
+import { Activity } from "lucide-react";
 
 const STATUS_STYLE = {
   Approved: { bg: "#f0fdf4", text: "#15803d", dot: "#16a34a" },

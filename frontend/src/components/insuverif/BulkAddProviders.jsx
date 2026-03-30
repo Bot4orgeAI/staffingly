@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { api } from "@/lib/api";
-import { X, Plus, Trash2, AlertCircle, Check, Upload } from "lucide-react";
+import { X, Plus, Trash2, AlertCircle, Check } from "lucide-react";
 
 const EMPTY_ROW = () => ({
   first_name: "",

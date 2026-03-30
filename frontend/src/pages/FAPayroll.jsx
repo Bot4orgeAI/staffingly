@@ -1,17 +1,7 @@
 import { useState, useEffect } from "react";
 import { api } from "@/lib/api";
 import StaffinglyLayout from "@/components/staffingly/StaffinglyLayout";
-import {
-  DollarSign,
-  Download,
-  Plus,
-  Settings,
-  Loader2,
-  CheckCircle,
-  AlertTriangle,
-  Edit2,
-  X,
-} from "lucide-react";
+import { Download, Plus, Settings, Loader2, AlertTriangle, Edit2, X } from "lucide-react";
 
 const ALLOWED_ROLES = ["finance_admin", "super_admin"];
 const CASE_TYPES = [

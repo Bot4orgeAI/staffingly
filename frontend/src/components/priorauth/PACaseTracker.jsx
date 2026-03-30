@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import { createPageUrl } from "@/lib/utils/page";
 import { api } from "@/lib/api";
-import { Search, Filter, Plus, Clock, AlertTriangle, ChevronRight } from "lucide-react";
+import { Search, Filter, Plus, AlertTriangle, ChevronRight } from "lucide-react";
 
 const STATUS_STYLES = {
   New: { bg: "#f1f5f9", text: "#475569", dot: "#94a3b8" },

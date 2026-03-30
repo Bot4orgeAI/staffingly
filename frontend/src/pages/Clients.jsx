@@ -3,17 +3,7 @@ import { Link } from "react-router-dom";
 import { createPageUrl } from "@/lib/utils/page";
 import { api } from "@/lib/api";
 import AppHeader from "@/components/insuverif/AppHeader";
-import {
-  Plus,
-  Search,
-  Building2,
-  User,
-  ChevronRight,
-  Edit2,
-  Trash2,
-  X,
-  CheckCircle,
-} from "lucide-react";
+import { Plus, Search, Building2, User, ChevronRight, Edit2, Trash2, X } from "lucide-react";
 
 const STATUS_COLORS = {
   Active: { bg: "#f0fdf4", text: "#15803d", dot: "#16a34a" },

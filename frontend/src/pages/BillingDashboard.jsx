@@ -15,7 +15,6 @@ import {
   Clock,
   TrendingUp,
   Eye,
-  CreditCard,
   RefreshCw,
   ExternalLink,
   PauseCircle,

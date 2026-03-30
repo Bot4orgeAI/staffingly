@@ -1,16 +1,6 @@
 import { useState, useRef } from "react";
 import { api } from "@/lib/api";
-import {
-  X,
-  Upload,
-  Download,
-  CheckCircle,
-  AlertCircle,
-  FileText,
-  Loader2,
-  Brain,
-  Eye,
-} from "lucide-react";
+import { X, Upload, Download, CheckCircle, AlertCircle, Loader2, Brain, Eye } from "lucide-react";
 
 const REQUIRED_COLS = ["last_name"];
 const ALL_COLS = [
