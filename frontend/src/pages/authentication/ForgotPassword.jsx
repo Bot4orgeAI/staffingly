@@ -26,15 +26,15 @@ export default function ForgotPassword() {
 
   if (submitted) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-white font-['Plus_Jakarta_Sans'] py-12 px-4">
+      <div className="min-h-dvh flex items-center justify-center bg-white font-['Plus_Jakarta_Sans'] py-12 px-4">
         <div className="w-full max-w-[420px] text-center">
           <div className="mx-auto w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mb-6">
             <CheckCircle className="w-8 h-8 text-green-600" />
           </div>
-          <h1 className="text-[28px] font-extrabold text-[#0f172a] leading-tight mb-4">
+          <h1 className="text-[22px] sm:text-[28px] font-extrabold text-[#0f172a] leading-tight mb-4">
             Check your email
           </h1>
-          <p className="text-slate-500 font-medium mb-8">
+          <p className="text-sm sm:text-base text-slate-500 font-medium mb-8">
             If an account exists for <span className="text-slate-700">{email}</span>, you'll receive
             a password reset link shortly.
           </p>
@@ -70,10 +70,10 @@ export default function ForgotPassword() {
           >
             <ArrowLeft className="w-4 h-4 mr-2" /> Back to sign in
           </Link>
-          <h1 className="text-[28px] font-extrabold text-[#0f172a] leading-tight mb-2">
+          <h1 className="text-[22px] sm:text-[28px] font-extrabold text-[#0f172a] leading-tight mb-2">
             Forgot your password?
           </h1>
-          <p className="text-slate-500 font-medium mb-8">
+          <p className="text-sm sm:text-base text-slate-500 font-medium mb-8">
             Enter your email and we'll send you a link to reset your password.
           </p>
         </div>
@@ -102,7 +102,7 @@ export default function ForgotPassword() {
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 required
-                className="w-full pl-12 pr-4 py-3 bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-[#00207f] focus:border-[#00207f] outline-none text-slate-800 placeholder:text-slate-400 shadow-sm transition-all font-medium"
+                className="w-full pl-12 pr-4 py-2.5 sm:py-3 bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-[#00207f] focus:border-[#00207f] outline-none text-sm sm:text-base text-slate-800 placeholder:text-slate-400 shadow-sm transition-all font-medium"
                 placeholder="you@example.com"
               />
             </div>

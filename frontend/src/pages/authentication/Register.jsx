@@ -48,7 +48,7 @@ export default function Register() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-white font-['Plus_Jakarta_Sans'] py-12 px-4">
+    <div className="min-h-dvh flex items-center justify-center bg-white font-['Plus_Jakarta_Sans'] py-12 px-4">
       <div className="w-full max-w-[420px]">
         <div className="mb-2">
           <Link
@@ -57,7 +57,7 @@ export default function Register() {
           >
             <ArrowLeft className="w-4 h-4 mr-2" /> Back to sign in
           </Link>
-          <h1 className="text-[28px] font-extrabold text-[#0f172a] text-center leading-tight mb-8">
+          <h1 className="text-[22px] sm:text-[28px] font-extrabold text-[#0f172a] text-center leading-tight mb-8">
             Create your account
           </h1>
         </div>
@@ -65,7 +65,7 @@ export default function Register() {
         <button
           type="button"
           onClick={handleGoogleSignup}
-          className="w-full mb-6 flex items-center justify-center gap-3 py-2.5 px-4 bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 font-semibold rounded-xl transition-colors shadow-sm"
+          className="w-full mb-6 flex items-center justify-center gap-3 py-2.5 px-4 bg-white border border-slate-200 hover:bg-slate-50 text-sm sm:text-base text-slate-700 font-semibold rounded-xl transition-colors shadow-sm"
         >
           <svg className="w-5 h-5" viewBox="0 0 24 24">
             <path
@@ -117,7 +117,7 @@ export default function Register() {
                 value={name}
                 onChange={(e) => setName(e.target.value)}
                 required
-                className="w-full pl-12 pr-4 py-3 bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-[#00207f] focus:border-[#00207f] outline-none text-slate-800 placeholder:text-slate-400 shadow-sm transition-all font-medium"
+                className="w-full pl-12 pr-4 py-2.5 sm:py-3 bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-[#00207f] focus:border-[#00207f] outline-none text-sm sm:text-base text-slate-800 placeholder:text-slate-400 shadow-sm transition-all font-medium"
                 placeholder="Your name"
               />
             </div>
@@ -140,7 +140,7 @@ export default function Register() {
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 required
-                className="w-full pl-12 pr-4 py-3 bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-[#00207f] focus:border-[#00207f] outline-none text-slate-800 placeholder:text-slate-400 shadow-sm transition-all font-medium"
+                className="w-full pl-12 pr-4 py-2.5 sm:py-3 bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-[#00207f] focus:border-[#00207f] outline-none text-sm sm:text-base text-slate-800 placeholder:text-slate-400 shadow-sm transition-all font-medium"
                 placeholder="you@example.com"
               />
             </div>
@@ -163,7 +163,7 @@ export default function Register() {
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 required
-                className="w-full pl-12 pr-12 py-3 bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-[#00207f] focus:border-[#00207f] outline-none text-slate-800 placeholder:text-slate-400 shadow-sm transition-all font-medium"
+                className="w-full pl-12 pr-12 py-2.5 sm:py-3 bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-[#00207f] focus:border-[#00207f] outline-none text-sm sm:text-base text-slate-800 placeholder:text-slate-400 shadow-sm transition-all font-medium"
                 placeholder="Min. 6 characters"
               />
               <button
@@ -193,7 +193,7 @@ export default function Register() {
                 value={confirmPassword}
                 onChange={(e) => setConfirmPassword(e.target.value)}
                 required
-                className="w-full pl-12 pr-12 py-3 bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-[#00207f] focus:border-[#00207f] outline-none text-slate-800 placeholder:text-slate-400 shadow-sm transition-all font-medium"
+                className="w-full pl-12 pr-12 py-2.5 sm:py-3 bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-[#00207f] focus:border-[#00207f] outline-none text-sm sm:text-base text-slate-800 placeholder:text-slate-400 shadow-sm transition-all font-medium"
                 placeholder="Re-enter password"
               />
               <button

@@ -46,26 +46,26 @@ export default function Login() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-white font-['Plus_Jakarta_Sans'] py-12 px-4">
+    <div className="min-h-dvh flex items-center justify-center bg-white font-['Plus_Jakarta_Sans'] py-12 px-4">
       <div className="w-full max-w-[420px]">
         <div className="text-center mb-8">
           <div className="mx-auto flex items-center justify-center mb-6">
             <img
               src="/images/logo/staffverify-combination-logo.png"
               alt="StaffVerify"
-              className="w-28 h-28 focus:outline-none"
+              className="w-24 h-auto focus:outline-none"
             />
           </div>
-          <h1 className="text-[28px] font-extrabold text-[#00207f] leading-tight mb-2">
+          <h1 className="text-[22px] sm:text-[28px] font-extrabold text-[#00207f] leading-tight mb-2">
             Welcome to StaffVerify
           </h1>
-          <p className="text-slate-500 font-medium">Sign in to continue</p>
+          <p className="text-sm sm:text-base text-slate-500 font-medium">Sign in to continue</p>
         </div>
 
         <button
           type="button"
           onClick={handleGoogleLogin}
-          className="w-full mb-6 flex items-center justify-center gap-3 py-2.5 px-4 bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 font-semibold rounded-xl transition-colors shadow-sm"
+          className="w-full mb-6 flex items-center justify-center gap-3 py-2.5 px-4 bg-white border border-slate-200 hover:bg-slate-50 text-sm sm:text-base text-slate-700 font-semibold rounded-xl transition-colors shadow-sm"
         >
           <svg className="w-5 h-5" viewBox="0 0 24 24">
             <path
@@ -120,7 +120,7 @@ export default function Login() {
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 required
-                className="w-full pl-12 pr-4 py-3 bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-[#00207f] focus:border-[#00207f] outline-none text-slate-800 placeholder:text-slate-400 shadow-sm transition-all font-medium"
+                className="w-full pl-12 pr-4 py-2.5 sm:py-3 bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-[#00207f] focus:border-[#00207f] outline-none text-sm sm:text-base text-slate-800 placeholder:text-slate-400 shadow-sm transition-all font-medium"
                 placeholder="you@example.com"
               />
             </div>
@@ -143,7 +143,7 @@ export default function Login() {
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 required
-                className="w-full pl-12 pr-12 py-3 bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-[#00207f] focus:border-[#00207f] outline-none text-slate-800 placeholder:text-slate-400 shadow-sm transition-all font-medium"
+                className="w-full pl-12 pr-12 py-2.5 sm:py-3 bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-[#00207f] focus:border-[#00207f] outline-none text-sm sm:text-base text-slate-800 placeholder:text-slate-400 shadow-sm transition-all font-medium"
                 placeholder="••••••••"
               />
               <button

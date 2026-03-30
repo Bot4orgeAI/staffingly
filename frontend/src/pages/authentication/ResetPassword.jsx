@@ -44,15 +44,15 @@ export default function ResetPassword() {
 
   if (!token) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-white font-['Plus_Jakarta_Sans'] py-12 px-4">
+      <div className="min-h-dvh flex items-center justify-center bg-white font-['Plus_Jakarta_Sans'] py-12 px-4">
         <div className="w-full max-w-[420px] text-center">
           <div className="mx-auto w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mb-6">
             <XCircle className="w-8 h-8 text-red-600" />
           </div>
-          <h1 className="text-[28px] font-extrabold text-[#0f172a] leading-tight mb-4">
+          <h1 className="text-[22px] sm:text-[28px] font-extrabold text-[#0f172a] leading-tight mb-4">
             Invalid reset link
           </h1>
-          <p className="text-slate-500 font-medium mb-8">
+          <p className="text-sm sm:text-base text-slate-500 font-medium mb-8">
             This password reset link is invalid or has expired. Please request a new one.
           </p>
           <Link
@@ -73,10 +73,10 @@ export default function ResetPassword() {
           <div className="mx-auto w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mb-6">
             <CheckCircle className="w-8 h-8 text-green-600" />
           </div>
-          <h1 className="text-[28px] font-extrabold text-[#0f172a] leading-tight mb-4">
+          <h1 className="text-[22px] sm:text-[28px] font-extrabold text-[#0f172a] leading-tight mb-4">
             Password reset successful
           </h1>
-          <p className="text-slate-500 font-medium mb-8">
+          <p className="text-sm sm:text-base text-slate-500 font-medium mb-8">
             Your password has been reset. You can now sign in with your new password.
           </p>
           <button
@@ -94,10 +94,12 @@ export default function ResetPassword() {
     <div className="min-h-screen flex items-center justify-center bg-white font-['Plus_Jakarta_Sans'] py-12 px-4">
       <div className="w-full max-w-[420px]">
         <div className="mb-2">
-          <h1 className="text-[28px] font-extrabold text-[#0f172a] leading-tight mb-2">
+          <h1 className="text-[22px] sm:text-[28px] font-extrabold text-[#0f172a] leading-tight mb-2">
             Create new password
           </h1>
-          <p className="text-slate-500 font-medium mb-8">Enter your new password below.</p>
+          <p className="text-sm sm:text-base text-slate-500 font-medium mb-8">
+            Enter your new password below.
+          </p>
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-5">
@@ -124,7 +126,7 @@ export default function ResetPassword() {
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 required
-                className="w-full pl-12 pr-12 py-3 bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-[#00207f] focus:border-[#00207f] outline-none text-slate-800 placeholder:text-slate-400 shadow-sm transition-all font-medium"
+                className="w-full pl-12 pr-12 py-2.5 sm:py-3 bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-[#00207f] focus:border-[#00207f] outline-none text-sm sm:text-base text-slate-800 placeholder:text-slate-400 shadow-sm transition-all font-medium"
                 placeholder="Min. 6 characters"
               />
               <button
@@ -154,7 +156,7 @@ export default function ResetPassword() {
                 value={confirmPassword}
                 onChange={(e) => setConfirmPassword(e.target.value)}
                 required
-                className="w-full pl-12 pr-12 py-3 bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-[#00207f] focus:border-[#00207f] outline-none text-slate-800 placeholder:text-slate-400 shadow-sm transition-all font-medium"
+                className="w-full pl-12 pr-12 py-2.5 sm:py-3 bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-[#00207f] focus:border-[#00207f] outline-none text-sm sm:text-base text-slate-800 placeholder:text-slate-400 shadow-sm transition-all font-medium"
                 placeholder="Re-enter password"
               />
               <button
