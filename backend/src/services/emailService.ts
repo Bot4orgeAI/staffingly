@@ -1,8 +1,15 @@
+import { Resend } from "resend";
+
+const resend = new Resend(process.env.RESEND_API_KEY);
+
+const FROM_EMAIL = process.env.FROM_EMAIL || "StaffVerify <noreply@staffverify.com>";
+const FRONTEND_URL = process.env.FRONTEND_URL || "http://localhost:3010";
+
 interface SendEmailParams {
   to: string;
   subject: string;
   body?: string;
-  _html?: string;
+  html?: string;
 }
 
 interface EmailResult {
@@ -14,10 +21,81 @@ export async function sendEmail({
   to,
   subject,
   body,
-  _html,
+  html,
 }: SendEmailParams): Promise<EmailResult> {
-  console.log("Email queued:", { to, subject, preview: body?.substring(0, 100) });
-  return { success: true, messageId: `mock-${Date.now()}` };
+  if (!process.env.RESEND_API_KEY) {
+    console.log("Email queued (RESEND_API_KEY not set):", { to, subject, preview: body?.substring(0, 100) });
+    return { success: true, messageId: `mock-${Date.now()}` };
+  }
+
+  const { data, error } = await resend.emails.send({
+    from: FROM_EMAIL,
+    to,
+    subject,
+    html: html || body || "",
+  });
+
+  if (error) {
+    console.error("Failed to send email:", error);
+    throw new Error(`Failed to send email: ${error.message}`);
+  }
+
+  return { success: true, messageId: data?.id || `resend-${Date.now()}` };
+}
+
+export async function sendPasswordResetEmail(
+  email: string,
+  resetToken: string
+): Promise<EmailResult> {
+  const resetUrl = `${FRONTEND_URL}/reset-password?token=${resetToken}`;
+
+  const html = `
+    <!DOCTYPE html>
+    <html>
+      <head>
+        <meta charset="utf-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+      </head>
+      <body style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; margin: 0; padding: 0; background-color: #f8fafc;">
+        <div style="max-width: 560px; margin: 0 auto; padding: 40px 20px;">
+          <div style="background: white; border-radius: 12px; padding: 40px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
+            <div style="text-align: center; margin-bottom: 32px;">
+              <h1 style="color: #00207f; font-size: 24px; margin: 0;">StaffVerify</h1>
+            </div>
+
+            <h2 style="color: #0f172a; font-size: 20px; margin: 0 0 16px;">Reset your password</h2>
+
+            <p style="color: #475569; font-size: 15px; line-height: 1.6; margin: 0 0 24px;">
+              We received a request to reset your password. Click the button below to create a new password. This link will expire in 1 hour.
+            </p>
+
+            <div style="text-align: center; margin: 32px 0;">
+              <a href="${resetUrl}" style="display: inline-block; background: #0f172a; color: white; font-weight: 600; text-decoration: none; padding: 14px 32px; border-radius: 8px; font-size: 15px;">
+                Reset Password
+              </a>
+            </div>
+
+            <p style="color: #475569; font-size: 14px; line-height: 1.6; margin: 0 0 16px;">
+              If you didn't request this password reset, you can safely ignore this email. Your password will remain unchanged.
+            </p>
+
+            <hr style="border: none; border-top: 1px solid #e2e8f0; margin: 32px 0;">
+
+            <p style="color: #94a3b8; font-size: 13px; line-height: 1.5; margin: 0;">
+              If the button doesn't work, copy and paste this link into your browser:<br>
+              <a href="${resetUrl}" style="color: #3b82f6; word-break: break-all;">${resetUrl}</a>
+            </p>
+          </div>
+        </div>
+      </body>
+    </html>
+  `;
+
+  return sendEmail({
+    to: email,
+    subject: "Reset your StaffVerify password",
+    html,
+  });
 }
 
 interface InvoiceEmailParams {

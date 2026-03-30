@@ -1,14 +1,11 @@
+import "dotenv/config";
 import express from "express";
 import cors from "cors";
 import morgan from "morgan";
 import path from "path";
 import { fileURLToPath } from "url";
-import dotenv from "dotenv";
 
 console.log("Starting StaffVerify API in TypeScript...");
-
-// Load environment variables
-dotenv.config();
 
 import { errorHandler, notFoundHandler } from "./middleware/errorHandler.js";
 

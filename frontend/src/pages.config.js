@@ -66,8 +66,11 @@ import DriveSyncLogs from "./pages/DriveSyncLogs";
 import EligibilityDashboard from "./pages/EligibilityDashboard";
 import EligibilityHistory from "./pages/EligibilityHistory";
 import FAPayroll from "./pages/FAPayroll";
-import Login from "./pages/Login";
-import Register from "./pages/Register";
+import Login from "./pages/authentication/Login";
+import Register from "./pages/authentication/Register";
+import AuthCallback from "./pages/authentication/AuthCallback";
+import ForgotPassword from "./pages/authentication/ForgotPassword";
+import ResetPassword from "./pages/authentication/ResetPassword";
 import KnowledgeBaseAnalytics from "./pages/KnowledgeBaseAnalytics";
 import NewVerification from "./pages/NewVerification";
 import PayerRules from "./pages/PayerRules";
@@ -112,6 +115,9 @@ export const PAGES = {
   home: Dashboard,
   login: Login,
   register: Register,
+  "auth/callback": AuthCallback,
+  "forgot-password": ForgotPassword,
+  "reset-password": ResetPassword,
   "knowledge-base-analytics": KnowledgeBaseAnalytics,
   "new-verification": NewVerification,
   "payer-rules": PayerRules,

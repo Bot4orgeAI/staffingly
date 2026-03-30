@@ -39,7 +39,7 @@ export const AuthProvider = ({ children }) => {
       console.error("Unexpected error:", error);
       setAuthError({
         type: "unknown",
-        message: error.message || "An unexpected error occurred",
+        message: error.message || "Something went wrong. Please refresh and try again.",
       });
       setIsLoadingAuth(false);
     }
@@ -62,7 +62,7 @@ export const AuthProvider = ({ children }) => {
         apiClient.setToken(null);
         setAuthError({
           type: "auth_required",
-          message: "Authentication required",
+          message: "Please sign in to continue.",
         });
       }
     }
@@ -78,7 +78,7 @@ export const AuthProvider = ({ children }) => {
     } catch (error) {
       setAuthError({
         type: "login_failed",
-        message: error.message || "Login failed",
+        message: error.message || "Unable to sign in. Please try again.",
       });
       throw error;
     }
@@ -94,7 +94,7 @@ export const AuthProvider = ({ children }) => {
     } catch (error) {
       setAuthError({
         type: "registration_failed",
-        message: error.message || "Registration failed",
+        message: error.message || "Unable to create account. Please try again.",
       });
       throw error;
     }

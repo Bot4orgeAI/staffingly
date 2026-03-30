@@ -1,6 +1,5 @@
 datasource db {
   provider = "postgresql"
-  url      = env("DATABASE_URL")
 }
 
 generator client {
@@ -12,15 +11,19 @@ generator client {
 // ─────────────────────────────────────────────────────────────────────────────
 
 model User {
-  id           String   @id @default(cuid())
-  email        String   @unique
-  passwordHash String?
-  name         String?
-  role         UserRole @default(CLIENT_USER)
-  clientId     String?
-  client       Client?  @relation(fields: [clientId], references: [id])
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
+  id                   String    @id @default(cuid())
+  email                String    @unique
+  passwordHash         String?
+  googleId             String?   @unique
+  name                 String?
+  avatarUrl            String?
+  role                 UserRole  @default(CLIENT_USER)
+  clientId             String?
+  client               Client?   @relation(fields: [clientId], references: [id])
+  passwordResetToken   String?
+  passwordResetExpires DateTime?
+  createdAt            DateTime  @default(now())
+  updatedAt            DateTime  @updatedAt
 
   auditLogs         AuditLog[]
   notifications     Notification[]
@@ -494,7 +497,7 @@ model Staff {
 // ─────────────────────────────────────────────────────────────────────────────
 
 model Subscriber {
-  id                  String    @id @default(cuid())
+  id                  String   @id @default(cuid())
   clientId            String
   firstName           String?
   lastName            String
@@ -507,27 +510,27 @@ model Subscriber {
   lastCoverageStatus  String?
   lastVerifiedDate    String?
   lastConfidenceScore Int?
-  createdAt           DateTime  @default(now())
-  updatedAt           DateTime  @updatedAt
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
 }
 
 model Provider {
-  id          String   @id @default(cuid())
-  clientId    String
-  firstName   String?
-  lastName    String
-  npi         String?
-  specialty   String?
-  taxonomy    String?
-  phone       String?
-  email       String?
-  address     String?
-  city        String?
-  state       String?
-  zip         String?
-  status      String   @default("Active")
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  id        String   @id @default(cuid())
+  clientId  String
+  firstName String?
+  lastName  String
+  npi       String?
+  specialty String?
+  taxonomy  String?
+  phone     String?
+  email     String?
+  address   String?
+  city      String?
+  state     String?
+  zip       String?
+  status    String   @default("Active")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -535,16 +538,16 @@ model Provider {
 // ─────────────────────────────────────────────────────────────────────────────
 
 model KnowledgeBaseEntry {
-  id           String   @id @default(cuid())
-  clientId     String
-  title        String
-  content      String   @db.Text
-  category     String?
-  tags         String[]
-  accessCount  Int      @default(0)
-  published    Boolean  @default(true)
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
+  id          String   @id @default(cuid())
+  clientId    String
+  title       String
+  content     String   @db.Text
+  category    String?
+  tags        String[]
+  accessCount Int      @default(0)
+  published   Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 }
 
 model ChatbotConversation {
@@ -598,18 +601,18 @@ model EligibilityHistory {
 // ─────────────────────────────────────────────────────────────────────────────
 
 model ClientBranding {
-  id              String   @id @default(cuid())
-  clientId        String   @unique
-  primaryColor    String?
-  secondaryColor  String?
-  accentColor     String?
-  logoUrl         String?
-  faviconUrl      String?
-  companyName     String?
-  welcomeMessage  String?  @db.Text
-  customCss       String?  @db.Text
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
+  id             String   @id @default(cuid())
+  clientId       String   @unique
+  primaryColor   String?
+  secondaryColor String?
+  accentColor    String?
+  logoUrl        String?
+  faviconUrl     String?
+  companyName    String?
+  welcomeMessage String?  @db.Text
+  customCss      String?  @db.Text
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
 }
 
 model CaseMessage {
@@ -630,14 +633,14 @@ model CaseMessage {
 // ─────────────────────────────────────────────────────────────────────────────
 
 model PayrollRate {
-  id               String   @id @default(cuid())
-  userId           String
-  ratePerCase      Float    @default(0)
-  ratePerHour      Float    @default(0)
-  effectiveFrom    DateTime
-  effectiveTo      DateTime?
-  createdAt        DateTime @default(now())
-  updatedAt        DateTime @updatedAt
+  id            String    @id @default(cuid())
+  userId        String
+  ratePerCase   Float     @default(0)
+  ratePerHour   Float     @default(0)
+  effectiveFrom DateTime
+  effectiveTo   DateTime?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
 }
 
 model PayrollAdjustment {

@@ -69,15 +69,14 @@ class ApiClient {
       headers,
     });
 
-    if (response.status === 401) {
-      this.setToken(null);
-      throw new ApiError("Unauthorized", 401);
-    }
-
     const data = await response.json();
 
     if (!response.ok) {
-      throw new ApiError(data.error || "Request failed", response.status, data);
+      // For 401, clear token but use the backend's message if available
+      if (response.status === 401) {
+        this.setToken(null);
+      }
+      throw new ApiError(data.message || data.error || "Something went wrong. Please try again.", response.status, data);
     }
 
     return data;

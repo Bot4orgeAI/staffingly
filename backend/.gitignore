@@ -38,3 +38,6 @@ temp/
 .npm/
 .eslintcache
 .cache/
+
+# Prisma
+prisma/generated/
