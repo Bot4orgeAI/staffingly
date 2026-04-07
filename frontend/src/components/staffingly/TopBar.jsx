@@ -198,11 +198,11 @@ export default function TopBar({ user, title, breadcrumbs = [] }) {
               className="w-8 h-8 rounded-full flex items-center justify-center text-white text-xs font-bold flex-shrink-0"
               style={{ backgroundColor: ROLE_STRIPE[user.role]?.bg || "#293682" }}
             >
-              {user.full_name?.charAt(0) || "U"}
+              {user.name?.charAt(0) || "U"}
             </div>
             <div className="hidden md:block text-right">
               <p className="text-xs font-semibold text-slate-700 leading-tight">
-                {user.full_name || user.email}
+                {user.name || user.email}
               </p>
               <p className="text-[10px] text-slate-400 leading-tight capitalize">
                 {user.role?.replace(/_/g, " ")}
