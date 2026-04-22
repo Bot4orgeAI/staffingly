@@ -22,8 +22,7 @@
     "src/Layout.jsx",
     "src/lib/api/**/*.js",
     "src/lib/**/*.js",
-    "src/lib/**/*.jsx",
-    "src/components/NavigationTracker.jsx"
+    "src/lib/**/*.jsx"
   ],
   "exclude": ["node_modules", "dist", "src/vite-plugins", "src/components/ui"]
 }

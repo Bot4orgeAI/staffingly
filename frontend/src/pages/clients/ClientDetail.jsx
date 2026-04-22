@@ -4,6 +4,16 @@ import { createPageUrl } from "@/lib/utils/page";
 import { api } from "@/lib/api";
 import AppHeader from "@/components/insuverif/AppHeader";
 import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import {
   Plus,
   Edit2,
   Trash2,
@@ -294,6 +304,8 @@ export default function ClientDetail() {
   const [activeTab, setActiveTab] = useState("providers");
   const [providerModal, setProviderModal] = useState(null);
   const [subscriberModal, setSubscriberModal] = useState(null);
+  const [providerPendingDelete, setProviderPendingDelete] = useState(null);
+  const [subscriberPendingDelete, setSubscriberPendingDelete] = useState(null);
   const [verifyPanel, setVerifyPanel] = useState(null); // { subscriber, provider }
   const [showBulkAdd, setShowBulkAdd] = useState(false);
   const [showImport, setShowImport] = useState(false);
@@ -318,13 +330,11 @@ export default function ClientDetail() {
   };
 
   const handleDeleteProvider = async (id) => {
-    if (!confirm("Delete this provider?")) return;
     await api.entities.Provider.delete(id);
     loadAll();
   };
 
   const handleDeleteSubscriber = async (id) => {
-    if (!confirm("Delete this subscriber?")) return;
     await api.entities.Subscriber.delete(id);
     loadAll();
   };
@@ -351,6 +361,61 @@ export default function ClientDetail() {
       className="min-h-screen"
       style={{ backgroundColor: "#eef3ff", fontFamily: "'DM Sans', sans-serif" }}
     >
+      <AlertDialog
+        open={Boolean(providerPendingDelete)}
+        onOpenChange={(open) => !open && setProviderPendingDelete(null)}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Provider</AlertDialogTitle>
+            <AlertDialogDescription>
+              Delete this provider from the client record?
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-rose-600 hover:bg-rose-700"
+              onClick={async (event) => {
+                event.preventDefault();
+                if (!providerPendingDelete) return;
+                await handleDeleteProvider(providerPendingDelete.id);
+                setProviderPendingDelete(null);
+              }}
+            >
+              Delete Provider
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+      <AlertDialog
+        open={Boolean(subscriberPendingDelete)}
+        onOpenChange={(open) => !open && setSubscriberPendingDelete(null)}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Subscriber</AlertDialogTitle>
+            <AlertDialogDescription>
+              Delete this subscriber from the client record?
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-rose-600 hover:bg-rose-700"
+              onClick={async (event) => {
+                event.preventDefault();
+                if (!subscriberPendingDelete) return;
+                await handleDeleteSubscriber(subscriberPendingDelete.id);
+                setSubscriberPendingDelete(null);
+              }}
+            >
+              Delete Subscriber
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
       <AppHeader
         user={user}
         breadcrumbs={[
@@ -577,7 +642,7 @@ export default function ClientDetail() {
                                 <Edit2 className="w-3 h-3" /> Edit
                               </button>
                               <button
-                                onClick={() => handleDeleteProvider(p.id)}
+                              onClick={() => setProviderPendingDelete(p)}
                                 className="px-2.5 py-1.5 rounded-lg border border-red-200 text-red-500 hover:bg-red-50"
                               >
                                 <Trash2 className="w-3 h-3" />
@@ -711,7 +776,7 @@ export default function ClientDetail() {
                                 <Edit2 className="w-3 h-3" />
                               </button>
                               <button
-                                onClick={() => handleDeleteSubscriber(s.id)}
+                              onClick={() => setSubscriberPendingDelete(s)}
                                 className="px-2.5 py-1.5 rounded-lg border border-red-200 text-red-500 hover:bg-red-50"
                               >
                                 <Trash2 className="w-3 h-3" />

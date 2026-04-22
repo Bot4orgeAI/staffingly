@@ -3,12 +3,23 @@ import { api } from "@/lib/api";
 import apiClient from "@/lib/api/clients/apiClient";
 
 /**
- * Context for managing authentication state and actions.
- * Provides user information, authentication status, and methods for login/
- * logout/registration.
+ * Authentication context primitives for application-wide auth state.
+ *
+ * Responsibilities:
+ * - load and expose the current authenticated user
+ * - track auth and public-settings loading states
+ * - expose login, registration, logout, and auth-check actions
+ * - centralize auth-required redirect behavior
  */
 const AuthContext = createContext(null);
 
+/**
+ * Provide shared authentication state and actions to the application tree.
+ *
+ * @param {Object} props
+ * @param {React.ReactNode} props.children
+ * @returns {JSX.Element}
+ */
 export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
@@ -26,7 +37,6 @@ export const AuthProvider = ({ children }) => {
       setIsLoadingAuth(true);
       setAuthError(null);
 
-      // Check if we have a stored token
       const token = apiClient.getToken();
 
       if (token) {
@@ -136,6 +146,12 @@ export const AuthProvider = ({ children }) => {
   );
 };
 
+/**
+ * Read the current authentication context value.
+ *
+ * @returns {Object}
+ * @throws {Error}
+ */
 export const useAuth = () => {
   const context = useContext(AuthContext);
   if (!context) {

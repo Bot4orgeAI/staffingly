@@ -1,8 +1,7 @@
 import SidebarNav from "./SidebarNav";
 import TopBar from "./TopBar";
 import AIChatbot from "@/components/chatbot/AIChatbot";
-
-const NO_CHATBOT_PAGES = [];
+import { useAuth } from "@/lib/contexts/AuthContext";
 
 export default function StaffinglyLayout({
   user,
@@ -16,19 +15,22 @@ export default function StaffinglyLayout({
   chatbotClientData = null,
   chatbotPayerRules = [],
 }) {
+  const { user: authUser } = useAuth();
+  const resolvedUser = user || authUser;
+
   return (
     <div
       className="flex min-h-screen"
       style={{ backgroundColor: "#eef3ff", fontFamily: "'DM Sans', sans-serif" }}
     >
-      <SidebarNav user={user} currentPage={currentPage} />
+      <SidebarNav user={resolvedUser} currentPage={currentPage} />
       <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
-        <TopBar user={user} title={title} breadcrumbs={breadcrumbs} />
+        <TopBar user={resolvedUser} title={title} breadcrumbs={breadcrumbs} />
         <main className="flex-1 p-5 overflow-auto">{children}</main>
       </div>
-      {showChatbot && user && (
+      {showChatbot && resolvedUser && (
         <AIChatbot
-          user={user}
+          user={resolvedUser}
           contextType={chatbotContext}
           contextData={chatbotContextData}
           clientData={chatbotClientData}

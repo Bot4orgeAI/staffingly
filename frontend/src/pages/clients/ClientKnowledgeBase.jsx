@@ -2,6 +2,16 @@ import { useState, useEffect } from "react";
 import { api } from "@/lib/api";
 import StaffinglyLayout from "@/components/staffingly/StaffinglyLayout";
 import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import {
   BookOpen,
   Plus,
   Search,
@@ -324,6 +334,7 @@ export default function ClientKnowledgeBase() {
   const [activeCategory, setActiveCategory] = useState(null);
   const [modalEntry, setModalEntry] = useState(null);
   const [showModal, setShowModal] = useState(false);
+  const [entryPendingDelete, setEntryPendingDelete] = useState(null);
 
   const params = new URLSearchParams(window.location.search);
   const clientId = params.get("client_id");
@@ -349,7 +360,6 @@ export default function ClientKnowledgeBase() {
   };
 
   const handleDelete = async (entry) => {
-    if (!confirm(`Delete "${entry.title}"?`)) return;
     await api.entities.KnowledgeBaseEntry.delete(entry.id);
     await loadEntries();
   };
@@ -406,6 +416,34 @@ export default function ClientKnowledgeBase() {
       title={`Knowledge Base — ${clientName}`}
       breadcrumbs={["Clients", clientName, "Knowledge Base"]}
     >
+      <AlertDialog
+        open={Boolean(entryPendingDelete)}
+        onOpenChange={(open) => !open && setEntryPendingDelete(null)}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Knowledge Base Entry</AlertDialogTitle>
+            <AlertDialogDescription>
+              Delete &quot;{entryPendingDelete?.title}&quot;?
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-rose-600 hover:bg-rose-700"
+              onClick={async (event) => {
+                event.preventDefault();
+                if (!entryPendingDelete) return;
+                await handleDelete(entryPendingDelete);
+                setEntryPendingDelete(null);
+              }}
+            >
+              Delete Entry
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
       <div className="max-w-[1300px] mx-auto space-y-5">
         {/* Controls */}
         <div className="bg-white rounded-2xl border border-slate-200 p-4 flex flex-wrap gap-3 items-center">
@@ -506,7 +544,7 @@ export default function ClientKnowledgeBase() {
                   setModalEntry(e);
                   setShowModal(true);
                 }}
-                onDelete={handleDelete}
+                onDelete={setEntryPendingDelete}
               />
             ))}
           </div>

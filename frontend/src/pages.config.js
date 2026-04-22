@@ -49,18 +49,18 @@
  */
 import AutomationQueue from "./pages/AutomationQueue";
 import BillingDashboard from "./pages/BillingDashboard";
-import ClientBilling from "./pages/ClientBilling";
-import ClientBillingProfile from "./pages/ClientBillingProfile";
-import ClientBrandingAdmin from "./pages/ClientBrandingAdmin";
-import ClientCaseDetail from "./pages/ClientCaseDetail";
-import ClientCases from "./pages/ClientCases";
-import ClientDetail from "./pages/ClientDetail";
-import ClientKnowledgeBase from "./pages/ClientKnowledgeBase";
-import ClientNotifications from "./pages/ClientNotifications";
-import ClientPortal from "./pages/ClientPortal";
-import ClientReports from "./pages/ClientReports";
-import ClientStorageSettings from "./pages/ClientStorageSettings";
-import Clients from "./pages/Clients";
+import ClientBilling from "./pages/clients/ClientBilling";
+import ClientBillingProfile from "./pages/clients/ClientBillingProfile";
+import ClientBrandingAdmin from "./pages/clients/ClientBrandingAdmin";
+import ClientCaseDetail from "./pages/clients/ClientCaseDetail";
+import ClientCases from "./pages/clients/ClientCases";
+import ClientDetail from "./pages/clients/ClientDetail";
+import ClientKnowledgeBase from "./pages/clients/ClientKnowledgeBase";
+import ClientNotifications from "./pages/clients/ClientNotifications";
+import ClientPortal from "./pages/clients/ClientPortal";
+import ClientReports from "./pages/clients/ClientReports";
+import ClientStorageSettings from "./pages/clients/ClientStorageSettings";
+import Clients from "./pages/clients/Clients";
 import Dashboard from "./pages/Dashboard";
 import DriveSyncLogs from "./pages/DriveSyncLogs";
 import EligibilityDashboard from "./pages/EligibilityDashboard";
@@ -73,6 +73,7 @@ import ForgotPassword from "./pages/authentication/ForgotPassword";
 import ResetPassword from "./pages/authentication/ResetPassword";
 import KnowledgeBaseAnalytics from "./pages/KnowledgeBaseAnalytics";
 import NewVerification from "./pages/NewVerification";
+import Patients from "./pages/Patients";
 import PayerRules from "./pages/PayerRules";
 import PricingPackages from "./pages/PricingPackages";
 import PriorAuth from "./pages/PriorAuth";
@@ -81,7 +82,7 @@ import Processing from "./pages/Processing";
 import ProviderOnboarding from "./pages/ProviderOnboarding";
 import ReviewQueue from "./pages/ReviewQueue";
 import SAAuditLogs from "./pages/SAAuditLogs";
-import SAClients from "./pages/SAClients";
+import SAClients from "./pages/clients/SAClients";
 import SADashboard from "./pages/SADashboard";
 import SASecuritySettings from "./pages/SASecuritySettings";
 import SAUsers from "./pages/SAUsers";
@@ -120,6 +121,7 @@ export const PAGES = {
   "reset-password": ResetPassword,
   "knowledge-base-analytics": KnowledgeBaseAnalytics,
   "new-verification": NewVerification,
+  patients: Patients,
   "payer-rules": PayerRules,
   "pricing-packages": PricingPackages,
   "prior-auth": PriorAuth,

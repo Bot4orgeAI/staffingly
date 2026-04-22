@@ -3,6 +3,16 @@ import { Link } from "react-router-dom";
 import { createPageUrl } from "@/lib/utils/page";
 import { api } from "@/lib/api";
 import AppHeader from "@/components/insuverif/AppHeader";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { Plus, Search, Building2, User, ChevronRight, Edit2, Trash2, X } from "lucide-react";
 
 const STATUS_COLORS = {
@@ -42,32 +52,6 @@ function ClientModal({ client, onClose, onSave }) {
     onSave();
   };
 
-  const F = ({ label, field, type = "text", options = undefined }) => (
-    <div>
-      <label className="text-xs font-semibold text-slate-500 uppercase tracking-wider block mb-1">
-        {label}
-      </label>
-      {options ? (
-        <select
-          value={form[field]}
-          onChange={(e) => setForm({ ...form, [field]: e.target.value })}
-          className="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-200"
-        >
-          {options.map((o) => (
-            <option key={o}>{o}</option>
-          ))}
-        </select>
-      ) : (
-        <input
-          value={form[field] || ""}
-          onChange={(e) => setForm({ ...form, [field]: e.target.value })}
-          type={type}
-          className="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-200"
-        />
-      )}
-    </div>
-  );
-
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
       <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto">
@@ -81,17 +65,133 @@ function ClientModal({ client, onClose, onSave }) {
         </div>
         <div className="p-6 space-y-4">
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <F label="Client Name *" field="name" />
-            <F label="Type" field="type" options={["Business", "Individual"]} />
-            <F label="Email" field="email" type="email" />
-            <F label="Phone" field="phone" />
-            <F label="NPI" field="npi" />
-            <F label="Tax ID / EIN" field="tax_id" />
-            <F label="Address" field="address" />
-            <F label="City" field="city" />
-            <F label="State" field="state" />
-            <F label="ZIP" field="zip" />
-            <F label="Status" field="status" options={["Active", "Inactive", "Pending"]} />
+            <div>
+              <label className="text-xs font-semibold text-slate-500 uppercase tracking-wider block mb-1">
+                Client Name *
+              </label>
+              <input
+                value={form.name || ""}
+                onChange={(e) => setForm((current) => ({ ...current, name: e.target.value }))}
+                type="text"
+                className="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-200"
+              />
+            </div>
+            <div>
+              <label className="text-xs font-semibold text-slate-500 uppercase tracking-wider block mb-1">
+                Type
+              </label>
+              <select
+                value={form.type || "Business"}
+                onChange={(e) => setForm((current) => ({ ...current, type: e.target.value }))}
+                className="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-200"
+              >
+                {["Business", "Individual"].map((option) => (
+                  <option key={option}>{option}</option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label className="text-xs font-semibold text-slate-500 uppercase tracking-wider block mb-1">
+                Email
+              </label>
+              <input
+                value={form.email || ""}
+                onChange={(e) => setForm((current) => ({ ...current, email: e.target.value }))}
+                type="email"
+                className="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-200"
+              />
+            </div>
+            <div>
+              <label className="text-xs font-semibold text-slate-500 uppercase tracking-wider block mb-1">
+                Phone
+              </label>
+              <input
+                value={form.phone || ""}
+                onChange={(e) => setForm((current) => ({ ...current, phone: e.target.value }))}
+                type="text"
+                className="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-200"
+              />
+            </div>
+            <div>
+              <label className="text-xs font-semibold text-slate-500 uppercase tracking-wider block mb-1">
+                NPI
+              </label>
+              <input
+                value={form.npi || ""}
+                onChange={(e) => setForm((current) => ({ ...current, npi: e.target.value }))}
+                type="text"
+                className="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-200"
+              />
+            </div>
+            <div>
+              <label className="text-xs font-semibold text-slate-500 uppercase tracking-wider block mb-1">
+                Tax ID / EIN
+              </label>
+              <input
+                value={form.tax_id || ""}
+                onChange={(e) => setForm((current) => ({ ...current, tax_id: e.target.value }))}
+                type="text"
+                className="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-200"
+              />
+            </div>
+            <div>
+              <label className="text-xs font-semibold text-slate-500 uppercase tracking-wider block mb-1">
+                Address
+              </label>
+              <input
+                value={form.address || ""}
+                onChange={(e) => setForm((current) => ({ ...current, address: e.target.value }))}
+                type="text"
+                className="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-200"
+              />
+            </div>
+            <div>
+              <label className="text-xs font-semibold text-slate-500 uppercase tracking-wider block mb-1">
+                City
+              </label>
+              <input
+                value={form.city || ""}
+                onChange={(e) => setForm((current) => ({ ...current, city: e.target.value }))}
+                type="text"
+                className="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-200"
+              />
+            </div>
+            <div>
+              <label className="text-xs font-semibold text-slate-500 uppercase tracking-wider block mb-1">
+                State
+              </label>
+              <input
+                value={form.state || ""}
+                onChange={(e) => setForm((current) => ({ ...current, state: e.target.value }))}
+                type="text"
+                className="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-200"
+              />
+            </div>
+            <div>
+              <label className="text-xs font-semibold text-slate-500 uppercase tracking-wider block mb-1">
+                ZIP
+              </label>
+              <input
+                value={form.zip || ""}
+                onChange={(e) => setForm((current) => ({ ...current, zip: e.target.value }))}
+                type="text"
+                className="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-200"
+              />
+            </div>
+            <div>
+              <label className="text-xs font-semibold text-slate-500 uppercase tracking-wider block mb-1">
+                Status
+              </label>
+              <select
+                value={form.status || "Active"}
+                onChange={(e) => setForm((current) => ({ ...current, status: e.target.value }))}
+                className="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-200"
+              >
+                {["Active", "Inactive", "Pending"].map((option) => (
+                  <option key={option}>{option}</option>
+                ))}
+              </select>
+            </div>
           </div>
           <div>
             <label className="text-xs font-semibold text-slate-500 uppercase tracking-wider block mb-1">
@@ -99,7 +199,7 @@ function ClientModal({ client, onClose, onSave }) {
             </label>
             <textarea
               value={form.notes || ""}
-              onChange={(e) => setForm({ ...form, notes: e.target.value })}
+              onChange={(e) => setForm((current) => ({ ...current, notes: e.target.value }))}
               rows={3}
               className="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-200"
             />
@@ -132,6 +232,7 @@ export default function Clients() {
   const [search, setSearch] = useState("");
   const [filterType, setFilterType] = useState("All");
   const [modal, setModal] = useState(null); // null | "add" | client object
+  const [clientPendingDelete, setClientPendingDelete] = useState(null);
 
   useEffect(() => {
     api.auth
@@ -147,7 +248,6 @@ export default function Clients() {
   };
 
   const handleDelete = async (id) => {
-    if (!confirm("Delete this client? This cannot be undone.")) return;
     await api.entities.Client.delete(id);
     loadClients();
   };
@@ -166,6 +266,34 @@ export default function Clients() {
       className="min-h-screen"
       style={{ backgroundColor: "#eef3ff", fontFamily: "'DM Sans', sans-serif" }}
     >
+      <AlertDialog
+        open={Boolean(clientPendingDelete)}
+        onOpenChange={(open) => !open && setClientPendingDelete(null)}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Client</AlertDialogTitle>
+            <AlertDialogDescription>
+              Delete {clientPendingDelete?.name}? This cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-rose-600 hover:bg-rose-700"
+              onClick={async (event) => {
+                event.preventDefault();
+                if (!clientPendingDelete) return;
+                await handleDelete(clientPendingDelete.id);
+                setClientPendingDelete(null);
+              }}
+            >
+              Delete Client
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
       <AppHeader
         user={user}
         breadcrumbs={[
@@ -337,7 +465,7 @@ export default function Clients() {
                       <Edit2 className="w-3.5 h-3.5" />
                     </button>
                     <button
-                      onClick={() => handleDelete(client.id)}
+                      onClick={() => setClientPendingDelete(client)}
                       className="px-3 py-2 rounded-lg border border-red-200 text-xs text-red-500 hover:bg-red-50"
                     >
                       <Trash2 className="w-3.5 h-3.5" />

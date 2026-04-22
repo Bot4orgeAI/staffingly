@@ -85,25 +85,42 @@
   }
 }
 
-/* Sidebar Scrollbar Customization */
-.sidebar-scroll::-webkit-scrollbar {
-  width: 5px;
+/* Global Scrollbar Customization */
+:root {
+  --app-scrollbar-thumb: rgba(0, 32, 130, 0.1);
+  --app-scrollbar-thumb-hover: rgba(0, 32, 130, 0.2);
+  --app-scrollbar-thumb-active: rgba(0, 32, 130, 0.4);
 }
 
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--app-scrollbar-thumb) transparent;
+}
+
+*::-webkit-scrollbar,
+.sidebar-scroll::-webkit-scrollbar {
+  width: 5px;
+  height: 5px;
+}
+
+*::-webkit-scrollbar-track,
 .sidebar-scroll::-webkit-scrollbar-track {
   background: transparent;
 }
 
+*::-webkit-scrollbar-thumb,
 .sidebar-scroll::-webkit-scrollbar-thumb {
-  background: rgba(0, 32, 130, 0.1);
+  background: var(--app-scrollbar-thumb);
   border-radius: 10px;
   transition: background 0.3s ease;
 }
 
+*:hover::-webkit-scrollbar-thumb,
 .sidebar-scroll:hover::-webkit-scrollbar-thumb {
-  background: rgba(0, 32, 130, 0.2);
+  background: var(--app-scrollbar-thumb-hover);
 }
 
+*::-webkit-scrollbar-thumb:hover,
 .sidebar-scroll::-webkit-scrollbar-thumb:hover {
-  background: rgba(0, 32, 130, 0.4);
+  background: var(--app-scrollbar-thumb-active);
 }

@@ -1,3 +1,13 @@
+/**
+ * Utility helpers for resolving persisted application parameters.
+ *
+ * Responsibilities:
+ * - read app bootstrap params from the URL
+ * - persist selected values into localStorage
+ * - fall back to stored values or environment defaults
+ * - support clearing stale access tokens from URL-driven flows
+ */
+
 const isNode = typeof window === "undefined";
 const windowObj = isNode
   ? {
@@ -11,27 +21,25 @@ const windowObj = isNode
 const storage = windowObj.localStorage;
 
 /**
- * Converts a camelCase or PascalCase string to snake_case.
- * @param {string} str - The string to convert.
- * @returns {string} The snake_case version of the string.
+ * Convert a camelCase or PascalCase string to snake_case.
+ *
+ * @param {string} str
+ * @returns {string}
  */
 const toSnakeCase = (str) => {
   return str.replace(/([A-Z])/g, "_$1").toLowerCase();
 };
 
 /**
- * Retrieves an application parameter value from URL search params,
- * localStorage, or a default value. If found in the URL, it persists the value
- * to localStorage for future use.
+ * Resolve an application parameter from URL search params, localStorage, or a
+ * default value.
+ * When a value is found in the URL, it is persisted for later use.
  *
- * @param {string} paramName - The name of the parameter to retrieve
- * (e.g., "app_id").
- * @param {Object} [options] - Configuration options.
- * @param {*} [options.defaultValue] - The value to return if not found
- * elsewhere.
- * @param {boolean} [options.removeFromUrl=false] - Whether to remove the
- * parameter from the URL after retrieval.
- * @returns {*} The parameter value or null if not found.
+ * @param {string} paramName
+ * @param {Object} [options={}]
+ * @param {*} [options.defaultValue=undefined]
+ * @param {boolean} [options.removeFromUrl=false]
+ * @returns {*}
  */
 const getAppParamValue = (paramName, { defaultValue = undefined, removeFromUrl = false } = {}) => {
   if (isNode) {
@@ -68,11 +76,10 @@ const getAppParamValue = (paramName, { defaultValue = undefined, removeFromUrl =
 };
 
 /**
- * Aggregates all essential application parameters into a single object.
- * Handles token clearing logic if the "clear_access_token" param is present.
+ * Build the full application parameter object used during app bootstrap.
+ * Also clears persisted tokens when the `clear_access_token` flag is present.
  *
- * @returns {Object} An object containing appId, token, fromUrl,
- * functionsVersion, and appBaseUrl.
+ * @returns {Object}
  */
 const getAppParams = () => {
   if (getAppParamValue("clear_access_token") === "true") {

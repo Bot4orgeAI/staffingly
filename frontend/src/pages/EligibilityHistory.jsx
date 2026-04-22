@@ -211,7 +211,7 @@ export default function EligibilityHistory() {
   return (
     <StaffinglyLayout
       user={user}
-      currentPage="new-verification"
+      currentPage="eligibility-history"
       title="Eligibility History"
       breadcrumbs={["Eligibility", "History"]}
     >

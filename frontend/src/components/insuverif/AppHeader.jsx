@@ -2,6 +2,7 @@ import { LogOut, ShieldCheck, ChevronRight } from "lucide-react";
 import { api } from "@/lib/api";
 import { createPageUrl } from "@/lib/utils/page";
 import { Link } from "react-router-dom";
+import { useAuth } from "@/lib/contexts/AuthContext";
 
 const ROLE_COLORS = {
   admin: { bg: "#f6b037", text: "#002082" },
@@ -16,7 +17,9 @@ const ROLE_LABELS = {
 };
 
 export default function AppHeader({ user, breadcrumbs = [] }) {
-  const roleStyle = ROLE_COLORS[user?.role] || ROLE_COLORS.provider;
+  const { user: authUser } = useAuth();
+  const resolvedUser = user || authUser;
+  const roleStyle = ROLE_COLORS[resolvedUser?.role] || ROLE_COLORS.provider;
 
   return (
     <header className="border-b border-slate-200" style={{ backgroundColor: "#002082" }}>
@@ -46,22 +49,24 @@ export default function AppHeader({ user, breadcrumbs = [] }) {
           >
             Demo Mode
           </span>
-          {user && (
+          {resolvedUser && (
             <>
               <div className="flex items-center gap-2">
                 <div
                   className="w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold text-white"
                   style={{ backgroundColor: "#293682" }}
                 >
-                  {user.full_name?.charAt(0) || "U"}
+                  {resolvedUser.full_name?.charAt(0) || "U"}
                 </div>
                 <div className="hidden sm:block">
-                  <p className="text-white text-xs font-semibold leading-tight">{user.full_name}</p>
+                  <p className="text-white text-xs font-semibold leading-tight">
+                    {resolvedUser.full_name}
+                  </p>
                   <span
                     className="px-1.5 py-0.5 rounded text-[9px] font-bold uppercase"
                     style={{ backgroundColor: roleStyle.bg, color: roleStyle.text }}
                   >
-                    {ROLE_LABELS[user.role] || user.role}
+                    {ROLE_LABELS[resolvedUser.role] || resolvedUser.role}
                   </span>
                 </div>
               </div>
