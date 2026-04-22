@@ -122,7 +122,8 @@ export const AuthProvider = ({ children }) => {
   };
 
   const navigateToLogin = () => {
-    api.auth.redirectToLogin(window.location.href);
+    const returnPath = window.location.pathname + window.location.search;
+    api.auth.redirectToLogin(returnPath === "/login" ? "/" : returnPath);
   };
 
   return (

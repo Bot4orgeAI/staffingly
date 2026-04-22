@@ -15,7 +15,18 @@ export default function Login() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
 
-  const getReturnUrl = () => searchParams.get("returnUrl") || "/";
+  const getReturnUrl = () => {
+    const raw = searchParams.get("returnUrl") || "/";
+    // If it's a full URL, extract just the pathname
+    try {
+      const url = new URL(raw, window.location.origin);
+      const path = url.pathname + url.search;
+      // Never redirect back to login
+      return path.startsWith("/login") ? "/" : path;
+    } catch {
+      return raw.startsWith("/login") ? "/" : raw;
+    }
+  };
 
   // Check for error from OAuth callback
   useEffect(() => {

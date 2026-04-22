@@ -1,6 +1,7 @@
 import { useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { api } from "@/lib/api";
+import { getToken } from "@/lib/utils/auth";
 
 export const queryKeys = {
   auth: {
@@ -31,15 +32,17 @@ export function useAuthUserQuery({
   withDefaultRole = null,
   ...options
 } = {}) {
+  const token = getToken();
+
   const query = useQuery({
-    queryKey: queryKeys.auth.me(),
+    queryKey: [...queryKeys.auth.me(), token],
     queryFn: async () => {
       const authUser = await api.auth.me();
       return withDefaultRole && !authUser.role ? { ...authUser, role: withDefaultRole } : authUser;
     },
     retry: false,
     staleTime: 5 * 60 * 1000,
-    enabled,
+    enabled: enabled && Boolean(token),
     ...options,
   });
 

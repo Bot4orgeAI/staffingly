@@ -1,31 +1,39 @@
 import { useEffect, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import apiClient from "@/lib/api/clients/apiClient";
+import { useAuth } from "@/lib/contexts/AuthContext";
 
 export default function AuthCallback() {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
   const [error, setError] = useState(null);
+  const { checkAppState } = useAuth();
 
   useEffect(() => {
-    const token = searchParams.get("token");
-    const returnUrl = searchParams.get("returnUrl") || "/";
-    const errorParam = searchParams.get("error");
+    const handleCallback = async () => {
+      const token = searchParams.get("token");
+      const returnUrl = searchParams.get("returnUrl") || "/";
+      const errorParam = searchParams.get("error");
 
-    if (errorParam) {
-      setError(decodeURIComponent(errorParam));
-      setTimeout(() => navigate("/login"), 3000);
-      return;
-    }
+      if (errorParam) {
+        setError(decodeURIComponent(errorParam));
+        setTimeout(() => navigate("/login"), 3000);
+        return;
+      }
 
-    if (token) {
-      apiClient.setToken(token);
-      navigate(returnUrl);
-    } else {
-      setError("Sign-in could not be completed. Please try again.");
-      setTimeout(() => navigate("/login"), 3000);
-    }
-  }, [searchParams, navigate]);
+      if (token) {
+        apiClient.setToken(token);
+        // Re-check auth so AuthContext knows we're authenticated
+        await checkAppState();
+        navigate(returnUrl);
+      } else {
+        setError("Sign-in could not be completed. Please try again.");
+        setTimeout(() => navigate("/login"), 3000);
+      }
+    };
+
+    handleCallback();
+  }, [searchParams, navigate, checkAppState]);
 
   if (error) {
     return (
