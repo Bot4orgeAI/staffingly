@@ -19,7 +19,7 @@ const STATUS_STYLES = {
   Verified: { bg: "#f0fdf4", text: "#15803d", icon: CheckCircle, iconColor: "#22c55e" },
 };
 
-export default function PADocumentsTab({ paCase, onUpdate }) {
+export default function PADocumentsTab({ paCase, onUpdate: _onUpdate }) {
   const [docs, setDocs] = useState([]);
   const [loading, setLoading] = useState(true);
   const [uploading, setUploading] = useState(null);

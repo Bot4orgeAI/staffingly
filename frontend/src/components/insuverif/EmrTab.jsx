@@ -129,7 +129,7 @@ export default function EmrTab({ onSubmit }) {
   const [autoPullStatus, setAutoPullStatus] = useState(null); // null | "pulling" | "done"
   const [autoPulledCount, setAutoPulledCount] = useState(0);
 
-  const handleAutoPull = async (ehr) => {
+  const handleAutoPull = async (_ehr) => {
     setAutoPullStatus("pulling");
     // Simulate pulling pending verifications from EMR
     await new Promise((r) => setTimeout(r, 2200));

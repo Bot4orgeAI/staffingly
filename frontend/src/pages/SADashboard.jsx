@@ -1,5 +1,4 @@
-import { useState, useEffect } from "react";
-import { api } from "@/lib/api";
+import { useAuthUserQuery } from "@/lib/query";
 import { Link } from "react-router-dom";
 import { createPageUrl } from "@/lib/utils/page";
 import StaffinglyLayout from "@/components/staffingly/StaffinglyLayout";
@@ -71,16 +70,7 @@ const TYPE_COLORS = {
 };
 
 export default function SADashboard() {
-  const [user, setUser] = useState(null);
-
-  useEffect(() => {
-    api.auth
-      .me()
-      .then((u) => {
-        setUser({ ...u, role: u.role || "super_admin" });
-      })
-      .catch(() => api.auth.redirectToLogin());
-  }, []);
+  const { data: user } = useAuthUserQuery({ withDefaultRole: "super_admin" });
 
   return (
     <StaffinglyLayout

@@ -1,5 +1,5 @@
-import { useState, useEffect } from "react";
-import { api } from "@/lib/api";
+import { useState } from "react";
+import { useAuthUserQuery } from "@/lib/query";
 import StaffinglyLayout from "@/components/staffingly/StaffinglyLayout";
 import { Plus, Search, Edit2, X, Lock, Unlock, Monitor } from "lucide-react";
 
@@ -260,20 +260,13 @@ function DevicesModal({ user, onClose }) {
 }
 
 export default function SAUsers() {
-  const [user, setUser] = useState(null);
-  const [users, setUsers] = useState(DUMMY_USERS);
+  const { data: user } = useAuthUserQuery({ withDefaultRole: "super_admin" });
+  const [users, _setUsers] = useState(DUMMY_USERS);
   const [search, setSearch] = useState("");
   const [filterRole, setFilterRole] = useState("all");
   const [filterActive, setFilterActive] = useState("all");
   const [drawer, setDrawer] = useState(null);
   const [devicesModal, setDevicesModal] = useState(null);
-
-  useEffect(() => {
-    api.auth
-      .me()
-      .then((u) => setUser({ ...u, role: u.role || "super_admin" }))
-      .catch(() => api.auth.redirectToLogin());
-  }, []);
 
   const filtered = users.filter((u) => {
     const matchSearch = `${u.first_name} ${u.last_name} ${u.email}`

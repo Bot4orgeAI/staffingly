@@ -1,37 +1,51 @@
-import { useState, useEffect } from "react";
-import { api } from "@/lib/api";
+import { useMemo } from "react";
+import { useAuthUserQuery, useEntityListQuery } from "@/lib/query";
 import StaffinglyLayout from "@/components/staffingly/StaffinglyLayout";
 import { BookOpen, TrendingUp, AlertTriangle, MessageSquare, Loader2 } from "lucide-react";
 
 const ALLOWED_ROLES = ["super_admin", "staffingly_admin"];
 
 export default function KnowledgeBaseAnalytics() {
-  const [user, setUser] = useState(null);
-  const [entries, setEntries] = useState([]);
-  const [conversations, setConversations] = useState([]);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    api.auth
-      .me()
-      .then((u) => {
-        setUser(u);
-        if (ALLOWED_ROLES.includes(u.role)) loadData();
-        else setLoading(false);
-      })
-      .catch(() => api.auth.redirectToLogin());
-  }, []);
-
-  const loadData = async () => {
-    setLoading(true);
-    const [kbData, chatData] = await Promise.all([
-      api.entities.KnowledgeBaseEntry.list("-access_count", 500),
-      api.entities.ChatbotConversation.list("-created_date", 200),
-    ]);
-    setEntries(kbData);
-    setConversations(chatData);
-    setLoading(false);
-  };
+  const { data: user } = useAuthUserQuery();
+  const canAccess = ALLOWED_ROLES.includes(user?.role);
+  const { data: entries = [], isLoading: loadingEntries } = useEntityListQuery(
+    "KnowledgeBaseEntry",
+    "-access_count",
+    500,
+    { enabled: canAccess }
+  );
+  const { data: conversations = [], isLoading: loadingConversations } = useEntityListQuery(
+    "ChatbotConversation",
+    "-created_date",
+    200,
+    { enabled: canAccess }
+  );
+  const loading = loadingEntries || loadingConversations;
+  const now = Date.now();
+  const thisMonth = entries.filter(
+    (e) => e.last_accessed_at && now - new Date(e.last_accessed_at).getTime() < 30 * 24 * 3600000
+  );
+  const stale90 = entries.filter(
+    (e) => !e.last_accessed_at || now - new Date(e.last_accessed_at).getTime() > 90 * 24 * 3600000
+  );
+  const topAccessed = [...entries]
+    .sort((a, b) => (b.access_count || 0) - (a.access_count || 0))
+    .slice(0, 10);
+  const categorySorted = useMemo(() => {
+    const categoryCount = {};
+    entries.forEach((e) => {
+      categoryCount[e.category] = (categoryCount[e.category] || 0) + 1;
+    });
+    return Object.entries(categoryCount).sort((a, b) => b[1] - a[1]);
+  }, [entries]);
+  const totalMessages = conversations.reduce((s, c) => {
+    try {
+      return s + JSON.parse(c.messages_json || "[]").filter((m) => m.role === "user").length;
+    } catch {
+      return s;
+    }
+  }, 0);
+  const totalUnanswered = conversations.reduce((s, c) => s + (c.unanswered_count || 0), 0);
 
   if (!user) return null;
   if (!ALLOWED_ROLES.includes(user.role))
@@ -45,33 +59,6 @@ export default function KnowledgeBaseAnalytics() {
         <div className="text-center p-12 text-slate-400">Access restricted to Admins only.</div>
       </StaffinglyLayout>
     );
-
-  const now = Date.now();
-  const thisMonth = entries.filter(
-    (e) => e.last_accessed_at && now - new Date(e.last_accessed_at).getTime() < 30 * 24 * 3600000
-  );
-  const stale90 = entries.filter(
-    (e) => !e.last_accessed_at || now - new Date(e.last_accessed_at).getTime() > 90 * 24 * 3600000
-  );
-  const topAccessed = [...entries]
-    .sort((a, b) => (b.access_count || 0) - (a.access_count || 0))
-    .slice(0, 10);
-
-  const categoryCount = {};
-  entries.forEach((e) => {
-    categoryCount[e.category] = (categoryCount[e.category] || 0) + 1;
-  });
-  const categorySorted = Object.entries(categoryCount).sort((a, b) => b[1] - a[1]);
-
-  // Rough question categorization from chat logs
-  const totalMessages = conversations.reduce((s, c) => {
-    try {
-      return s + JSON.parse(c.messages_json || "[]").filter((m) => m.role === "user").length;
-    } catch {
-      return s;
-    }
-  }, 0);
-  const totalUnanswered = conversations.reduce((s, c) => s + (c.unanswered_count || 0), 0);
 
   return (
     <StaffinglyLayout

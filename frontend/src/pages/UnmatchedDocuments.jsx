@@ -1,5 +1,7 @@
-import { useState, useEffect } from "react";
+import { useMemo, useState } from "react";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { api } from "@/lib/api";
+import { useAuthUserQuery, useEntityFilterQuery, useEntityListQuery } from "@/lib/query";
 import StaffinglyLayout from "@/components/staffingly/StaffinglyLayout";
 import { Search, AlertTriangle, CheckCircle, Clock, FileText, Loader2, X } from "lucide-react";
 
@@ -13,17 +15,38 @@ const STORAGE_LABELS = {
 
 function MatchModal({ doc, onClose, onMatch }) {
   const [search, setSearch] = useState("");
-  const [cases, setCases] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [matching, setMatching] = useState(false);
   const [selected, setSelected] = useState(null);
-
-  useEffect(() => {
-    api.entities.PriorAuthCase.filter({ client_id: doc.client_id }).then((data) => {
-      setCases(data.filter((c) => !["Closed"].includes(c.status)));
-      setLoading(false);
-    });
-  }, []);
+  const { data: cases = [], isLoading: loading } = useEntityFilterQuery(
+    "PriorAuthCase",
+    { client_id: doc.client_id },
+    {
+      enabled: Boolean(doc?.client_id),
+      select: (data) => data.filter((c) => !["Closed"].includes(c.status)),
+    }
+  );
+  const matchMutation = useMutation({
+    mutationFn: async () => {
+      await api.entities.PriorAuthDocument.create({
+        case_id: selected.id,
+        document_type: doc.detected_document_type || "Other",
+        checklist_item_key: doc.detected_document_type || "Other",
+        file_url: doc.file_url,
+        file_name: doc.file_name,
+        status: "Uploaded",
+        ai_classification: doc.detected_document_type,
+        ai_extracted_data_json: doc.extracted_data_json,
+        uploaded_by: `matched_from_queue`,
+      });
+      await api.entities.UnmatchedDocument.update(doc.id, {
+        status: "Matched",
+        matched_to_case_id: selected.id,
+        matched_at: new Date().toISOString(),
+      });
+    },
+    onSuccess: () => {
+      onMatch();
+    },
+  });
 
   const filtered = cases.filter(
     (c) =>
@@ -35,25 +58,7 @@ function MatchModal({ doc, onClose, onMatch }) {
 
   const handleMatch = async () => {
     if (!selected) return;
-    setMatching(true);
-    await api.entities.PriorAuthDocument.create({
-      case_id: selected.id,
-      document_type: doc.detected_document_type || "Other",
-      checklist_item_key: doc.detected_document_type || "Other",
-      file_url: doc.file_url,
-      file_name: doc.file_name,
-      status: "Uploaded",
-      ai_classification: doc.detected_document_type,
-      ai_extracted_data_json: doc.extracted_data_json,
-      uploaded_by: `matched_from_queue`,
-    });
-    await api.entities.UnmatchedDocument.update(doc.id, {
-      status: "Matched",
-      matched_to_case_id: selected.id,
-      matched_at: new Date().toISOString(),
-    });
-    setMatching(false);
-    onMatch();
+    await matchMutation.mutateAsync();
   };
 
   return (
@@ -152,16 +157,16 @@ function MatchModal({ doc, onClose, onMatch }) {
           </button>
           <button
             onClick={handleMatch}
-            disabled={!selected || matching}
+            disabled={!selected || matchMutation.isPending}
             className="flex items-center gap-2 px-5 py-2 rounded-xl text-white text-sm font-bold disabled:opacity-50"
             style={{ backgroundColor: "#293682" }}
           >
-            {matching ? (
+            {matchMutation.isPending ? (
               <Loader2 className="w-4 h-4 animate-spin" />
             ) : (
               <CheckCircle className="w-4 h-4" />
             )}
-            {matching ? "Matching…" : "Match to Case"}
+            {matchMutation.isPending ? "Matching…" : "Match to Case"}
           </button>
         </div>
       </div>
@@ -170,31 +175,21 @@ function MatchModal({ doc, onClose, onMatch }) {
 }
 
 export default function UnmatchedDocuments() {
-  const [user, setUser] = useState(null);
-  const [docs, setDocs] = useState([]);
-  const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [filterStatus, setFilterStatus] = useState("Unmatched");
   const [matchingDoc, setMatchingDoc] = useState(null);
-
-  useEffect(() => {
-    api.auth
-      .me()
-      .then(setUser)
-      .catch(() => api.auth.redirectToLogin());
-    loadDocs();
-  }, []);
-
-  const loadDocs = async () => {
-    setLoading(true);
-    const data = await api.entities.UnmatchedDocument.list("-created_date", 200);
-    setDocs(data);
-    setLoading(false);
-  };
+  const queryClient = useQueryClient();
+  const { data: user, isLoading: loadingUser } = useAuthUserQuery();
+  const { data: docs = [], isLoading: loadingDocs } = useEntityListQuery(
+    "UnmatchedDocument",
+    "-created_date",
+    200,
+    { enabled: Boolean(user) }
+  );
 
   const handleDismiss = async (doc) => {
     await api.entities.UnmatchedDocument.update(doc.id, { status: "Dismissed" });
-    await loadDocs();
+    await queryClient.invalidateQueries({ queryKey: ["entity", "UnmatchedDocument"] });
   };
 
   const filtered = docs.filter((d) => {
@@ -209,12 +204,16 @@ export default function UnmatchedDocuments() {
   });
 
   // Detect 48h+ old unmatched docs
-  const staleCount = docs.filter(
-    (d) =>
-      d.status === "Unmatched" &&
-      d.detected_at &&
-      Date.now() - new Date(d.detected_at).getTime() > 48 * 3600000
-  ).length;
+  const staleCount = useMemo(
+    () =>
+      docs.filter(
+        (d) =>
+          d.status === "Unmatched" &&
+          d.detected_at &&
+          Date.now() - new Date(d.detected_at).getTime() > 48 * 3600000
+      ).length,
+    [docs]
+  );
 
   return (
     <StaffinglyLayout
@@ -266,7 +265,7 @@ export default function UnmatchedDocuments() {
 
         {/* Table */}
         <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden">
-          {loading ? (
+          {loadingUser || loadingDocs ? (
             <div className="p-12 text-center">
               <Loader2 className="w-6 h-6 animate-spin mx-auto text-slate-400" />
             </div>
@@ -433,7 +432,7 @@ export default function UnmatchedDocuments() {
           onClose={() => setMatchingDoc(null)}
           onMatch={() => {
             setMatchingDoc(null);
-            loadDocs();
+            queryClient.invalidateQueries({ queryKey: ["entity", "UnmatchedDocument"] });
           }}
         />
       )}

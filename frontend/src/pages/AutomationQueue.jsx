@@ -1,5 +1,6 @@
-import { useState, useEffect } from "react";
-import { api } from "@/lib/api";
+import { useState } from "react";
+import { useQueryClient } from "@tanstack/react-query";
+import { useAuthUserQuery, useEntityListQuery } from "@/lib/query";
 import StaffinglyLayout from "@/components/staffingly/StaffinglyLayout";
 import { Link } from "react-router-dom";
 import { createPageUrl } from "@/lib/utils/page";
@@ -98,33 +99,23 @@ function ScreenshotViewer({ urls, onClose }) {
 }
 
 export default function AutomationQueue() {
-  const [user, setUser] = useState(null);
-  const [jobs, setJobs] = useState([]);
-  const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [filterStatus, setFilterStatus] = useState("all");
   const [screenshotJob, setScreenshotJob] = useState(null);
+  const queryClient = useQueryClient();
+  const { data: user, isLoading: loadingUser } = useAuthUserQuery();
+  const { data: jobs = [], isLoading: loadingJobs } = useEntityListQuery(
+    "AutomationJob",
+    "-queued_at",
+    100,
+    { enabled: Boolean(user), refetchInterval: 10000 }
+  );
 
-  const load = async (quiet = false) => {
-    if (!quiet) setLoading(true);
-    else setRefreshing(true);
-    const data = await api.entities.AutomationJob.list("-queued_at", 100);
-    setJobs(data);
-    if (!quiet) setLoading(false);
-    else setRefreshing(false);
+  const load = async () => {
+    setRefreshing(true);
+    await queryClient.invalidateQueries({ queryKey: ["entity", "AutomationJob"] });
+    setRefreshing(false);
   };
-
-  useEffect(() => {
-    api.auth
-      .me()
-      .then((u) => {
-        setUser(u);
-        load();
-      })
-      .catch(() => api.auth.redirectToLogin());
-    const interval = setInterval(() => load(true), 10000);
-    return () => clearInterval(interval);
-  }, []);
 
   const filtered = filterStatus === "all" ? jobs : jobs.filter((j) => j.status === filterStatus);
   const active = jobs.filter((j) => ["queued", "running"].includes(j.status));
@@ -135,7 +126,7 @@ export default function AutomationQueue() {
     "finance_admin",
   ].includes(user?.role);
 
-  if (loading)
+  if (loadingUser || loadingJobs)
     return (
       <StaffinglyLayout
         user={user}
@@ -237,7 +228,7 @@ export default function AutomationQueue() {
             ))}
           </div>
           <button
-            onClick={() => load(true)}
+            onClick={load}
             disabled={refreshing}
             className="flex items-center gap-1.5 px-3 py-2 rounded-xl border border-slate-200 bg-white text-xs font-semibold text-slate-600 hover:bg-slate-50"
           >

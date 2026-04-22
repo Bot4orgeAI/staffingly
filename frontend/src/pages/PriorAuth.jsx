@@ -1,23 +1,16 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { createPageUrl } from "@/lib/utils/page";
-import { api } from "@/lib/api";
+import { useAuthUserQuery } from "@/lib/query";
 import StaffinglyLayout from "@/components/staffingly/StaffinglyLayout";
 import PAEligibilityCheck from "@/components/priorauth/PAEligibilityCheck.jsx";
 import PACaseTracker from "@/components/priorauth/PACaseTracker.jsx";
 import { ClipboardList, Plus } from "lucide-react";
 
 export default function PriorAuth() {
-  const [user, setUser] = useState(null);
   const [view, setView] = useState("tracker"); // "tracker" | "new"
   const navigate = useNavigate();
-
-  useEffect(() => {
-    api.auth
-      .me()
-      .then(setUser)
-      .catch(() => api.auth.redirectToLogin());
-  }, []);
+  const { data: user } = useAuthUserQuery();
 
   const handleCaseCreated = (caseId) => {
     navigate(createPageUrl(`PriorAuthCase?id=${caseId}`));

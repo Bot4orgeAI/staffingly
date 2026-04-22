@@ -1,5 +1,7 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api } from "@/lib/api";
+import { queryKeys, useAuthUserQuery, useEntityListQuery } from "@/lib/query";
 import StaffinglyLayout from "@/components/staffingly/StaffinglyLayout";
 import PatientForm from "@/components/patients/PatientForm";
 import InsurancePolicyForm from "@/components/patients/InsurancePolicyForm";
@@ -12,7 +14,6 @@ import {
   ChevronDown,
   Edit2,
   Trash2,
-  ShieldCheck,
   AlertCircle,
 } from "lucide-react";
 
@@ -239,102 +240,83 @@ function PatientRow({ patient, onEdit, onDelete, onAddInsurance, onEditInsurance
 }
 
 export default function Patients() {
-  const [user, setUser] = useState(null);
-  const [clients, setClients] = useState([]);
-  const [patients, setPatients] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [loadingClients, setLoadingClients] = useState(false);
   const [search, setSearch] = useState("");
   const [pagination, setPagination] = useState({ page: 1, limit: 20, total: 0 });
 
   // Modal states
   const [patientModal, setPatientModal] = useState(null); // null | "add" | patient object
   const [insuranceModal, setInsuranceModal] = useState(null); // null | { patient, policy? }
+  const queryClient = useQueryClient();
 
-  useEffect(() => {
-    api.auth
-      .me()
-      .then(setUser)
-      .catch(() => api.auth.redirectToLogin());
-  }, []);
+  const { data: user } = useAuthUserQuery();
+  const clientId = user?.clientId || "";
 
-  useEffect(() => {
-    if (!user || user.clientId) {
-      setClients([]);
-      return;
-    }
+  const {
+    data: clients = [],
+    isLoading: loadingClients,
+  } = useEntityListQuery("Client", { limit: 100 }, null, {
+    enabled: Boolean(user) && !user?.clientId,
+  });
 
-    const loadClients = async () => {
-      setLoadingClients(true);
-      try {
-        const clientList = await api.entities.Client.list({ limit: 100 });
-        setClients(clientList);
-      } catch (err) {
-        console.error("Failed to load clients:", err);
-      } finally {
-        setLoadingClients(false);
-      }
-    };
-
-    loadClients();
-  }, [user]);
-
-  useEffect(() => {
-    loadPatients();
-  }, [pagination.page, search]);
-
-  const loadPatients = async () => {
-    setLoading(true);
-    try {
-      const params = {
-        page: pagination.page,
-        limit: pagination.limit,
-      };
-      if (search) params.search = search;
-
-      const response = await api.patients.list(params);
-      setPatients(response.data || []);
-      setPagination((prev) => ({
-        ...prev,
-        total: response.pagination?.total || 0,
-      }));
-    } catch (err) {
-      console.error("Failed to load patients:", err);
-    } finally {
-      setLoading(false);
-    }
+  const patientsParams = {
+    page: pagination.page,
+    limit: pagination.limit,
+    ...(search ? { search } : {}),
   };
+  const patientsQuery = useQuery({
+    queryKey: queryKeys.patients.list(patientsParams),
+    queryFn: () => api.patients.list(patientsParams),
+    enabled: Boolean(user),
+  });
+  const patients = patientsQuery.data?.data || [];
+  const loading = patientsQuery.isLoading;
+  const totalPatients = patientsQuery.data?.pagination?.total || 0;
+
+  const savePatientMutation = useMutation({
+    mutationFn: (data) =>
+      patientModal?.id ? api.patients.update(patientModal.id, data) : api.patients.create(data),
+    onSuccess: async () => {
+      setPatientModal(null);
+      await queryClient.invalidateQueries({ queryKey: ["patients"] });
+    },
+  });
+
+  const deletePatientMutation = useMutation({
+    mutationFn: (patientId) => api.patients.delete(patientId),
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ["patients"] });
+    },
+  });
+
+  const saveInsuranceMutation = useMutation({
+    mutationFn: (data) => {
+      const { patient, policy } = insuranceModal;
+      if (policy?.id) {
+        return api.patients.updateInsurance(patient.id, policy.id, data);
+      }
+      return api.patients.addInsurance(patient.id, data);
+    },
+    onSuccess: async () => {
+      setInsuranceModal(null);
+      await queryClient.invalidateQueries({ queryKey: ["patients"] });
+    },
+  });
 
   const handleSavePatient = async (data) => {
-    if (patientModal?.id) {
-      await api.patients.update(patientModal.id, data);
-    } else {
-      await api.patients.create(data);
-    }
-    setPatientModal(null);
-    loadPatients();
+    await savePatientMutation.mutateAsync(data);
   };
 
   const handleDeletePatient = async (patient) => {
     if (!confirm(`Delete ${patient.firstName} ${patient.lastName}? This cannot be undone.`)) {
       return;
     }
-    await api.patients.delete(patient.id);
-    loadPatients();
+    await deletePatientMutation.mutateAsync(patient.id);
   };
 
   const handleSaveInsurance = async (data) => {
-    const { patient, policy } = insuranceModal;
-    if (policy?.id) {
-      await api.patients.updateInsurance(patient.id, policy.id, data);
-    } else {
-      await api.patients.addInsurance(patient.id, data);
-    }
-    setInsuranceModal(null);
-    loadPatients();
+    await saveInsuranceMutation.mutateAsync(data);
   };
 
-  const clientId = user?.clientId || "";
   const patientFormClientOptions = clientId ? [] : clients;
   const requireClientSelection = !clientId;
 
@@ -413,11 +395,11 @@ export default function Patients() {
         )}
 
         {/* Pagination */}
-        {pagination.total > pagination.limit && (
+        {totalPatients > pagination.limit && (
           <div className="flex items-center justify-between pt-4">
             <p className="text-sm text-slate-500">
               Showing {(pagination.page - 1) * pagination.limit + 1} -{" "}
-              {Math.min(pagination.page * pagination.limit, pagination.total)} of {pagination.total}
+              {Math.min(pagination.page * pagination.limit, totalPatients)} of {totalPatients}
             </p>
             <div className="flex gap-2">
               <button
@@ -429,7 +411,7 @@ export default function Patients() {
               </button>
               <button
                 onClick={() => setPagination((p) => ({ ...p, page: p.page + 1 }))}
-                disabled={pagination.page * pagination.limit >= pagination.total}
+                disabled={pagination.page * pagination.limit >= totalPatients}
                 className="px-4 py-2 rounded-lg border border-slate-200 text-sm font-semibold text-slate-600 disabled:opacity-50"
               >
                 Next

@@ -1,6 +1,8 @@
-import { useState, useEffect } from "react";
-import { api } from "@/lib/api";
+import { useState } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import StaffinglyLayout from "@/components/staffingly/StaffinglyLayout";
+import { api } from "@/lib/api";
+import { queryKeys, useAuthUserQuery, useEntityDetailQuery, useEntityListQuery } from "@/lib/query";
 import PACaseIntake from "@/components/priorauth/PACaseIntake.jsx";
 import PADocumentsTab from "@/components/documents/CaseDocumentsTab.jsx";
 import PAAIReview from "@/components/priorauth/PAAIReview.jsx";
@@ -33,42 +35,27 @@ const TABS = [
 ];
 
 export default function PriorAuthCase() {
-  const [user, setUser] = useState(null);
-  const [paCase, setPaCase] = useState(null);
-  const [payerRules, setPayerRules] = useState([]);
-  const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState("intake");
 
   const params = new URLSearchParams(window.location.search);
   const caseId = params.get("id");
-
-  useEffect(() => {
-    api.auth
-      .me()
-      .then(setUser)
-      .catch(() => api.auth.redirectToLogin());
-  }, []);
-
-  useEffect(() => {
-    if (caseId) loadCase();
-    api.entities.PayerRule.list()
-      .then(setPayerRules)
-      .catch(() => {});
-  }, [caseId]);
-
-  const loadCase = async () => {
-    setLoading(true);
-    const data = await api.entities.PriorAuthCase.filter({ id: caseId });
-    if (data.length > 0) setPaCase(data[0]);
-    setLoading(false);
-  };
+  const queryClient = useQueryClient();
+  const { data: user } = useAuthUserQuery();
+  const { data: paCase = null, isLoading: loadingCase } = useEntityDetailQuery(
+    "PriorAuthCase",
+    caseId,
+    { enabled: Boolean(caseId) }
+  );
+  const { data: payerRules = [] } = useEntityListQuery("PayerRule", null, null, {
+    enabled: Boolean(user),
+  });
 
   const updateCase = async (updates) => {
-    const updated = await api.entities.PriorAuthCase.update(caseId, updates);
-    setPaCase((prev) => ({ ...prev, ...updates }));
+    await api.entities.PriorAuthCase.update(caseId, updates);
+    await queryClient.invalidateQueries({ queryKey: queryKeys.entity.detail("PriorAuthCase", caseId) });
   };
 
-  if (loading)
+  if (loadingCase)
     return (
       <div
         className="min-h-screen flex items-center justify-center"

@@ -1,6 +1,6 @@
-import { useState, useEffect } from "react";
-import { api } from "@/lib/api";
+import { useMemo, useState } from "react";
 import ClientPortalLayout from "@/components/portal/ClientPortalLayout";
+import { useAuthUserQuery, useEntityFilterQuery } from "@/lib/query";
 import {
   getAccentColor,
   getClientId,
@@ -26,34 +26,32 @@ import { Download, Loader2, BarChart2 } from "lucide-react";
 const COLORS = ["#293682", "#0a7e87", "#f6b037", "#b91c1c", "#15803d", "#7c3aed"];
 
 export default function ClientReports() {
-  const [user, setUser] = useState(null);
-  const [branding, setBranding] = useState(null);
-  const [cases, setCases] = useState([]);
-  const [loading, setLoading] = useState(true);
   const [generating, setGenerating] = useState(false);
+  const { data: user, isLoading: loadingUser } = useAuthUserQuery();
+  const clientId = getClientId(user);
 
-  useEffect(() => {
-    api.auth
-      .me()
-      .then(async (u) => {
-        setUser(u);
-        const clientId = getClientId(u);
-        const [bData, cData] = await Promise.all([
-          clientId ? api.entities.ClientBranding.filter({ clientId }).catch(() => []) : [],
-          api.entities.PriorAuthCase.filter(clientId ? { clientId } : {}),
-        ]);
-        setBranding(normalizeBranding(bData[0] || null));
-        setCases(cData.map(normalizeCase));
-        setLoading(false);
-      })
-      .catch(() => api.auth.redirectToLogin());
-  }, []);
+  const { data: branding = null, isLoading: loadingBranding } = useEntityFilterQuery(
+    "ClientBranding",
+    clientId ? { clientId } : {},
+    {
+      enabled: Boolean(clientId),
+      select: (data) => normalizeBranding(data[0] || null),
+    }
+  );
+  const { data: cases = [], isLoading: loadingCases } = useEntityFilterQuery(
+    "PriorAuthCase",
+    clientId ? { clientId } : {},
+    {
+      enabled: Boolean(user),
+      select: (data) => data.map(normalizeCase),
+    }
+  );
 
   const accent = getAccentColor(branding);
   const practiceName = getPracticeName(user, branding);
 
   // Monthly approval rates (last 6 months)
-  const monthlyData = (() => {
+  const monthlyData = useMemo(() => {
     const months = [];
     for (let i = 5; i >= 0; i--) {
       const d = new Date();
@@ -72,50 +70,58 @@ export default function ClientReports() {
       });
     }
     return months;
-  })();
+  }, [cases]);
 
   // Denial reasons
-  const denialReasons = {};
-  cases
-    .filter((c) => c.displayStatus === "Denied" && c.denialReason)
-    .forEach((c) => {
-      const r = c.denialReason.length > 30 ? c.denialReason.slice(0, 30) + "…" : c.denialReason;
-      denialReasons[r] = (denialReasons[r] || 0) + 1;
-    });
-  const denialData = Object.entries(denialReasons)
-    .map(([name, value]) => ({ name, value }))
-    .slice(0, 5);
+  const denialData = useMemo(() => {
+    const denialReasons = {};
+    cases
+      .filter((c) => c.displayStatus === "Denied" && c.denialReason)
+      .forEach((c) => {
+        const r = c.denialReason.length > 30 ? `${c.denialReason.slice(0, 30)}…` : c.denialReason;
+        denialReasons[r] = (denialReasons[r] || 0) + 1;
+      });
+    return Object.entries(denialReasons)
+      .map(([name, value]) => ({ name, value }))
+      .slice(0, 5);
+  }, [cases]);
 
   // Cases by procedure
-  const procedureCounts = {};
-  cases.forEach((c) => {
-    const p = c.procedureLabel || "Unknown";
-    procedureCounts[p] = (procedureCounts[p] || 0) + 1;
-  });
-  const procedureData = Object.entries(procedureCounts)
-    .map(([name, value]) => ({ name: name.length > 20 ? name.slice(0, 20) + "…" : name, value }))
-    .sort((a, b) => b.value - a.value)
-    .slice(0, 6);
+  const procedureData = useMemo(() => {
+    const procedureCounts = {};
+    cases.forEach((c) => {
+      const p = c.procedureLabel || "Unknown";
+      procedureCounts[p] = (procedureCounts[p] || 0) + 1;
+    });
+    return Object.entries(procedureCounts)
+      .map(([name, value]) => ({ name: name.length > 20 ? `${name.slice(0, 20)}…` : name, value }))
+      .sort((a, b) => b.value - a.value)
+      .slice(0, 6);
+  }, [cases]);
 
   // Avg turnaround by payer (submitted → decision)
-  const payerTurnaround = {};
-  cases
-    .filter((c) => c.submittedAt && (c.displayStatus === "Approved" || c.displayStatus === "Denied"))
-    .forEach((c) => {
-      const days = Math.round(
-        (new Date(c.updatedAt).getTime() - new Date(c.submittedAt).getTime()) / 86400000
-      );
-      if (!payerTurnaround[c.payerName]) payerTurnaround[c.payerName] = { total: 0, count: 0 };
-      payerTurnaround[c.payerName].total += days;
-      payerTurnaround[c.payerName].count += 1;
-    });
-  const turnaroundData = Object.entries(payerTurnaround)
-    .map(([payer, d]) => ({
-      payer: payer.length > 15 ? payer.slice(0, 15) + "…" : payer,
-      days: Math.round(d.total / d.count),
-    }))
-    .sort((a, b) => a.days - b.days)
-    .slice(0, 6);
+  const turnaroundData = useMemo(() => {
+    const payerTurnaround = {};
+    cases
+      .filter(
+        (c) => c.submittedAt && (c.displayStatus === "Approved" || c.displayStatus === "Denied")
+      )
+      .forEach((c) => {
+        const days = Math.round(
+          (new Date(c.updatedAt).getTime() - new Date(c.submittedAt).getTime()) / 86400000
+        );
+        if (!payerTurnaround[c.payerName]) payerTurnaround[c.payerName] = { total: 0, count: 0 };
+        payerTurnaround[c.payerName].total += days;
+        payerTurnaround[c.payerName].count += 1;
+      });
+    return Object.entries(payerTurnaround)
+      .map(([payer, d]) => ({
+        payer: payer.length > 15 ? `${payer.slice(0, 15)}…` : payer,
+        days: Math.round(d.total / d.count),
+      }))
+      .sort((a, b) => a.days - b.days)
+      .slice(0, 6);
+  }, [cases]);
 
   const handleExportPDF = async () => {
     setGenerating(true);
@@ -207,7 +213,7 @@ export default function ClientReports() {
     setGenerating(false);
   };
 
-  if (loading)
+  if (loadingUser || loadingBranding || loadingCases)
     return (
       <div
         className="min-h-screen flex items-center justify-center"
@@ -286,7 +292,7 @@ export default function ClientReports() {
                         cx="50%"
                         cy="50%"
                         outerRadius={80}
-                        label={({ name, percent }) => `${(percent * 100).toFixed(0)}%`}
+                        label={({ name: _name, percent }) => `${(percent * 100).toFixed(0)}%`}
                       >
                         {procedureData.map((_, i) => (
                           <Cell key={i} fill={COLORS[i % COLORS.length]} />

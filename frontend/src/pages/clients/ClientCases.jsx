@@ -1,7 +1,7 @@
-import { useState, useEffect } from "react";
-import { api } from "@/lib/api";
+import { useMemo, useState } from "react";
 import { createPageUrl } from "@/lib/utils/page";
 import ClientPortalLayout from "@/components/portal/ClientPortalLayout";
+import { useAuthUserQuery, useEntityFilterQuery } from "@/lib/query";
 import {
   getAccentColor,
   getClientId,
@@ -26,43 +26,40 @@ const STATUS_STYLES = {
 };
 
 export default function ClientCases() {
-  const [user, setUser] = useState(null);
-  const [branding, setBranding] = useState(null);
-  const [cases, setCases] = useState([]);
-  const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
-  const [filterStatus, setFilterStatus] = useState("All");
-  const [dateFrom, setDateFrom] = useState("");
-  const [dateTo, setDateTo] = useState("");
-
   const params = new URLSearchParams(window.location.search);
   const preFilter = params.get("filter");
+  const [filterStatus, setFilterStatus] = useState(preFilter || "All");
+  const [dateFrom, setDateFrom] = useState("");
+  const [dateTo, setDateTo] = useState("");
+  const { data: user, isLoading: loadingUser } = useAuthUserQuery();
+  const clientId = getClientId(user);
 
-  useEffect(() => {
-    if (preFilter) setFilterStatus(preFilter);
-    api.auth
-      .me()
-      .then(async (u) => {
-        setUser(u);
-        const clientId = getClientId(u);
-        const [bData, cData] = await Promise.all([
-          clientId ? api.entities.ClientBranding.filter({ clientId }).catch(() => []) : [],
-          api.entities.PriorAuthCase.filter(clientId ? { clientId } : {}),
-        ]);
-        setBranding(normalizeBranding(bData[0] || null));
-        setCases(
-          cData.map(normalizeCase).sort(
+  const { data: branding = null, isLoading: loadingBranding } = useEntityFilterQuery(
+    "ClientBranding",
+    clientId ? { clientId } : {},
+    {
+      enabled: Boolean(clientId),
+      select: (data) => normalizeBranding(data[0] || null),
+    }
+  );
+  const { data: cases = [], isLoading: loadingCases } = useEntityFilterQuery(
+    "PriorAuthCase",
+    clientId ? { clientId } : {},
+    {
+      enabled: Boolean(user),
+      select: (data) =>
+        data
+          .map(normalizeCase)
+          .sort(
             (a, b) =>
               new Date(b.updatedAt || b.createdAt).getTime() -
               new Date(a.updatedAt || a.createdAt).getTime()
-          )
-        );
-        setLoading(false);
-      })
-      .catch(() => api.auth.redirectToLogin());
-  }, []);
+          ),
+    }
+  );
 
-  const filtered = cases.filter((c) => {
+  const filtered = useMemo(() => cases.filter((c) => {
     const matchStatus = filterStatus === "All" || c.displayStatus === filterStatus;
     const q = search.toLowerCase();
     const matchSearch =
@@ -75,11 +72,13 @@ export default function ClientCases() {
     const matchFrom = !dateFrom || (created && created >= new Date(dateFrom));
     const matchTo = !dateTo || (created && created <= new Date(dateTo + "T23:59:59"));
     return matchStatus && matchSearch && matchFrom && matchTo;
-  });
+  }), [cases, dateFrom, dateTo, filterStatus, search]);
+
+  const loadingState = loadingUser || loadingBranding || loadingCases;
 
   const accent = getAccentColor(branding);
 
-  if (loading)
+  if (loadingState)
     return (
       <div
         className="min-h-screen flex items-center justify-center"

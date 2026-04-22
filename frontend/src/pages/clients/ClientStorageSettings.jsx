@@ -1,5 +1,7 @@
-import { useState, useEffect } from "react";
+import { useEffect, useState } from "react";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { api } from "@/lib/api";
+import { useAuthUserQuery, useEntityFilterQuery } from "@/lib/query";
 import StaffinglyLayout from "@/components/staffingly/StaffinglyLayout";
 import { Save, CheckCircle, Loader2, AlertTriangle, RefreshCw, FolderOpen } from "lucide-react";
 
@@ -49,16 +51,12 @@ const SYNC_FREQUENCIES = [
 ];
 
 export default function ClientStorageSettings() {
-  const [user, setUser] = useState(null);
+  const { data: user, isLoading: _loadingUser } = useAuthUserQuery();
   const params = new URLSearchParams(window.location.search);
   const clientId = params.get("client_id");
 
-  const [config, setConfig] = useState(null);
-  const [loading, setLoading] = useState(true);
-  const [saving, setSaving] = useState(false);
-  const [testing, setTesting] = useState(false);
-  const [creatingFolders, setCreatingFolders] = useState(false);
   const [testResult, setTestResult] = useState(null);
+  const queryClient = useQueryClient();
 
   const [form, setForm] = useState({
     storage_type: "staffingly_portal",
@@ -67,59 +65,69 @@ export default function ClientStorageSettings() {
     sync_enabled: true,
   });
 
-  useEffect(() => {
-    api.auth
-      .me()
-      .then(setUser)
-      .catch(() => api.auth.redirectToLogin());
-    if (clientId) loadConfig();
-  }, [clientId]);
-
-  const loadConfig = async () => {
-    setLoading(true);
-    const data = await api.entities.ClientStorageConfig.filter({ client_id: clientId });
-    if (data.length > 0) {
-      setConfig(data[0]);
-      setForm({
-        storage_type: data[0].storage_type,
-        credential_key_ref: data[0].credential_key_ref || "",
-        sync_frequency_minutes: data[0].sync_frequency_minutes || 15,
-        sync_enabled: data[0].sync_enabled !== false,
-      });
+  const { data: config = null, isLoading: _loadingConfig } = useEntityFilterQuery(
+    "ClientStorageConfig",
+    clientId ? { client_id: clientId } : {},
+    {
+      enabled: Boolean(clientId),
+      select: (data) => data[0] || null,
     }
-    setLoading(false);
-  };
+  );
+
+  useEffect(() => {
+    if (!config) return;
+    setForm({
+      storage_type: config.storage_type,
+      credential_key_ref: config.credential_key_ref || "",
+      sync_frequency_minutes: config.sync_frequency_minutes || 15,
+      sync_enabled: config.sync_enabled !== false,
+    });
+  }, [config]);
+
+  const saveMutation = useMutation({
+    mutationFn: () => {
+      if (config) {
+        return api.entities.ClientStorageConfig.update(config.id, form);
+      }
+      return api.entities.ClientStorageConfig.create({ client_id: clientId, ...form });
+    },
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ["entity", "ClientStorageConfig"] });
+    },
+  });
+
+  const testMutation = useMutation({
+    mutationFn: () =>
+      api.functions.invoke("testStorageConnection", {
+        storage_type: form.storage_type,
+        credential_key_ref: form.credential_key_ref,
+        client_id: clientId,
+      }),
+    onSuccess: (res) => {
+      setTestResult(res.data);
+    },
+  });
+
+  const createFoldersMutation = useMutation({
+    mutationFn: () => api.functions.invoke("createFolderStructure", { client_id: clientId }),
+    onSuccess: async (res) => {
+      setTestResult(res.data);
+      await queryClient.invalidateQueries({ queryKey: ["entity", "ClientStorageConfig"] });
+    },
+  });
 
   const handleSave = async () => {
-    setSaving(true);
     setTestResult(null);
-    if (config) {
-      await api.entities.ClientStorageConfig.update(config.id, form);
-    } else {
-      await api.entities.ClientStorageConfig.create({ client_id: clientId, ...form });
-    }
-    await loadConfig();
-    setSaving(false);
+    await saveMutation.mutateAsync();
   };
 
   const handleTest = async () => {
-    setTesting(true);
     setTestResult(null);
-    const res = await api.functions.invoke("testStorageConnection", {
-      storage_type: form.storage_type,
-      credential_key_ref: form.credential_key_ref,
-      client_id: clientId,
-    });
-    setTestResult(res.data);
-    setTesting(false);
+    await testMutation.mutateAsync();
   };
 
   const handleCreateFolders = async () => {
-    setCreatingFolders(true);
-    const res = await api.functions.invoke("createFolderStructure", { client_id: clientId });
-    await loadConfig();
-    setTestResult(res.data);
-    setCreatingFolders(false);
+    await createFoldersMutation.mutateAsync();
   };
 
   const selectedOption = STORAGE_OPTIONS.find((o) => o.key === form.storage_type);
@@ -253,16 +261,16 @@ export default function ClientStorageSettings() {
               {!config.folder_structure_created && (
                 <button
                   onClick={handleCreateFolders}
-                  disabled={creatingFolders}
+                  disabled={createFoldersMutation.isPending}
                   className="flex items-center gap-2 px-4 py-2 rounded-xl text-white text-sm font-bold disabled:opacity-50"
                   style={{ backgroundColor: "#293682" }}
                 >
-                  {creatingFolders ? (
+                  {createFoldersMutation.isPending ? (
                     <Loader2 className="w-4 h-4 animate-spin" />
                   ) : (
                     <FolderOpen className="w-4 h-4" />
                   )}
-                  {creatingFolders ? "Creating…" : "Create Folders"}
+                  {createFoldersMutation.isPending ? "Creating…" : "Create Folders"}
                 </button>
               )}
             </div>
@@ -388,24 +396,28 @@ export default function ClientStorageSettings() {
         <div className="flex items-center gap-3">
           <button
             onClick={handleTest}
-            disabled={testing}
+            disabled={testMutation.isPending}
             className="flex items-center gap-2 px-5 py-3 rounded-xl border-2 border-[#293682] text-[#293682] font-bold text-sm disabled:opacity-50 hover:bg-[#eef3ff] transition-colors"
           >
-            {testing ? (
+            {testMutation.isPending ? (
               <Loader2 className="w-4 h-4 animate-spin" />
             ) : (
               <RefreshCw className="w-4 h-4" />
             )}
-            {testing ? "Testing…" : "Test Connection"}
+            {testMutation.isPending ? "Testing…" : "Test Connection"}
           </button>
           <button
             onClick={handleSave}
-            disabled={saving}
+            disabled={saveMutation.isPending}
             className="flex items-center gap-2 px-6 py-3 rounded-xl text-white font-bold text-sm disabled:opacity-50 hover:opacity-90 transition-opacity"
             style={{ backgroundColor: "#293682" }}
           >
-            {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
-            {saving ? "Saving…" : "Save Configuration"}
+            {saveMutation.isPending ? (
+              <Loader2 className="w-4 h-4 animate-spin" />
+            ) : (
+              <Save className="w-4 h-4" />
+            )}
+            {saveMutation.isPending ? "Saving…" : "Save Configuration"}
           </button>
         </div>
       </div>

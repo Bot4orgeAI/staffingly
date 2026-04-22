@@ -1,5 +1,7 @@
-import { useState, useEffect } from "react";
+import { useMemo, useState } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import { api } from "@/lib/api";
+import { useAuthUserQuery, useEntityListQuery } from "@/lib/query";
 import StaffinglyLayout from "@/components/staffingly/StaffinglyLayout";
 import { RefreshCw, CheckCircle, XCircle, Loader2, Activity, Clock } from "lucide-react";
 
@@ -11,43 +13,40 @@ const STORAGE_LABELS = {
 };
 
 export default function DriveSyncLogs() {
-  const [user, setUser] = useState(null);
-  const [logs, setLogs] = useState([]);
-  const [loading, setLoading] = useState(true);
   const [triggering, setTriggering] = useState(false);
   const [filterStatus, setFilterStatus] = useState("All");
+  const queryClient = useQueryClient();
+  const { data: user, isLoading: loadingUser } = useAuthUserQuery();
+  const { data: logs = [], isLoading: loadingLogs } = useEntityListQuery(
+    "DriveSyncLog",
+    "-created_date",
+    100,
+    { enabled: Boolean(user), refetchInterval: 10000 }
+  );
 
-  useEffect(() => {
-    api.auth
-      .me()
-      .then(setUser)
-      .catch(() => api.auth.redirectToLogin());
-    loadLogs();
-  }, []);
-
-  const loadLogs = async () => {
-    setLoading(true);
-    const data = await api.entities.DriveSyncLog.list("-created_date", 100);
-    setLogs(data);
-    setLoading(false);
-  };
+  const refreshLogs = () => queryClient.invalidateQueries({ queryKey: ["entity", "DriveSyncLog"] });
 
   const handleManualSync = async () => {
     setTriggering(true);
     await api.functions.invoke("documentIntakeSync", {});
-    await loadLogs();
+    await refreshLogs();
     setTriggering(false);
   };
 
   const filtered = logs.filter((l) => filterStatus === "All" || l.status === filterStatus);
 
   // Summary stats
-  const last24h = logs.filter(
-    (l) => l.sync_started_at && Date.now() - new Date(l.sync_started_at).getTime() < 86400000
-  );
-  const totalFiles = last24h.reduce((s, l) => s + (l.files_detected || 0), 0);
-  const totalMatched = last24h.reduce((s, l) => s + (l.files_matched || 0), 0);
-  const totalUnmatched = last24h.reduce((s, l) => s + (l.files_unmatched || 0), 0);
+  const { last24h, totalFiles, totalMatched, totalUnmatched } = useMemo(() => {
+    const recentLogs = logs.filter(
+      (l) => l.sync_started_at && Date.now() - new Date(l.sync_started_at).getTime() < 86400000
+    );
+    return {
+      last24h: recentLogs,
+      totalFiles: recentLogs.reduce((s, l) => s + (l.files_detected || 0), 0),
+      totalMatched: recentLogs.reduce((s, l) => s + (l.files_matched || 0), 0),
+      totalUnmatched: recentLogs.reduce((s, l) => s + (l.files_unmatched || 0), 0),
+    };
+  }, [logs]);
 
   return (
     <StaffinglyLayout
@@ -123,7 +122,7 @@ export default function DriveSyncLogs() {
           </select>
           <div className="flex-1" />
           <button
-            onClick={loadLogs}
+            onClick={refreshLogs}
             className="flex items-center gap-2 px-4 py-2 rounded-xl border border-slate-200 text-sm text-slate-600 hover:bg-slate-50 transition-colors"
           >
             <RefreshCw className="w-4 h-4" /> Refresh
@@ -145,7 +144,7 @@ export default function DriveSyncLogs() {
 
         {/* Logs Table */}
         <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden">
-          {loading ? (
+          {loadingUser || loadingLogs ? (
             <div className="p-12 text-center">
               <Loader2 className="w-6 h-6 animate-spin mx-auto text-slate-400" />
             </div>

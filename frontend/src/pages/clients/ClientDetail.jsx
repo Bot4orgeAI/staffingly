@@ -1,7 +1,9 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { Link } from "react-router-dom";
+import { useQueryClient, useMutation } from "@tanstack/react-query";
 import { createPageUrl } from "@/lib/utils/page";
 import { api } from "@/lib/api";
+import { useAuthUserQuery, useEntityFilterQuery } from "@/lib/query";
 import AppHeader from "@/components/insuverif/AppHeader";
 import {
   AlertDialog,
@@ -57,14 +59,21 @@ function ProviderModal({ provider, clientId, onClose, onSave }) {
   );
   const [saving, setSaving] = useState(false);
 
+  const queryClient = useQueryClient();
+  const updateMutation = useMutation({
+    mutationFn: (formData) =>
+      provider?.id
+        ? api.entities.Provider.update(provider.id, formData)
+        : api.entities.Provider.create({ ...formData, client_id: clientId }),
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ["entity", "Provider"] });
+    },
+  });
+
   const handleSave = async () => {
     if (!form.last_name.trim()) return;
     setSaving(true);
-    if (provider?.id) {
-      await api.entities.Provider.update(provider.id, form);
-    } else {
-      await api.entities.Provider.create({ ...form, client_id: clientId });
-    }
+    await updateMutation.mutateAsync(form);
     setSaving(false);
     onSave();
   };
@@ -178,14 +187,21 @@ function SubscriberModal({ subscriber, clientId, providers, onClose, onSave }) {
   );
   const [saving, setSaving] = useState(false);
 
+  const queryClient = useQueryClient();
+  const updateMutation = useMutation({
+    mutationFn: (formData) =>
+      subscriber?.id
+        ? api.entities.Subscriber.update(subscriber.id, formData)
+        : api.entities.Subscriber.create({ ...formData, client_id: clientId }),
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ["entity", "Subscriber"] });
+    },
+  });
+
   const handleSave = async () => {
     if (!form.last_name.trim()) return;
     setSaving(true);
-    if (subscriber?.id) {
-      await api.entities.Subscriber.update(subscriber.id, form);
-    } else {
-      await api.entities.Subscriber.create({ ...form, client_id: clientId });
-    }
+    await updateMutation.mutateAsync(form);
     setSaving(false);
     onSave();
   };
@@ -297,10 +313,29 @@ export default function ClientDetail() {
   const params = new URLSearchParams(window.location.search);
   const clientId = params.get("id");
 
-  const [user, setUser] = useState(null);
-  const [client, setClient] = useState(null);
-  const [providers, setProviders] = useState([]);
-  const [subscribers, setSubscribers] = useState([]);
+  const queryClient = useQueryClient();
+  const { data: user } = useAuthUserQuery();
+
+  const { data: clientData = [] } = useEntityFilterQuery(
+    "Client",
+    { id: clientId },
+    { enabled: Boolean(clientId && user) }
+  );
+
+  const { data: providers = [] } = useEntityFilterQuery(
+    "Provider",
+    { client_id: clientId },
+    { enabled: Boolean(clientId && user) }
+  );
+
+  const { data: subscribers = [] } = useEntityFilterQuery(
+    "Subscriber",
+    { client_id: clientId },
+    { enabled: Boolean(clientId && user) }
+  );
+
+  const client = clientData[0] || null;
+
   const [activeTab, setActiveTab] = useState("providers");
   const [providerModal, setProviderModal] = useState(null);
   const [subscriberModal, setSubscriberModal] = useState(null);
@@ -310,33 +345,26 @@ export default function ClientDetail() {
   const [showBulkAdd, setShowBulkAdd] = useState(false);
   const [showImport, setShowImport] = useState(false);
 
-  useEffect(() => {
-    api.auth
-      .me()
-      .then(setUser)
-      .catch(() => api.auth.redirectToLogin());
-    if (clientId) loadAll();
-  }, [clientId]);
+  const deleteProviderMutation = useMutation({
+    mutationFn: (id) => api.entities.Provider.delete(id),
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ["entity", "Provider"] });
+    },
+  });
 
-  const loadAll = async () => {
-    const [c, ps, ss] = await Promise.all([
-      api.entities.Client.filter({ id: clientId }),
-      api.entities.Provider.filter({ client_id: clientId }),
-      api.entities.Subscriber.filter({ client_id: clientId }),
-    ]);
-    setClient(c[0] || null);
-    setProviders(ps);
-    setSubscribers(ss);
-  };
+  const deleteSubscriberMutation = useMutation({
+    mutationFn: (id) => api.entities.Subscriber.delete(id),
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ["entity", "Subscriber"] });
+    },
+  });
 
   const handleDeleteProvider = async (id) => {
-    await api.entities.Provider.delete(id);
-    loadAll();
+    await deleteProviderMutation.mutateAsync(id);
   };
 
   const handleDeleteSubscriber = async (id) => {
-    await api.entities.Subscriber.delete(id);
-    loadAll();
+    await deleteSubscriberMutation.mutateAsync(id);
   };
 
   const getProviderName = (providerId) => {
@@ -432,7 +460,6 @@ export default function ClientDetail() {
           onClose={() => setProviderModal(null)}
           onSave={() => {
             setProviderModal(null);
-            loadAll();
           }}
         />
       )}
@@ -444,7 +471,6 @@ export default function ClientDetail() {
           onClose={() => setSubscriberModal(null)}
           onSave={() => {
             setSubscriberModal(null);
-            loadAll();
           }}
         />
       )}
@@ -453,16 +479,18 @@ export default function ClientDetail() {
           subscriber={verifyPanel.subscriber}
           provider={verifyPanel.provider}
           onClose={() => setVerifyPanel(null)}
-          onVerified={() => loadAll()}
+          onVerified={async () => {
+            await queryClient.invalidateQueries({ queryKey: ["entity", "Subscriber"] });
+          }}
         />
       )}
       {showBulkAdd && (
         <BulkAddProviders
           clientId={clientId}
           onClose={() => setShowBulkAdd(false)}
-          onSaved={() => {
+          onSaved={async () => {
             setShowBulkAdd(false);
-            loadAll();
+            await queryClient.invalidateQueries({ queryKey: ["entity", "Provider"] });
           }}
         />
       )}
@@ -470,9 +498,9 @@ export default function ClientDetail() {
         <ImportProviders
           clientId={clientId}
           onClose={() => setShowImport(false)}
-          onSaved={() => {
+          onSaved={async () => {
             setShowImport(false);
-            loadAll();
+            await queryClient.invalidateQueries({ queryKey: ["entity", "Provider"] });
           }}
         />
       )}

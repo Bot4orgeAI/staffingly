@@ -1,5 +1,7 @@
-import { useState, useEffect } from "react";
+import { useMemo, useState } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import { api } from "@/lib/api";
+import { useAuthUserQuery, useEntityListQuery } from "@/lib/query";
 import StaffinglyLayout from "@/components/staffingly/StaffinglyLayout";
 import {
   BillingHeader,
@@ -24,37 +26,30 @@ import { createPageUrl } from "@/lib/utils/page";
 import { Link } from "react-router-dom";
 
 export default function BillingDashboard() {
-  const [user, setUser] = useState(null);
-  const [profiles, setProfiles] = useState([]);
-  const [invoices, setInvoices] = useState([]);
-  const [loading, setLoading] = useState(true);
   const [statusFilter, setStatusFilter] = useState("all");
   const [actionLoading, setActionLoading] = useState({});
+  const queryClient = useQueryClient();
+  const { data: user, isLoading: loadingUser } = useAuthUserQuery();
+  const billingEnabled = Boolean(user) && canAccessBilling(user);
+  const { data: profiles = [], isLoading: loadingProfiles } = useEntityListQuery(
+    "BillingProfile",
+    null,
+    null,
+    { enabled: billingEnabled }
+  );
+  const { data: invoices = [], isLoading: loadingInvoices } = useEntityListQuery(
+    "ClientInvoice",
+    "-created_date",
+    200,
+    { enabled: billingEnabled }
+  );
 
-  useEffect(() => {
-    api.auth
-      .me()
-      .then((u) => {
-        setUser(u);
-        if (canAccessBilling(u)) loadData();
-        else setLoading(false);
-      })
-      .catch(() => api.auth.redirectToLogin());
-  }, []);
-
-  const loadData = async () => {
-    setLoading(true);
-    const [p, inv] = await Promise.all([
-      api.entities.BillingProfile.list(),
-      api.entities.ClientInvoice.list("-created_date", 200),
+  const invalidateBilling = async () => {
+    await Promise.all([
+      queryClient.invalidateQueries({ queryKey: ["entity", "BillingProfile"] }),
+      queryClient.invalidateQueries({ queryKey: ["entity", "ClientInvoice"] }),
     ]);
-    setProfiles(p);
-    setInvoices(inv);
-    setLoading(false);
   };
-
-  if (!user) return null;
-  if (!canAccessBilling(user)) return <BillingAccessDenied />;
 
   const now = new Date();
   const weekStart = new Date(now);
@@ -62,22 +57,27 @@ export default function BillingDashboard() {
   weekStart.setHours(0, 0, 0, 0);
   const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
 
-  const weekRevenue = invoices
-    .filter((i) => i.status === "paid" && i.paid_at && new Date(i.paid_at) >= weekStart)
-    .reduce((s, i) => s + (i.total_amount || 0), 0);
-  const mtdRevenue = invoices
-    .filter((i) => i.status === "paid" && i.paid_at && new Date(i.paid_at) >= monthStart)
-    .reduce((s, i) => s + (i.total_amount || 0), 0);
-  const disputeWindowCount = invoices.filter((i) => i.status === "dispute_window").length;
-  const failedCount = invoices.filter((i) => i.status === "payment_failed").length;
+  const { weekRevenue, mtdRevenue, disputeWindowCount, failedCount } = useMemo(
+    () => ({
+      weekRevenue: invoices
+        .filter((i) => i.status === "paid" && i.paid_at && new Date(i.paid_at) >= weekStart)
+        .reduce((s, i) => s + (i.total_amount || 0), 0),
+      mtdRevenue: invoices
+        .filter((i) => i.status === "paid" && i.paid_at && new Date(i.paid_at) >= monthStart)
+        .reduce((s, i) => s + (i.total_amount || 0), 0),
+      disputeWindowCount: invoices.filter((i) => i.status === "dispute_window").length,
+      failedCount: invoices.filter((i) => i.status === "payment_failed").length,
+    }),
+    [invoices, monthStart, weekStart]
+  );
 
   const filteredInvoices =
     statusFilter === "all" ? invoices : invoices.filter((i) => i.status === statusFilter);
 
   const handleRetryCharge = async (invoiceId) => {
     setActionLoading((prev) => ({ ...prev, [invoiceId]: true }));
-    const res = await api.functions.invoke("stripeChargeInvoice", { invoice_id: invoiceId });
-    await loadData();
+    await api.functions.invoke("stripeChargeInvoice", { invoice_id: invoiceId });
+    await invalidateBilling();
     setActionLoading((prev) => ({ ...prev, [invoiceId]: false }));
   };
 
@@ -90,8 +90,11 @@ export default function BillingDashboard() {
 
   const handlePauseBilling = async (profileId, paused) => {
     await api.entities.BillingProfile.update(profileId, { billing_paused: !paused });
-    loadData();
+    await invalidateBilling();
   };
+
+  if (!user) return null;
+  if (!canAccessBilling(user)) return <BillingAccessDenied />;
 
   const exportCSV = () => {
     const rows = [
@@ -184,7 +187,7 @@ export default function BillingDashboard() {
             </div>
           </div>
 
-          {loading ? (
+          {loadingUser || loadingProfiles || loadingInvoices ? (
             <div className="flex items-center justify-center py-12">
               <div className="w-6 h-6 border-2 border-slate-200 border-t-amber-500 rounded-full animate-spin" />
             </div>

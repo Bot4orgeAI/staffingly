@@ -1,5 +1,5 @@
-import { useState, useEffect } from "react";
-import { api } from "@/lib/api";
+import { useState } from "react";
+import { useAuthUserQuery } from "@/lib/query";
 import StaffinglyLayout from "@/components/staffingly/StaffinglyLayout";
 import { Shield, Globe, Key, Bell, Save, CheckCircle } from "lucide-react";
 
@@ -65,16 +65,9 @@ function NumericField({ label, value, onChange, min, max, hint }) {
 }
 
 export default function SASecuritySettings() {
-  const [user, setUser] = useState(null);
+  const { data: user } = useAuthUserQuery({ withDefaultRole: "super_admin" });
   const [settings, setSettings] = useState(DEFAULT_GLOBAL);
   const [saved, setSaved] = useState(false);
-
-  useEffect(() => {
-    api.auth
-      .me()
-      .then((u) => setUser({ ...u, role: u.role || "super_admin" }))
-      .catch(() => api.auth.redirectToLogin());
-  }, []);
 
   const handleSave = () => {
     setSaved(true);

@@ -37,7 +37,7 @@ export default function InsuranceCardCapture({
   const [cardSide, setCardSide] = useState("FRONT");
   const [file, setFile] = useState(null);
   const [preview, setPreview] = useState(null);
-  const [uploading, setUploading] = useState(false);
+  const [_uploading, _setUploading] = useState(false);
   const [extracting, setExtracting] = useState(false);
   const [extraction, setExtraction] = useState(null);
   const [editedFields, setEditedFields] = useState({});

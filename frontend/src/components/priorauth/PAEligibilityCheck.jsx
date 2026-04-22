@@ -34,7 +34,7 @@ export default function PAEligibilityCheck({ user, onCaseCreated }) {
   const [creating, setCreating] = useState(false);
   const [recentVerif, setRecentVerif] = useState(null); // recent EligibilityHistory record
   const [recentDismissed, setRecentDismissed] = useState(false);
-  const [checkingRecent, setCheckingRecent] = useState(false);
+  const [_checkingRecent, setCheckingRecent] = useState(false);
 
   const handleMemberIdBlur = async () => {
     if (!form.insurance_id.trim()) return;

@@ -1,6 +1,6 @@
-import { useState, useEffect } from "react";
-import { api } from "@/lib/api";
+import { useState } from "react";
 import { createPageUrl } from "@/lib/utils/page";
+import { useAuthUserQuery } from "@/lib/query";
 import AppHeader from "@/components/insuverif/AppHeader";
 import { Search, Edit2, Trash2, X, Wifi, WifiOff } from "lucide-react";
 import AvailityApiSection from "@/components/insuverif/AvailityApiSection";
@@ -195,23 +195,17 @@ function ConnectModal({ emr, onClose }) {
 }
 
 export default function Settings() {
-  const [user, setUser] = useState(null);
+  const { data: user } = useAuthUserQuery({
+    select: (u) => {
+      if (u.role !== "admin") {
+        window.location.href = createPageUrl("dashboard");
+      }
+      return u;
+    },
+  });
   const [activeSection, setActiveSection] = useState("emr");
   const [payerSearch, setPayerSearch] = useState("");
   const [connectModal, setConnectModal] = useState(null);
-
-  useEffect(() => {
-    api.auth
-      .me()
-      .then((u) => {
-        if (u.role !== "admin") {
-          window.location.href = createPageUrl("dashboard");
-          return;
-        }
-        setUser(u);
-      })
-      .catch(() => api.auth.redirectToLogin());
-  }, []);
 
   const filteredPayers = PAYERS.filter((p) =>
     p.payer_name.toLowerCase().includes(payerSearch.toLowerCase())

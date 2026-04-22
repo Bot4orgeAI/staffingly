@@ -1,7 +1,9 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Link } from "react-router-dom";
 import { createPageUrl } from "@/lib/utils/page";
 import { api } from "@/lib/api";
+import { useAuthUserQuery, useEntityListQuery } from "@/lib/query";
 import AppHeader from "@/components/insuverif/AppHeader";
 import {
   AlertDialog,
@@ -227,29 +229,25 @@ function ClientModal({ client, onClose, onSave }) {
 }
 
 export default function Clients() {
-  const [user, setUser] = useState(null);
-  const [clients, setClients] = useState([]);
   const [search, setSearch] = useState("");
   const [filterType, setFilterType] = useState("All");
   const [modal, setModal] = useState(null); // null | "add" | client object
   const [clientPendingDelete, setClientPendingDelete] = useState(null);
+  const queryClient = useQueryClient();
+  const { data: user } = useAuthUserQuery();
+  const { data: clients = [] } = useEntityListQuery("Client", "-created_date", 200, {
+    enabled: Boolean(user),
+  });
 
-  useEffect(() => {
-    api.auth
-      .me()
-      .then(setUser)
-      .catch(() => api.auth.redirectToLogin());
-    loadClients();
-  }, []);
-
-  const loadClients = async () => {
-    const data = await api.entities.Client.list("-created_date", 200);
-    setClients(data);
-  };
+  const deleteMutation = useMutation({
+    mutationFn: (id) => api.entities.Client.delete(id),
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ["entity", "Client"] });
+    },
+  });
 
   const handleDelete = async (id) => {
-    await api.entities.Client.delete(id);
-    loadClients();
+    await deleteMutation.mutateAsync(id);
   };
 
   const filtered = clients.filter((c) => {
@@ -306,9 +304,9 @@ export default function Clients() {
         <ClientModal
           client={modal === "add" ? null : modal}
           onClose={() => setModal(null)}
-          onSave={() => {
+          onSave={async () => {
             setModal(null);
-            loadClients();
+            await queryClient.invalidateQueries({ queryKey: ["entity", "Client"] });
           }}
         />
       )}

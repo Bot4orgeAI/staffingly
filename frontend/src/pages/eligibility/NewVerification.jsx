@@ -1,7 +1,7 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { createPageUrl } from "@/lib/utils/page";
-import { api } from "@/lib/api";
+import { useAuthUserQuery } from "@/lib/query";
 import StaffinglyLayout from "@/components/staffingly/StaffinglyLayout";
 import ManualEntryTab from "@/components/insuverif/ManualEntryTab";
 import UploadTab from "@/components/insuverif/UploadTab";
@@ -11,16 +11,9 @@ import BulkVerifyTab from "@/components/insuverif/BulkVerifyTab";
 const TABS = ["Manual Entry", "Upload Document", "Bulk Verify", "EMR / EHR"];
 
 export default function NewVerification() {
-  const [user, setUser] = useState(null);
+  const { data: user } = useAuthUserQuery();
   const [activeTab, setActiveTab] = useState(0);
   const navigate = useNavigate();
-
-  useEffect(() => {
-    api.auth
-      .me()
-      .then(setUser)
-      .catch(() => api.auth.redirectToLogin());
-  }, []);
 
   const handleRunVerification = (formData) => {
     const params = new URLSearchParams({

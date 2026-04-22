@@ -1,5 +1,4 @@
-import { useState, useEffect } from "react";
-import { api } from "@/lib/api";
+import { useAuthUserQuery } from "@/lib/query";
 import StaffinglyLayout from "@/components/staffingly/StaffinglyLayout";
 import WelcomeCard from "@/components/staffingly/WelcomeCard";
 import WorkflowCards from "@/components/staffingly/WorkflowCards";
@@ -11,20 +10,9 @@ import SystemHealthCard from "@/components/staffingly/SystemHealthCard";
 import ClientPortalSummary from "@/components/staffingly/ClientPortalSummary";
 
 export default function Dashboard() {
-  const [user, setUser] = useState(null);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    api.auth
-      .me()
-      .then((u) => {
-        setUser({ ...u, role: u.role === "admin" ? "super_admin" : u.role || "super_admin" });
-      })
-      .catch((err) => {
-        console.error("Auth check failed:", err);
-      })
-      .finally(() => setLoading(false));
-  }, []);
+  const { data: user, isLoading: loading } = useAuthUserQuery({
+    select: (u) => ({ ...u, role: u.role === "admin" ? "super_admin" : u.role || "super_admin" }),
+  });
 
   if (loading || !user) {
     return (

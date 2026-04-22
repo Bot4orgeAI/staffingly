@@ -1,8 +1,8 @@
-import { useState, useEffect } from "react";
-import { api } from "@/lib/api";
+import { useMemo } from "react";
 import { Link } from "react-router-dom";
 import { createPageUrl } from "@/lib/utils/page";
 import ClientPortalLayout from "@/components/portal/ClientPortalLayout";
+import { useAuthUserQuery, useEntityFilterQuery } from "@/lib/query";
 import {
   getAccentColor,
   getClientId,
@@ -84,43 +84,57 @@ function StatCard({
 }
 
 export default function ClientPortal() {
-  const [user, setUser] = useState(null);
-  const [branding, setBranding] = useState(null);
-  const [cases, setCases] = useState([]);
-  const [messages, setMessages] = useState([]);
-  const [notifications, setNotifications] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const { data: user, isLoading: loadingUser } = useAuthUserQuery();
+  const clientId = getClientId(user);
+  const { data: branding = null, isLoading: loadingBranding } = useEntityFilterQuery(
+    "ClientBranding",
+    clientId ? { clientId } : {},
+    {
+      enabled: Boolean(clientId),
+      select: (data) => normalizeBranding(data[0] || null),
+    }
+  );
+  const { data: cases = [], isLoading: loadingCases } = useEntityFilterQuery(
+    "PriorAuthCase",
+    clientId ? { clientId } : {},
+    {
+      enabled: Boolean(user),
+      select: (data) => data.map(normalizeCase),
+    }
+  );
+  const { data: messages = [], isLoading: loadingMessages } = useEntityFilterQuery(
+    "CaseMessage",
+    clientId ? { clientId, readByClient: false } : {},
+    {
+      enabled: Boolean(user),
+      select: (data) => data.map(normalizeMessage),
+    }
+  );
+  const { data: notifications = [], isLoading: loadingNotifications } = useEntityFilterQuery(
+    "ClientNotification",
+    clientId ? { clientId, read: false } : {},
+    {
+      enabled: Boolean(user),
+      select: (data) => data.map(normalizeNotification),
+    }
+  );
 
-  useEffect(() => {
-    api.auth
-      .me()
-      .then(async (u) => {
-        setUser(u);
-        const clientId = getClientId(u);
-        const [bData, cData, mData, nData] = await Promise.all([
-          clientId ? api.entities.ClientBranding.filter({ clientId }).catch(() => []) : [],
-          api.entities.PriorAuthCase.filter(clientId ? { clientId } : {}),
-          api.entities.CaseMessage.filter(clientId ? { clientId, readByClient: false } : {}),
-          api.entities.ClientNotification.filter(clientId ? { clientId, read: false } : {}),
-        ]);
-        setBranding(normalizeBranding(bData[0] || null));
-        setCases(cData.map(normalizeCase));
-        setMessages(mData.map(normalizeMessage));
-        setNotifications(nData.map(normalizeNotification));
-        setLoading(false);
-      })
-      .catch(() => api.auth.redirectToLogin());
-  }, []);
+  const loading =
+    loadingUser || loadingBranding || loadingCases || loadingMessages || loadingNotifications;
 
   const accent = getAccentColor(branding);
 
-  const now = new Date();
-  const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
-  const thisMonthCases = cases.filter((c) => c.createdAt && new Date(c.createdAt) >= monthStart);
-  const approved = cases.filter((c) => c.displayStatus === "Approved");
-  const denied = cases.filter((c) => c.displayStatus === "Denied");
-  const inProgress = cases.filter((c) => !["Approved", "Denied", "Closed"].includes(c.displayStatus));
-  const awaitingDocs = cases.filter((c) => c.displayStatus === "Awaiting Documents");
+  const { thisMonthCases, approved, denied, inProgress, awaitingDocs } = useMemo(() => {
+    const now = new Date();
+    const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+    return {
+      thisMonthCases: cases.filter((c) => c.createdAt && new Date(c.createdAt) >= monthStart),
+      approved: cases.filter((c) => c.displayStatus === "Approved"),
+      denied: cases.filter((c) => c.displayStatus === "Denied"),
+      inProgress: cases.filter((c) => !["Approved", "Denied", "Closed"].includes(c.displayStatus)),
+      awaitingDocs: cases.filter((c) => c.displayStatus === "Awaiting Documents"),
+    };
+  }, [cases]);
 
   const unreadNotifs = notifications.length;
 

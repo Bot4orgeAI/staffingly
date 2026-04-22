@@ -1,5 +1,4 @@
-import { useState, useEffect } from "react";
-import { api } from "@/lib/api";
+import { useAuthUserQuery } from "@/lib/query";
 import StaffinglyLayout from "@/components/staffingly/StaffinglyLayout";
 import {
   Wifi,
@@ -121,14 +120,7 @@ const FAILED_CHECKS = [
 ];
 
 export default function EligibilityDashboard() {
-  const [user, setUser] = useState(null);
-
-  useEffect(() => {
-    api.auth
-      .me()
-      .then((u) => setUser({ ...u, role: u.role || "staffingly_supervisor" }))
-      .catch(() => api.auth.redirectToLogin());
-  }, []);
+  const { data: user } = useAuthUserQuery({ withDefaultRole: "staffingly_supervisor" });
 
   return (
     <StaffinglyLayout

@@ -1,7 +1,9 @@
-import { useState, useEffect } from "react";
+import { useMemo, useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { Link } from "react-router-dom";
 import { createPageUrl } from "@/lib/utils/page";
 import { api } from "@/lib/api";
+import { queryKeys } from "@/lib/query";
 import { Search, Filter, Plus, AlertTriangle, ChevronRight } from "lucide-react";
 
 const STATUS_STYLES = {
@@ -23,34 +25,29 @@ const URGENCY_STYLES = {
   Routine: { bg: "#f0fdf4", text: "#166534" },
 };
 
-export default function PACaseTracker({ user, onStartNew }) {
-  const [cases, setCases] = useState([]);
-  const [loading, setLoading] = useState(true);
+export default function PACaseTracker({ user: _user, onStartNew }) {
   const [search, setSearch] = useState("");
   const [filterStatus, setFilterStatus] = useState("All");
   const [filterUrgency, setFilterUrgency] = useState("All");
-  const [sortByDays, setSortByDays] = useState(true);
+  const [sortByDays, _setSortByDays] = useState(true);
 
-  useEffect(() => {
-    loadCases();
-  }, []);
+  const { data: cases = [], isLoading: loading } = useQuery({
+    queryKey: queryKeys.entity.list("PriorAuthCase", { sortBy: "-created_date", limit: 100 }),
+    queryFn: async () => {
+      const data = await api.entities.PriorAuthCase.list("-created_date", 100);
+      const now = Date.now();
+      return data.map((c) => ({
+        ...c,
+        days_pending: c.created_date
+          ? Math.floor((now - new Date(c.created_date).getTime()) / 86400000)
+          : 0,
+      }));
+    },
+  });
 
-  const loadCases = async () => {
-    setLoading(true);
-    const data = await api.entities.PriorAuthCase.list("-created_date", 100);
-    // Compute days_pending
-    const now = Date.now();
-    const withDays = data.map((c) => ({
-      ...c,
-      days_pending: c.created_date
-        ? Math.floor((now - new Date(c.created_date).getTime()) / 86400000)
-        : 0,
-    }));
-    setCases(withDays);
-    setLoading(false);
-  };
-
-  const filtered = cases
+  const filtered = useMemo(
+    () =>
+      cases
     .filter((c) => {
       const q = search.toLowerCase();
       const matchSearch =
@@ -61,7 +58,9 @@ export default function PACaseTracker({ user, onStartNew }) {
       const matchUrgency = filterUrgency === "All" || c.urgency === filterUrgency;
       return matchSearch && matchStatus && matchUrgency;
     })
-    .sort((a, b) => (sortByDays ? b.days_pending - a.days_pending : 0));
+    .sort((a, b) => (sortByDays ? b.days_pending - a.days_pending : 0)),
+    [cases, filterStatus, filterUrgency, search, sortByDays]
+  );
 
   const getRowBorder = (days) => {
     if (days >= 3) return "border-l-4 border-l-red-400";

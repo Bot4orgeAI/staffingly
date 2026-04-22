@@ -1,6 +1,6 @@
 import { Briefcase, CheckCircle, XCircle, MessageSquare } from "lucide-react";
 
-export default function ClientPortalSummary({ user }) {
+export default function ClientPortalSummary({ user: _user }) {
   const stats = [
     { label: "Cases This Month", value: 12, icon: Briefcase, color: "#293682", bg: "#eef3ff" },
     { label: "Approvals", value: 9, icon: CheckCircle, color: "#15803d", bg: "#f0fdf4" },

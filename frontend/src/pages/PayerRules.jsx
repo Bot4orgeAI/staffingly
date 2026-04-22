@@ -1,5 +1,7 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import { api } from "@/lib/api";
+import { useAuthUserQuery, useEntityListQuery } from "@/lib/query";
 import StaffinglyLayout from "@/components/staffingly/StaffinglyLayout";
 import { Globe, Plus, Edit2, AlertTriangle, Save, X, Loader2, CheckCircle } from "lucide-react";
 import AutomationFieldMapEditor from "@/components/payerrules/AutomationFieldMapEditor";
@@ -28,29 +30,19 @@ function isStale(dateStr) {
 }
 
 export default function PayerRules() {
-  const [user, setUser] = useState(null);
-  const [rules, setRules] = useState([]);
-  const [loading, setLoading] = useState(true);
   const [editing, setEditing] = useState(null);
   const [form, setForm] = useState(EMPTY_RULE);
   const [saving, setSaving] = useState(false);
   const [cptInput, setCptInput] = useState("");
   const [ndcInput, setNdcInput] = useState("");
-
-  useEffect(() => {
-    api.auth
-      .me()
-      .then((u) => setUser({ ...u, role: u.role || "staffingly_admin" }))
-      .catch(() => api.auth.redirectToLogin());
-    loadRules();
-  }, []);
-
-  const loadRules = async () => {
-    setLoading(true);
-    const data = await api.entities.PayerRule.list("-created_date");
-    setRules(data);
-    setLoading(false);
-  };
+  const queryClient = useQueryClient();
+  const { data: user } = useAuthUserQuery({ withDefaultRole: "staffingly_admin" });
+  const { data: rules = [], isLoading: loading } = useEntityListQuery(
+    "PayerRule",
+    "-created_date",
+    null,
+    { enabled: Boolean(user) }
+  );
 
   const openNew = () => {
     setForm(EMPTY_RULE);
@@ -73,7 +65,7 @@ export default function PayerRules() {
     } else {
       await api.entities.PayerRule.update(editing, payload);
     }
-    await loadRules();
+    await queryClient.invalidateQueries({ queryKey: ["entity", "PayerRule"] });
     closeEdit();
     setSaving(false);
   };
@@ -87,7 +79,7 @@ export default function PayerRules() {
       setCptInput("");
     }
   };
-  const addNdc = () => {
+  const _addNdc = () => {
     if (ndcInput.trim()) {
       setForm((f) => ({
         ...f,
@@ -287,7 +279,7 @@ export default function PayerRules() {
                 rule={form._fullRule}
                 onSave={async (automationData) => {
                   await api.entities.PayerRule.update(editing, automationData);
-                  await loadRules();
+                  await queryClient.invalidateQueries({ queryKey: ["entity", "PayerRule"] });
                   setForm((f) => ({
                     ...f,
                     _fullRule: { ...f._fullRule, ...automationData },

@@ -1,5 +1,5 @@
-import { useState, useEffect } from "react";
-import { api } from "@/lib/api";
+import { useState } from "react";
+import { useAuthUserQuery } from "@/lib/query";
 import StaffinglyLayout from "@/components/staffingly/StaffinglyLayout";
 import { Search, Download, Lock } from "lucide-react";
 
@@ -89,18 +89,11 @@ const ACTION_COLORS = {
 };
 
 export default function SAAuditLogs() {
-  const [user, setUser] = useState(null);
+  const { data: user } = useAuthUserQuery({ withDefaultRole: "super_admin" });
   const [logs] = useState(DUMMY_LOGS);
   const [search, setSearch] = useState("");
   const [filterModule, setFilterModule] = useState("all");
   const [filterAction, setFilterAction] = useState("all");
-
-  useEffect(() => {
-    api.auth
-      .me()
-      .then((u) => setUser({ ...u, role: u.role || "super_admin" }))
-      .catch(() => api.auth.redirectToLogin());
-  }, []);
 
   const modules = ["all", ...new Set(DUMMY_LOGS.map((l) => l.module))];
   const actions = ["all", ...new Set(DUMMY_LOGS.map((l) => l.action_type))];

@@ -1,5 +1,5 @@
-import { useState, useEffect } from "react";
-import { api } from "@/lib/api";
+import { useState } from "react";
+import { useAuthUserQuery } from "@/lib/query";
 import StaffinglyLayout from "@/components/staffingly/StaffinglyLayout";
 import ConnectionMethodBadge from "@/components/eligibility/ConnectionMethodBadge";
 import { Search, Download, Eye, ClipboardList, ChevronDown, ChevronUp } from "lucide-react";
@@ -186,17 +186,10 @@ function HistoryRow({ row }) {
 }
 
 export default function EligibilityHistory() {
-  const [user, setUser] = useState(null);
+  const { data: user } = useAuthUserQuery({ withDefaultRole: "staffingly_supervisor" });
   const [search, setSearch] = useState("");
   const [filterStatus, setFilterStatus] = useState("all");
   const [filterMethod, setFilterMethod] = useState("all");
-
-  useEffect(() => {
-    api.auth
-      .me()
-      .then((u) => setUser({ ...u, role: u.role || "staffingly_supervisor" }))
-      .catch(() => api.auth.redirectToLogin());
-  }, []);
 
   const filtered = DUMMY_HISTORY.filter((r) => {
     const matchSearch = `${r.patient} ${r.member_id} ${r.id}`

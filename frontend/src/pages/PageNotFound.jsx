@@ -12,7 +12,7 @@ export default function PageNotFound({}) {
       try {
         const user = await api.auth.me();
         return { user, isAuthenticated: true };
-      } catch (error) {
+      } catch {
         return { user: null, isAuthenticated: false };
       }
     },

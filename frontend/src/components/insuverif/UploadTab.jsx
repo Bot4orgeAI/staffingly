@@ -13,7 +13,7 @@ const DOC_TYPES = [
   "Other Document",
 ];
 
-const CONFIDENCE_THRESHOLD = 80;
+const _CONFIDENCE_THRESHOLD = 80;
 
 export default function UploadTab({ onSubmit }) {
   const [docType, setDocType] = useState("Insurance Card Front");

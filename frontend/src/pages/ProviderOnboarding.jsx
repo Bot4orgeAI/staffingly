@@ -1,7 +1,8 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { Link } from "react-router-dom";
 import { createPageUrl } from "@/lib/utils/page";
 import { api } from "@/lib/api";
+import { useAuthUserQuery } from "@/lib/query";
 import AppHeader from "@/components/insuverif/AppHeader";
 import {
   Check,
@@ -405,7 +406,7 @@ export default function ProviderOnboarding() {
   const params = new URLSearchParams(window.location.search);
   const clientId = params.get("client_id") || "";
 
-  const [user, setUser] = useState(null);
+  const { data: user } = useAuthUserQuery();
   const [step, setStep] = useState(1);
   const [errors, setErrors] = useState({});
   const [saving, setSaving] = useState(false);
@@ -443,13 +444,6 @@ export default function ProviderOnboarding() {
   });
 
   const dataByStep = { 1: basic, 2: creds, 3: payers, 4: bank };
-
-  useEffect(() => {
-    api.auth
-      .me()
-      .then(setUser)
-      .catch(() => api.auth.redirectToLogin());
-  }, []);
 
   const handleNext = () => {
     const errs = validateStep(step, dataByStep[step]);

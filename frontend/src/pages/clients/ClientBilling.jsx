@@ -1,9 +1,10 @@
-import { useState, useEffect } from "react";
-import { api } from "@/lib/api";
+import { useMemo, useState } from "react";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 import ClientPortalLayout from "@/components/portal/ClientPortalLayout";
+import { useAuthUserQuery, useEntityFilterQuery } from "@/lib/query";
+import { api } from "@/lib/api";
 import {
   canDisputeInvoice,
-  getAccentColor,
   getClientId,
   getInvoiceDisputeHoursRemaining,
   normalizeBranding,
@@ -21,67 +22,64 @@ const STATUS_STYLES = {
 };
 
 export default function ClientBilling() {
-  const [user, setUser] = useState(null);
-  const [branding, setBranding] = useState(null);
-  const [invoices, setInvoices] = useState([]);
-  const [loading, setLoading] = useState(true);
   const [disputingId, setDisputingId] = useState(null);
   const [disputeReason, setDisputeReason] = useState("");
+  const queryClient = useQueryClient();
+  const { data: user, isLoading: loadingUser } = useAuthUserQuery();
+  const clientId = getClientId(user);
 
-  useEffect(() => {
-    api.auth
-      .me()
-      .then(async (u) => {
-        setUser(u);
-        const clientId = getClientId(u);
-        const [bData, iData] = await Promise.all([
-          clientId ? api.entities.ClientBranding.filter({ clientId }).catch(() => []) : [],
-          api.entities.ClientInvoice.filter(clientId ? { clientId } : {}),
-        ]);
-        setBranding(normalizeBranding(bData[0] || null));
-        setInvoices(
-          iData.map(normalizeInvoice).sort(
-            (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
-          )
-        );
-        setLoading(false);
-      })
-      .catch(() => api.auth.redirectToLogin());
-  }, []);
+  const { data: branding = null, isLoading: loadingBranding } = useEntityFilterQuery(
+    "ClientBranding",
+    clientId ? { clientId } : {},
+    {
+      enabled: Boolean(clientId),
+      select: (data) => normalizeBranding(data[0] || null),
+    }
+  );
+  const { data: invoices = [], isLoading: loadingInvoices } = useEntityFilterQuery(
+    "ClientInvoice",
+    clientId ? { clientId } : {},
+    {
+      enabled: Boolean(user),
+      select: (data) =>
+        data
+          .map(normalizeInvoice)
+          .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()),
+    }
+  );
+
+  const disputeMutation = useMutation({
+    mutationFn: /** @param {Record<string, any>} inv */ (inv) =>
+      api.entities.ClientInvoice.update(inv.id, {
+        status: "DISPUTED",
+        disputeReason,
+        disputeStatus: "open",
+        disputeOpenedAt: new Date().toISOString(),
+      }),
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ["entity", "ClientInvoice"] });
+      setDisputingId(null);
+      setDisputeReason("");
+    },
+  });
 
   const submitDispute = async (inv) => {
     if (!disputeReason.trim()) return;
-    await api.entities.ClientInvoice.update(inv.id, {
-      status: "DISPUTED",
-      disputeReason,
-      disputeStatus: "open",
-      disputeOpenedAt: new Date().toISOString(),
-    });
-    setInvoices((prev) =>
-      prev.map((i) =>
-        i.id === inv.id
-          ? {
-              ...i,
-              statusCode: "DISPUTED",
-              displayStatus: "Disputed",
-              disputeReason,
-              disputeStatus: "open",
-              disputeOpenedAt: new Date().toISOString(),
-            }
-          : i
-      )
-    );
-    setDisputingId(null);
-    setDisputeReason("");
+    await disputeMutation.mutateAsync(inv);
   };
 
-  const accent = getAccentColor(branding);
-  const totalPaid = invoices
-    .filter((i) => i.statusCode === "PAID")
-    .reduce((s, i) => s + (i.totalAmount || 0), 0);
-  const totalOpen = invoices
-    .filter((i) => ["DISPUTE_WINDOW", "PENDING"].includes(i.statusCode))
-    .reduce((s, i) => s + (i.totalAmount || 0), 0);
+  const { totalPaid, totalOpen } = useMemo(
+    () => ({
+      totalPaid: invoices
+        .filter((i) => i.statusCode === "PAID")
+        .reduce((s, i) => s + (i.totalAmount || 0), 0),
+      totalOpen: invoices
+        .filter((i) => ["DISPUTE_WINDOW", "PENDING"].includes(i.statusCode))
+        .reduce((s, i) => s + (i.totalAmount || 0), 0),
+    }),
+    [invoices]
+  );
+  const loading = loadingUser || loadingBranding || loadingInvoices;
 
   if (loading)
     return (

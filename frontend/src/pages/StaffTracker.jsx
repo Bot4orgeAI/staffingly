@@ -1,5 +1,5 @@
-import { useState, useEffect } from "react";
-import { api } from "@/lib/api";
+import { useState } from "react";
+import { useAuthUserQuery, useEntityFilterQuery, useEntityListQuery } from "@/lib/query";
 import StaffinglyLayout from "@/components/staffingly/StaffinglyLayout";
 import { createPageUrl } from "@/lib/utils/page";
 import { Users, Trophy, Loader2, Flag, ToggleLeft, ToggleRight } from "lucide-react";
@@ -44,7 +44,7 @@ function SpecialistCard({ specialist, cases, onClick }) {
       ? Math.round((approvedThisMonth.length / closedThisMonth.length) * 100)
       : null;
   const submitted = cases.filter((c) => c.submission_timestamp);
-  const avgDays =
+  const _avgDays =
     submitted.length > 0
       ? Math.round(
           submitted.reduce((s, c) => s + daysBetween(c.created_date, c.submission_timestamp), 0) /
@@ -268,28 +268,24 @@ function Leaderboard({ specialists, casesBySpecialist }) {
 }
 
 export default function StaffTracker() {
-  const [user, setUser] = useState(null);
-  const [specialists, setSpecialists] = useState([]);
-  const [allCases, setAllCases] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [showLeaderboard, setShowLeaderboard] = useState(false);
-  const [selectedSpecialist, setSelectedSpecialist] = useState(null);
+  const { data: user, isLoading: loadingAuth } = useAuthUserQuery();
 
-  useEffect(() => {
-    api.auth
-      .me()
-      .then(async (u) => {
-        setUser(u);
-        const [users, cases] = await Promise.all([
-          api.entities.StaffinglyUser.filter({ role: "staffingly_specialist" }),
-          api.entities.PriorAuthCase.list(),
-        ]);
-        setSpecialists(users);
-        setAllCases(cases);
-        setLoading(false);
-      })
-      .catch(() => api.auth.redirectToLogin());
-  }, []);
+  const { data: specialists = [], isLoading: loadingS } = useEntityFilterQuery(
+    "StaffinglyUser",
+    { role: "staffingly_specialist" },
+    { enabled: Boolean(user && ALLOWED_ROLES.includes(user.role)) }
+  );
+
+  const { data: allCases = [], isLoading: loadingC } = useEntityListQuery(
+    "PriorAuthCase",
+    null,
+    2000,
+    { enabled: Boolean(user && ALLOWED_ROLES.includes(user.role)) }
+  );
+
+  const loading = loadingAuth || loadingS || loadingC;
+  const [showLeaderboard, setShowLeaderboard] = useState(false);
+  const [_selectedSpecialist, _setSelectedSpecialist] = useState(null);
 
   if (loading)
     return (

@@ -1,8 +1,10 @@
-import { useState, useEffect, useRef } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { api } from "@/lib/api";
 import { Link } from "react-router-dom";
 import { createPageUrl } from "@/lib/utils/page";
 import ClientPortalLayout from "@/components/portal/ClientPortalLayout";
+import { queryKeys, useAuthUserQuery, useEntityDetailQuery, useEntityFilterQuery } from "@/lib/query";
 import {
   getAccentColor,
   getClientId,
@@ -49,60 +51,97 @@ export default function ClientCaseDetail() {
   const params = new URLSearchParams(window.location.search);
   const caseId = params.get("id");
 
-  const [user, setUser] = useState(null);
-  const [branding, setBranding] = useState(null);
-  const [paCase, setPaCase] = useState(null);
-  const [docs, setDocs] = useState([]);
-  const [messages, setMessages] = useState([]);
   const [msgInput, setMsgInput] = useState("");
-  const [sendingMsg, setSendingMsg] = useState(false);
-  const [uploading, setUploading] = useState(false);
   const [activeTab, setActiveTab] = useState("overview");
-  const [loading, setLoading] = useState(true);
   const msgBottomRef = useRef(null);
+  const queryClient = useQueryClient();
+  const { data: user, isLoading: loadingUser } = useAuthUserQuery();
+  const clientId = getClientId(user);
+  const { data: branding = null, isLoading: loadingBranding } = useEntityFilterQuery(
+    "ClientBranding",
+    clientId ? { clientId } : {},
+    {
+      enabled: Boolean(clientId),
+      select: (data) => normalizeBranding(data[0] || null),
+    }
+  );
+  const { data: caseData, isLoading: loadingCase } = useEntityDetailQuery("PriorAuthCase", caseId, {
+    enabled: Boolean(user && caseId),
+  });
+  const { data: messages = [], isLoading: loadingMessages } = useEntityFilterQuery(
+    "CaseMessage",
+    caseId ? { caseId } : {},
+    {
+      enabled: Boolean(user && caseId),
+      select: (data) =>
+        data
+          .map(normalizeMessage)
+          .sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()),
+    }
+  );
+
+  const paCase = caseData ? normalizeCase(caseData) : null;
+  const docs = useMemo(
+    () => (Array.isArray(caseData?.documents) ? caseData.documents.map(normalizeDocument) : []),
+    [caseData]
+  );
+
+  const sendMessageMutation = useMutation({
+    mutationFn: /** @param {Record<string, any>} message */ (message) => api.entities.CaseMessage.create(message),
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({
+        queryKey: queryKeys.entity.filter("CaseMessage", { caseId }, { sortBy: null, limit: null }),
+      });
+      setMsgInput("");
+    },
+  });
+
+  const uploadMutation = useMutation({
+    mutationFn: async (/** @type {FileList | File[]} */ files) => {
+      for (const file of Array.from(files)) {
+        const { file_url } = await api.integrations.Core.UploadFile({ file });
+        await api.client.post(`/api/prior-auth/cases/${caseId}/documents`, {
+          documentType: "Client Upload",
+          checklistItemKey: "client-upload",
+          fileUrl: file_url,
+          fileName: file.name,
+        });
+        await api.entities.CaseMessage.create({
+          caseId,
+          clientId: getClientId(user),
+          senderRole: "client",
+          senderId: user?.id,
+          senderName: getUserDisplayName(user),
+          message: `Uploaded document: ${file.name}`,
+          readByClient: true,
+          readByStaff: false,
+        });
+      }
+    },
+    onSuccess: async () => {
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: queryKeys.entity.detail("PriorAuthCase", caseId) }),
+        queryClient.invalidateQueries({
+          queryKey: queryKeys.entity.filter("CaseMessage", { caseId }, { sortBy: null, limit: null }),
+        }),
+      ]);
+    },
+  });
 
   useEffect(() => {
-    api.auth
-      .me()
-      .then(async (u) => {
-        setUser(u);
-        const clientId = getClientId(u);
-        const [bData, caseData, mData] = await Promise.all([
-          clientId ? api.entities.ClientBranding.filter({ clientId }).catch(() => []) : [],
-          api.entities.PriorAuthCase.get(caseId),
-          api.entities.CaseMessage.filter({ caseId }),
-        ]);
-        const normalizedCase = caseData ? normalizeCase(caseData) : null;
-        setBranding(normalizeBranding(bData[0] || null));
-        setPaCase(normalizedCase);
-        setDocs(Array.isArray(caseData?.documents) ? caseData.documents.map(normalizeDocument) : []);
-        setMessages(
-          mData
-            .map(normalizeMessage)
-            .sort(
-            (a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
-          )
-        );
-        // Mark messages as read by client
-        mData
-          .map(normalizeMessage)
-          .filter((m) => m.senderRole === "staff" && !m.readByClient)
-          .forEach((m) => {
-            api.entities.CaseMessage.update(m.id, { readByClient: true });
-          });
-        setLoading(false);
-      })
-      .catch(() => api.auth.redirectToLogin());
-  }, [caseId]);
+    const unreadStaffMessages = messages.filter((m) => m.senderRole === "staff" && !m.readByClient);
+    unreadStaffMessages.forEach((message) => {
+      api.entities.CaseMessage.update(message.id, { readByClient: true });
+    });
+  }, [messages]);
 
   useEffect(() => {
     msgBottomRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages, activeTab]);
 
   const handleSendMessage = async () => {
-    if (!msgInput.trim() || sendingMsg) return;
-    setSendingMsg(true);
-    const msg = await api.entities.CaseMessage.create({
+    if (!msgInput.trim() || sendMessageMutation.isPending) return;
+    await sendMessageMutation.mutateAsync({
       caseId,
       clientId: getClientId(user),
       senderRole: "client",
@@ -112,39 +151,15 @@ export default function ClientCaseDetail() {
       readByClient: true,
       readByStaff: false,
     });
-    setMessages((prev) => [...prev, normalizeMessage(msg)]);
-    setMsgInput("");
-    setSendingMsg(false);
   };
 
   const handleFileUpload = async (files) => {
-    setUploading(true);
-    for (const file of Array.from(files)) {
-      const { file_url } = await api.integrations.Core.UploadFile({ file });
-      await api.client.post(`/api/prior-auth/cases/${caseId}/documents`, {
-        documentType: "Client Upload",
-        checklistItemKey: "client-upload",
-        fileUrl: file_url,
-        fileName: file.name,
-      });
-      // Notify via message
-      await api.entities.CaseMessage.create({
-        caseId,
-        clientId: getClientId(user),
-        senderRole: "client",
-        senderId: user?.id,
-        senderName: getUserDisplayName(user),
-        message: `Uploaded document: ${file.name}`,
-        readByClient: true,
-        readByStaff: false,
-      });
-    }
-    const refreshedCase = await api.entities.PriorAuthCase.get(caseId);
-    setDocs(
-      Array.isArray(refreshedCase?.documents) ? refreshedCase.documents.map(normalizeDocument) : []
-    );
-    setUploading(false);
+    await uploadMutation.mutateAsync(files);
   };
+
+  const loading = loadingUser || loadingBranding || loadingCase || loadingMessages;
+  const sendingMsg = sendMessageMutation.isPending;
+  const uploading = uploadMutation.isPending;
 
   if (loading)
     return (

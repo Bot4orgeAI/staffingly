@@ -1,5 +1,7 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import { api } from "@/lib/api";
+import { useAuthUserQuery, useEntityListQuery } from "@/lib/query";
 import StaffinglyLayout from "@/components/staffingly/StaffinglyLayout";
 import {
   BillingHeader,
@@ -292,29 +294,17 @@ function PackageForm({ initial, onSave, onCancel, userEmail }) {
 }
 
 export default function PricingPackages() {
-  const [user, setUser] = useState(null);
-  const [packages, setPackages] = useState([]);
-  const [loading, setLoading] = useState(true);
   const [editing, setEditing] = useState(null);
   const [showForm, setShowForm] = useState(false);
-
-  useEffect(() => {
-    api.auth
-      .me()
-      .then((u) => {
-        setUser(u);
-        if (canAccessBilling(u)) loadPackages();
-        else setLoading(false);
-      })
-      .catch(() => api.auth.redirectToLogin());
-  }, []);
-
-  const loadPackages = async () => {
-    setLoading(true);
-    const pkgs = await api.entities.PricingPackage.list();
-    setPackages(pkgs);
-    setLoading(false);
-  };
+  const queryClient = useQueryClient();
+  const { data: user, isLoading: loadingUser } = useAuthUserQuery();
+  const billingEnabled = Boolean(user) && canAccessBilling(user);
+  const { data: packages = [], isLoading: loadingPackages } = useEntityListQuery(
+    "PricingPackage",
+    null,
+    null,
+    { enabled: billingEnabled }
+  );
 
   const handleEdit = (pkg) => {
     setEditing(pkg);
@@ -327,7 +317,7 @@ export default function PricingPackages() {
   const handleSave = () => {
     setShowForm(false);
     setEditing(null);
-    loadPackages();
+    queryClient.invalidateQueries({ queryKey: ["entity", "PricingPackage"] });
   };
 
   if (!user) return null;
@@ -356,7 +346,7 @@ export default function PricingPackages() {
           </button>
         </div>
 
-        {loading ? (
+        {loadingUser || loadingPackages ? (
           <div className="flex items-center justify-center py-16">
             <div className="w-6 h-6 border-2 border-slate-200 border-t-amber-500 rounded-full animate-spin" />
           </div>

@@ -215,7 +215,7 @@ Assistant (be concise, cite sources when using knowledge base, never fabricate c
           });
         }
       } catch {}
-    } catch (err) {
+    } catch {
       addMessage({
         role: "assistant",
         content:

@@ -1,5 +1,7 @@
 import { useState, useEffect } from "react";
+import { useQueryClient, useMutation } from "@tanstack/react-query";
 import { api } from "@/lib/api";
+import { useAuthUserQuery, useEntityListQuery, useEntityFilterQuery } from "@/lib/query";
 import StaffinglyLayout from "@/components/staffingly/StaffinglyLayout";
 import { Save, Loader2, Upload, CheckCircle, Palette, Globe, Image } from "lucide-react";
 
@@ -17,10 +19,30 @@ const ACCENT_COLORS = [
 ];
 
 export default function ClientBrandingAdmin() {
-  const [user, setUser] = useState(null);
-  const [clients, setClients] = useState([]);
-  const [selectedClientId, setSelectedClientId] = useState("");
-  const [branding, setBranding] = useState(null);
+  const queryClient = useQueryClient();
+  const { data: user, isLoading: loadingAuth } = useAuthUserQuery();
+
+  const params = new URLSearchParams(window.location.search);
+  const preClient = params.get("client_id");
+
+  const [selectedClientId, setSelectedClientId] = useState(preClient || "");
+  
+  const { data: clients = [], isLoading: loadingClients } = useEntityListQuery(
+    "StaffinglyClient",
+    null,
+    1000,
+    { enabled: Boolean(user && ALLOWED_ROLES.includes(user.role)) }
+  );
+
+  const { data: brandingData = [], isLoading: loadingBranding } = useEntityFilterQuery(
+    "ClientBranding",
+    { client_id: selectedClientId },
+    { enabled: Boolean(user && selectedClientId) }
+  );
+
+  const branding = brandingData[0] || null;
+  const loading = loadingAuth || loadingClients || loadingBranding;
+
   const [form, setForm] = useState({
     accent_color: "#293682",
     practice_name: "",
@@ -31,51 +53,38 @@ export default function ClientBrandingAdmin() {
   const [saving, setSaving] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [saved, setSaved] = useState(false);
-  const [loading, setLoading] = useState(true);
 
-  const params = new URLSearchParams(window.location.search);
-  const preClient = params.get("client_id");
 
-  useEffect(() => {
-    api.auth
-      .me()
-      .then(async (u) => {
-        setUser(u);
-        if (!ALLOWED_ROLES.includes(u.role)) {
-          setLoading(false);
-          return;
-        }
-        const sClients = await api.entities.StaffinglyClient.list();
-        setClients(sClients);
-        if (preClient) setSelectedClientId(preClient);
-        setLoading(false);
-      })
-      .catch(() => api.auth.redirectToLogin());
-  }, []);
 
   useEffect(() => {
     if (!selectedClientId) return;
-    api.entities.ClientBranding.filter({ client_id: selectedClientId }).then((data) => {
-      if (data[0]) {
-        setBranding(data[0]);
-        setForm({
-          accent_color: data[0].accent_color || "#293682",
-          practice_name: data[0].practice_name || "",
-          subdomain: data[0].subdomain || "",
-          portal_welcome_message: data[0].portal_welcome_message || "",
-          logo_url: data[0].logo_url || "",
-        });
-      } else {
-        const client = clients.find((c) => c.id === selectedClientId);
-        setBranding(null);
-        setForm((f) => ({
-          ...f,
-          practice_name: client?.practice_name || "",
-          subdomain: client?.subdomain || "",
-        }));
-      }
-    });
-  }, [selectedClientId, clients]);
+    if (branding) {
+      setForm({
+        accent_color: branding.accent_color || "#293682",
+        practice_name: branding.practice_name || "",
+        subdomain: branding.subdomain || "",
+        portal_welcome_message: branding.portal_welcome_message || "",
+        logo_url: branding.logo_url || "",
+      });
+    } else if (clients.length > 0) {
+      const client = clients.find((c) => c.id === selectedClientId);
+      setForm((f) => ({
+        ...f,
+        practice_name: client?.practice_name || "",
+        subdomain: client?.subdomain || "",
+      }));
+    }
+  }, [selectedClientId, branding, clients]);
+
+  const updateBrandingMutation = useMutation({
+    mutationFn: /** @param {Record<string, any>} payload */ (payload) =>
+      branding?.id
+        ? api.entities.ClientBranding.update(branding.id, payload)
+        : api.entities.ClientBranding.create(payload),
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ["entity", "ClientBranding"] });
+    },
+  });
 
   const handleLogoUpload = async (file) => {
     setUploading(true);
@@ -93,11 +102,7 @@ export default function ClientBrandingAdmin() {
       updated_by: user?.email,
       updated_at: new Date().toISOString(),
     };
-    if (branding?.id) {
-      await api.entities.ClientBranding.update(branding.id, payload);
-    } else {
-      await api.entities.ClientBranding.create(payload);
-    }
+    await updateBrandingMutation.mutateAsync(payload);
     setSaving(false);
     setSaved(true);
     setTimeout(() => setSaved(false), 2000);

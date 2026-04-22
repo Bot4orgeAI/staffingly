@@ -1,38 +1,34 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import { Link } from "react-router-dom";
 import { createPageUrl } from "@/lib/utils/page";
 import { api } from "@/lib/api";
+import { useAuthUserQuery, useEntityFilterQuery } from "@/lib/query";
 import StaffinglyLayout from "@/components/staffingly/StaffinglyLayout";
 import { CheckCircle, ChevronRight, Loader2, MessageSquare, ArrowUp } from "lucide-react";
 
 export default function SupervisorApprovalQueue() {
-  const [user, setUser] = useState(null);
-  const [cases, setCases] = useState([]);
-  const [loading, setLoading] = useState(true);
   const [actionState, setActionState] = useState({});
   const [feedbackMap, setFeedbackMap] = useState({});
   const [showFeedback, setShowFeedback] = useState({});
+  const queryClient = useQueryClient();
+  const { data: user, isLoading: loadingUser } = useAuthUserQuery();
+  const { data: cases = [], isLoading: loadingCases } = useEntityFilterQuery(
+    "PriorAuthCase",
+    { status: "Pending Supervisor Approval" },
+    {
+      enabled: Boolean(user),
+      select: (data) =>
+        data.sort((a, b) => {
+          if (a.urgency === "Urgent" && b.urgency !== "Urgent") return -1;
+          if (b.urgency === "Urgent" && a.urgency !== "Urgent") return 1;
+          return new Date(a.created_date).getTime() - new Date(b.created_date).getTime();
+        }),
+    }
+  );
 
-  useEffect(() => {
-    api.auth
-      .me()
-      .then(setUser)
-      .catch(() => api.auth.redirectToLogin());
-    loadCases();
-  }, []);
-
-  const loadCases = async () => {
-    setLoading(true);
-    const data = await api.entities.PriorAuthCase.filter({
-      status: "Pending Supervisor Approval",
-    });
-    const sorted = data.sort((a, b) => {
-      if (a.urgency === "Urgent" && b.urgency !== "Urgent") return -1;
-      if (b.urgency === "Urgent" && a.urgency !== "Urgent") return 1;
-      return new Date(a.created_date).getTime() - new Date(b.created_date).getTime();
-    });
-    setCases(sorted);
-    setLoading(false);
+  const refreshCases = async () => {
+    await queryClient.invalidateQueries({ queryKey: ["entity", "PriorAuthCase"] });
   };
 
   const handleApprove = async (c) => {
@@ -42,7 +38,7 @@ export default function SupervisorApprovalQueue() {
       supervisor_approved_by: user?.full_name || user?.email,
       supervisor_approved_at: new Date().toISOString(),
     });
-    setCases((prev) => prev.filter((x) => x.id !== c.id));
+    await refreshCases();
     setActionState((s) => ({ ...s, [c.id]: "done" }));
   };
 
@@ -57,18 +53,18 @@ export default function SupervisorApprovalQueue() {
       status: "In Progress",
       supervisor_notes: notes,
     });
-    setCases((prev) => prev.filter((x) => x.id !== c.id));
+    await refreshCases();
     setActionState((s) => ({ ...s, [c.id]: "done" }));
   };
 
   const handleEscalate = async (c) => {
     setActionState((s) => ({ ...s, [c.id]: "escalating" }));
     await api.entities.PriorAuthCase.update(c.id, { status: "Peer To Peer Requested" });
-    setCases((prev) => prev.filter((x) => x.id !== c.id));
+    await refreshCases();
     setActionState((s) => ({ ...s, [c.id]: "done" }));
   };
 
-  if (loading)
+  if (loadingUser || loadingCases)
     return (
       <div
         className="min-h-screen flex items-center justify-center"

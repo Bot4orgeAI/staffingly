@@ -1,5 +1,7 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
+import { useQueryClient, useMutation } from "@tanstack/react-query";
 import { api } from "@/lib/api";
+import { useAuthUserQuery, useEntityFilterQuery } from "@/lib/query";
 import StaffinglyLayout from "@/components/staffingly/StaffinglyLayout";
 import { Link } from "react-router-dom";
 import { createPageUrl } from "@/lib/utils/page";
@@ -36,11 +38,40 @@ export default function SpecialistCaseView() {
   const specialistName = params.get("specialist_name") || "Specialist";
   const activeTab = params.get("tab") || "cases";
 
-  const [user, setUser] = useState(null);
-  const [cases, setCases] = useState([]);
-  const [specialists, setSpecialists] = useState([]);
-  const [activityLogs, setActivityLogs] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const queryClient = useQueryClient();
+  const { data: user, isLoading: loadingAuth } = useAuthUserQuery();
+
+  const { data: cData = [], isLoading: loadingC } = useEntityFilterQuery(
+    "PriorAuthCase",
+    { assigned_specialist_id: specialistId },
+    { enabled: Boolean(user && specialistId) }
+  );
+
+  const { data: sData = [], isLoading: loadingS } = useEntityFilterQuery(
+    "StaffinglyUser",
+    { role: "staffingly_specialist" },
+    { enabled: Boolean(user) }
+  );
+
+  const { data: aData = [], isLoading: loadingA } = useEntityFilterQuery(
+    "DailyActivityLog",
+    { specialist_id: specialistId },
+    { enabled: Boolean(user && specialistId) }
+  );
+
+  const cases = [...cData].sort(
+    (a, b) =>
+      new Date(b.updated_date || b.created_date).getTime() -
+      new Date(a.updated_date || a.created_date).getTime()
+  );
+  
+  const specialists = sData.filter((s) => s.id !== specialistId);
+  const activityLogs = [...aData].sort(
+    (a, b) => new Date(b.log_date).getTime() - new Date(a.log_date).getTime()
+  );
+
+  const loading = loadingAuth || loadingC || loadingS || loadingA;
+
   const [search, setSearch] = useState("");
   const [filterStatus, setFilterStatus] = useState("All");
   const [selectedCases, setSelectedCases] = useState([]);
@@ -49,32 +80,6 @@ export default function SpecialistCaseView() {
   const [reassignNotes, setReassignNotes] = useState("");
   const [reassigning, setReassigning] = useState(false);
   const [currentTab, setCurrentTab] = useState(activeTab);
-
-  useEffect(() => {
-    api.auth
-      .me()
-      .then(async (u) => {
-        setUser(u);
-        const [cData, sData, aData] = await Promise.all([
-          api.entities.PriorAuthCase.filter({ assigned_specialist_id: specialistId }),
-          api.entities.StaffinglyUser.filter({ role: "staffingly_specialist" }),
-          api.entities.DailyActivityLog.filter({ specialist_id: specialistId }),
-        ]);
-        setCases(
-          cData.sort(
-            (a, b) =>
-              new Date(b.updated_date || b.created_date).getTime() -
-              new Date(a.updated_date || a.created_date).getTime()
-          )
-        );
-        setSpecialists(sData.filter((s) => s.id !== specialistId));
-        setActivityLogs(
-          aData.sort((a, b) => new Date(b.log_date).getTime() - new Date(a.log_date).getTime())
-        );
-        setLoading(false);
-      })
-      .catch(() => api.auth.redirectToLogin());
-  }, [specialistId]);
 
   const filtered = cases.filter((c) => {
     const matchStatus = filterStatus === "All" || c.status === filterStatus;
@@ -90,39 +95,44 @@ export default function SpecialistCaseView() {
     setSelectedCases((prev) => (prev.includes(id) ? prev.filter((i) => i !== id) : [...prev, id]));
   };
 
+  const reassignMutation = useMutation({
+    mutationFn: async ({ targetSpec }) => {
+      await Promise.all(
+        selectedCases.map(async (caseDbId) => {
+          await api.entities.PriorAuthCase.update(caseDbId, {
+            assigned_specialist_id: reassignTo,
+            assigned_specialist_name: targetSpec?.full_name || "Unknown",
+          });
+          await api.entities.StaffinglyAuditLog.create({
+            user_id: user.id,
+            role: user.role,
+            action_type: "case_reassigned",
+            module: "StaffTracker",
+            record_id: caseDbId,
+            new_value: JSON.stringify({ to: reassignTo, notes: reassignNotes }),
+            timestamp: new Date().toISOString(),
+          });
+          await api.entities.ClientNotification.create({
+            client_id: reassignTo,
+            user_id: reassignTo,
+            type: "general",
+            title: "Case Reassigned to You",
+            body: `A case has been reassigned to you. Reason: ${reassignNotes}`,
+            read: false,
+          });
+        })
+      );
+    },
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ["entity", "PriorAuthCase"] });
+    },
+  });
+
   const handleReassign = async () => {
     if (!reassignTo || !reassignNotes.trim()) return;
     setReassigning(true);
     const targetSpec = specialists.find((s) => s.id === reassignTo);
-    await Promise.all(
-      selectedCases.map(async (caseDbId) => {
-        await api.entities.PriorAuthCase.update(caseDbId, {
-          assigned_specialist_id: reassignTo,
-          assigned_specialist_name: targetSpec?.full_name || "Unknown",
-        });
-        await api.entities.StaffinglyAuditLog.create({
-          user_id: user.id,
-          role: user.role,
-          action_type: "case_reassigned",
-          module: "StaffTracker",
-          record_id: caseDbId,
-          new_value: JSON.stringify({ to: reassignTo, notes: reassignNotes }),
-          timestamp: new Date().toISOString(),
-        });
-        await api.entities.ClientNotification.create({
-          client_id: reassignTo,
-          user_id: reassignTo,
-          type: "general",
-          title: "Case Reassigned to You",
-          body: `A case has been reassigned to you. Reason: ${reassignNotes}`,
-          read: false,
-        });
-      })
-    );
-    const updated = await api.entities.PriorAuthCase.filter({
-      assigned_specialist_id: specialistId,
-    });
-    setCases(updated);
+    await reassignMutation.mutateAsync({ targetSpec });
     setSelectedCases([]);
     setReassignModal(false);
     setReassignTo("");

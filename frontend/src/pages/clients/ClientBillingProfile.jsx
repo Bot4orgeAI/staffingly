@@ -1,5 +1,7 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
+import { useQueryClient, useMutation } from "@tanstack/react-query";
 import { api } from "@/lib/api";
+import { useAuthUserQuery, useEntityFilterQuery, useEntityListQuery } from "@/lib/query";
 import StaffinglyLayout from "@/components/staffingly/StaffinglyLayout";
 import {
   BillingHeader,
@@ -19,12 +21,48 @@ import {
 } from "lucide-react";
 
 export default function ClientBillingProfile() {
-  const [user, setUser] = useState(null);
-  const [profile, setProfile] = useState(null);
-  const [invoices, setInvoices] = useState([]);
-  const [credits, setCredits] = useState([]);
-  const [packages, setPackages] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const queryClient = useQueryClient();
+  const { data: user, isLoading: loadingAuth } = useAuthUserQuery();
+
+  const params = new URLSearchParams(window.location.search);
+  const clientId = params.get("client_id");
+
+  const isBillingAllowed = user && canAccessBilling(user);
+
+  const { data: profileList = [], isLoading: loadingProfile } = useEntityFilterQuery(
+    "BillingProfile",
+    { client_id: clientId },
+    { enabled: Boolean(isBillingAllowed && clientId) }
+  );
+  
+  const { data: invList = [], isLoading: loadingInv } = useEntityFilterQuery(
+    "ClientInvoice",
+    { client_id: clientId },
+    { enabled: Boolean(isBillingAllowed && clientId) }
+  );
+
+  const { data: creditList = [], isLoading: loadingCredit } = useEntityFilterQuery(
+    "BillingCredit",
+    { client_id: clientId },
+    { enabled: Boolean(isBillingAllowed && clientId) }
+  );
+
+  const { data: pkgList = [], isLoading: loadingPkg } = useEntityListQuery(
+    "PricingPackage",
+    null,
+    1000,
+    { enabled: Boolean(isBillingAllowed) }
+  );
+
+  const profile = profileList[0] || null;
+  const invoices = [...invList].sort(
+    (a, b) => new Date(b.created_date).getTime() - new Date(a.created_date).getTime()
+  );
+  const credits = creditList;
+  const packages = pkgList;
+  
+  const loading = loadingAuth || loadingProfile || loadingInv || loadingCredit || loadingPkg;
+
   const [showCreditForm, setShowCreditForm] = useState(false);
   const [creditForm, setCreditForm] = useState({ amount: "", reason: "" });
   const [actionMsg, setActionMsg] = useState("");
@@ -37,39 +75,6 @@ export default function ClientBillingProfile() {
     pricing_package_id: "",
   });
 
-  const params = new URLSearchParams(window.location.search);
-  const clientId = params.get("client_id");
-
-  useEffect(() => {
-    api.auth
-      .me()
-      .then((u) => {
-        setUser(u);
-        if (canAccessBilling(u)) loadAll();
-        else setLoading(false);
-      })
-      .catch(() => api.auth.redirectToLogin());
-  }, []);
-
-  const loadAll = async () => {
-    setLoading(true);
-    const [profileList, invList, creditList, pkgList] = await Promise.all([
-      api.entities.BillingProfile.filter({ client_id: clientId }),
-      api.entities.ClientInvoice.filter({ client_id: clientId }),
-      api.entities.BillingCredit.filter({ client_id: clientId }),
-      api.entities.PricingPackage.list(),
-    ]);
-    setProfile(profileList[0] || null);
-    setInvoices(
-      invList.sort(
-        (a, b) => new Date(b.created_date).getTime() - new Date(a.created_date).getTime()
-      )
-    );
-    setCredits(creditList);
-    setPackages(pkgList);
-    setLoading(false);
-  };
-
   const handleCardLink = async () => {
     if (!profile?.stripe_customer_id) return;
     setCardLoading(true);
@@ -80,77 +85,103 @@ export default function ClientBillingProfile() {
     setTimeout(() => setActionMsg(""), 3000);
   };
 
+  const issueCreditMutation = useMutation({
+    mutationFn: async () => {
+      await api.entities.BillingCredit.create({
+        client_id: clientId,
+        client_name: profile?.client_name || "",
+        amount: parseFloat(creditForm.amount),
+        reason: creditForm.reason,
+        issued_by: user.email,
+        issued_at: new Date().toISOString(),
+      });
+      await api.entities.BillingAuditLog.create({
+        event_type: "credit_issued",
+        client_id: clientId,
+        client_name: profile?.client_name,
+        description: `Credit of $${creditForm.amount} issued. Reason: ${creditForm.reason}`,
+        performed_by: user.email,
+        performed_at: new Date().toISOString(),
+      });
+    },
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ["entity", "BillingCredit"] });
+      await queryClient.invalidateQueries({ queryKey: ["entity", "BillingAuditLog"] });
+    },
+  });
+
   const handleIssueCredit = async () => {
     if (!creditForm.amount || !creditForm.reason) return;
-    await api.entities.BillingCredit.create({
-      client_id: clientId,
-      client_name: profile?.client_name || "",
-      amount: parseFloat(creditForm.amount),
-      reason: creditForm.reason,
-      issued_by: user.email,
-      issued_at: new Date().toISOString(),
-    });
-    await api.entities.BillingAuditLog.create({
-      event_type: "credit_issued",
-      client_id: clientId,
-      client_name: profile?.client_name,
-      description: `Credit of $${creditForm.amount} issued. Reason: ${creditForm.reason}`,
-      performed_by: user.email,
-      performed_at: new Date().toISOString(),
-    });
+    await issueCreditMutation.mutateAsync();
     setCreditForm({ amount: "", reason: "" });
     setShowCreditForm(false);
-    loadAll();
   };
 
   const handleRetryCharge = async (invoiceId) => {
     const res = await api.functions.invoke("stripeChargeInvoice", { invoice_id: invoiceId });
     setActionMsg(res.data?.success ? "Charge successful!" : `Charge failed: ${res.data?.error}`);
     setTimeout(() => setActionMsg(""), 4000);
-    loadAll();
+    await queryClient.invalidateQueries({ queryKey: ["entity", "ClientInvoice"] });
   };
+
+  const setupBillingMutation = useMutation({
+    mutationFn: async () => {
+      await api.functions.invoke("stripeCreateCustomer", {
+        client_id: clientId,
+        client_name: setupForm.client_name,
+        billing_email: setupForm.billing_contact_email,
+      });
+      const pkg = packages.find((p) => p.id === setupForm.pricing_package_id);
+      await api.entities.BillingProfile.update(profile?.id, {
+        billing_contact_name: setupForm.billing_contact_name,
+        billing_contact_email: setupForm.billing_contact_email,
+        pricing_package_id: setupForm.pricing_package_id,
+        pricing_package_name: pkg?.name || "",
+      });
+    },
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ["entity", "BillingProfile"] });
+    },
+  });
 
   const handleSetupBilling = async () => {
-    await api.functions.invoke("stripeCreateCustomer", {
-      client_id: clientId,
-      client_name: setupForm.client_name,
-      billing_email: setupForm.billing_contact_email,
-    });
-    const pkg = packages.find((p) => p.id === setupForm.pricing_package_id);
-    await api.entities.BillingProfile.update(profile?.id, {
-      billing_contact_name: setupForm.billing_contact_name,
-      billing_contact_email: setupForm.billing_contact_email,
-      pricing_package_id: setupForm.pricing_package_id,
-      pricing_package_name: pkg?.name || "",
-    });
+    await setupBillingMutation.mutateAsync();
     setShowSetupForm(false);
-    loadAll();
   };
 
-  const handlePackageChange = async (pkgId) => {
-    const pkg = packages.find((p) => p.id === pkgId);
-    const before = {
-      pricing_package_id: profile.pricing_package_id,
-      pricing_package_name: profile.pricing_package_name,
-    };
-    await api.entities.BillingProfile.update(profile.id, {
-      pricing_package_id: pkgId,
-      pricing_package_name: pkg?.name || "",
-    });
-    await api.entities.BillingAuditLog.create({
-      event_type: "package_changed",
-      client_id: clientId,
-      client_name: profile.client_name,
-      description: `Pricing package changed from ${before.pricing_package_name} to ${pkg?.name}`,
-      before_value_json: JSON.stringify(before),
-      after_value_json: JSON.stringify({
+  const packageChangeMutation = useMutation({
+    mutationFn: async (pkgId) => {
+      const pkg = packages.find((p) => p.id === pkgId);
+      const before = {
+        pricing_package_id: profile.pricing_package_id,
+        pricing_package_name: profile.pricing_package_name,
+      };
+      await api.entities.BillingProfile.update(profile.id, {
         pricing_package_id: pkgId,
-        pricing_package_name: pkg?.name,
-      }),
-      performed_by: user.email,
-      performed_at: new Date().toISOString(),
-    });
-    loadAll();
+        pricing_package_name: pkg?.name || "",
+      });
+      await api.entities.BillingAuditLog.create({
+        event_type: "package_changed",
+        client_id: clientId,
+        client_name: profile.client_name,
+        description: `Pricing package changed from ${before.pricing_package_name} to ${pkg?.name}`,
+        before_value_json: JSON.stringify(before),
+        after_value_json: JSON.stringify({
+          pricing_package_id: pkgId,
+          pricing_package_name: pkg?.name,
+        }),
+        performed_by: user.email,
+        performed_at: new Date().toISOString(),
+      });
+    },
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ["entity", "BillingProfile"] });
+      await queryClient.invalidateQueries({ queryKey: ["entity", "BillingAuditLog"] });
+    },
+  });
+
+  const handlePackageChange = async (pkgId) => {
+    await packageChangeMutation.mutateAsync(pkgId);
   };
 
   if (!user) return null;

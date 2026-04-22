@@ -3,13 +3,6 @@ import { api } from "@/lib/api";
 import { Upload, CheckCircle, XCircle, AlertTriangle, Loader2, FileText, Plus } from "lucide-react";
 
 const MAX_FILE_SIZE_MB = 25;
-const ALLOWED_TYPES = [
-  "application/pdf",
-  "image/jpeg",
-  "image/png",
-  "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-  "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-];
 const ALLOWED_EXT = [".pdf", ".jpg", ".jpeg", ".png", ".docx", ".xlsx"];
 
 const DEFAULT_CHECKLIST = [
@@ -51,7 +44,7 @@ function getSourceBadge(uploadedBy) {
   return SOURCE_BADGE[uploadedBy] || SOURCE_BADGE["specialist"];
 }
 
-export default function CaseDocumentsTab({ paCase, onUpdate }) {
+export default function CaseDocumentsTab({ paCase, onUpdate: _onUpdate }) {
   const [docs, setDocs] = useState([]);
   const [loading, setLoading] = useState(true);
   const [uploading, setUploading] = useState(false);
@@ -195,9 +188,6 @@ Return JSON with:
     docs.find((d) => d.document_type === itemLabel || d.checklist_item_key === itemLabel);
 
   const allVerified = checklist.every((item) => getDocForItem(item)?.status === "Verified");
-  const extraDocs = docs.filter(
-    (d) => !checklist.includes(d.checklist_item_key) && !checklist.includes(d.document_type)
-  );
 
   if (loading)
     return (

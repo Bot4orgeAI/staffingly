@@ -1,6 +1,6 @@
-import { useState, useEffect } from "react";
-import { api } from "@/lib/api";
+import { useState } from "react";
 import { createPageUrl } from "@/lib/utils/page";
+import { useAuthUserQuery } from "@/lib/query";
 import AppHeader from "@/components/insuverif/AppHeader";
 import StatusBadge from "@/components/insuverif/StatusBadge";
 import ConfidenceGauge from "@/components/insuverif/ConfidenceGauge";
@@ -191,17 +191,10 @@ function ReviewPanel({ item, onClose, onAction, user }) {
 }
 
 export default function ReviewQueue() {
-  const [user, setUser] = useState(null);
+  const { data: user } = useAuthUserQuery();
   const [queue, setQueue] = useState(INITIAL_QUEUE);
   const [selected, setSelected] = useState(null);
   const [search, setSearch] = useState("");
-
-  useEffect(() => {
-    api.auth
-      .me()
-      .then(setUser)
-      .catch(() => api.auth.redirectToLogin());
-  }, []);
 
   const filtered = queue.filter(
     (q) =>

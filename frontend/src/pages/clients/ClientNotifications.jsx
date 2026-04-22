@@ -1,7 +1,10 @@
-import { useState, useEffect } from "react";
-import { api } from "@/lib/api";
+import { useEffect } from "react";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 import ClientPortalLayout from "@/components/portal/ClientPortalLayout";
+import { api } from "@/lib/api";
+import { useAuthUserQuery, useEntityFilterQuery } from "@/lib/query";
 import {
+  getAccentColor,
   getClientId,
   normalizeBranding,
   normalizeNotification,
@@ -27,45 +30,52 @@ const TYPE_CONFIG = {
 };
 
 export default function ClientNotifications() {
-  const [user, setUser] = useState(null);
-  const [branding, setBranding] = useState(null);
-  const [notifications, setNotifications] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const queryClient = useQueryClient();
+  const { data: user, isLoading: loadingUser } = useAuthUserQuery();
+  const clientId = getClientId(user);
+  const { data: branding = null, isLoading: loadingBranding } = useEntityFilterQuery(
+    "ClientBranding",
+    clientId ? { clientId } : {},
+    {
+      enabled: Boolean(clientId),
+      select: (data) => normalizeBranding(data[0] || null),
+    }
+  );
+  const { data: notifications = [], isLoading: loadingNotifications } = useEntityFilterQuery(
+    "ClientNotification",
+    clientId ? { clientId } : {},
+    {
+      enabled: Boolean(user),
+      select: (data) =>
+        data
+          .map(normalizeNotification)
+          .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()),
+    }
+  );
+
+  const markReadMutation = useMutation({
+    mutationFn: async (/** @type {string[]} */ ids) =>
+      Promise.all(ids.map((id) => api.entities.ClientNotification.update(id, { read: true }))),
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ["entity", "ClientNotification"] });
+    },
+  });
 
   useEffect(() => {
-    api.auth
-      .me()
-      .then(async (u) => {
-        setUser(u);
-        const clientId = getClientId(u);
-        const [bData, nData] = await Promise.all([
-          clientId ? api.entities.ClientBranding.filter({ clientId }).catch(() => []) : [],
-          api.entities.ClientNotification.filter(clientId ? { clientId } : {}),
-        ]);
-        setBranding(normalizeBranding(bData[0] || null));
-        const sorted = nData.map(normalizeNotification).sort(
-          (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
-        );
-        setNotifications(sorted);
-        // Mark all as read
-        nData
-          .filter((n) => !n.read)
-          .forEach((n) => api.entities.ClientNotification.update(n.id, { read: true }));
-        setLoading(false);
-      })
-      .catch(() => api.auth.redirectToLogin());
-  }, []);
+    const unreadIds = notifications.filter((n) => !n.read).map((n) => n.id);
+    if (unreadIds.length > 0) {
+      markReadMutation.mutate(unreadIds);
+    }
+  }, [notifications]);
 
   const markAllRead = async () => {
-    await Promise.all(
-      notifications
-        .filter((n) => !n.read)
-        .map((n) => api.entities.ClientNotification.update(n.id, { read: true }))
-    );
-    setNotifications((prev) => prev.map((n) => ({ ...n, read: true })));
+    const unreadIds = notifications.filter((n) => !n.read).map((n) => n.id);
+    if (unreadIds.length > 0) {
+      await markReadMutation.mutateAsync(unreadIds);
+    }
   };
 
-  if (loading)
+  if (loadingUser || loadingBranding || loadingNotifications)
     return (
       <div
         className="min-h-screen flex items-center justify-center"
@@ -76,6 +86,7 @@ export default function ClientNotifications() {
     );
 
   const unread = notifications.filter((n) => !n.read).length;
+  const accent = getAccentColor(branding);
 
   return (
     <ClientPortalLayout
@@ -94,7 +105,7 @@ export default function ClientNotifications() {
             <button
               onClick={markAllRead}
               className="text-sm font-semibold"
-              style={{ color: branding?.accentColor || "#293682" }}
+              style={{ color: accent }}
             >
               Mark all read
             </button>

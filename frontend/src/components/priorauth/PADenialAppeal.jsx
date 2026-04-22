@@ -28,7 +28,7 @@ export default function PADenialAppeal({ paCase, onUpdate }) {
   const [savingP2P, setSavingP2P] = useState(false);
 
   const appealDeadlineDays = daysUntil(paCase.appeal_deadline);
-  const isDenied = paCase.status === "Denied" || paCase.status === "Appeal In Progress";
+  const _isDenied = paCase.status === "Denied" || paCase.status === "Appeal In Progress";
 
   const handleSaveDenial = async () => {
     setSavingDenial(true);

@@ -11,7 +11,6 @@ import {
   Plus,
   Trash2,
 } from "lucide-react";
-import { useNavigate } from "react-router-dom";
 
 const EMPTY_ROW = {
   first_name: "",
@@ -66,7 +65,6 @@ const COLS = [
 ];
 
 export default function BulkVerifyTab() {
-  const navigate = useNavigate();
   const [mode, setMode] = useState("manual"); // manual | csv
   const [rows, setRows] = useState([{ ...EMPTY_ROW, _id: Date.now() }]);
   const [csvRows, setCsvRows] = useState(null);
@@ -183,7 +181,6 @@ Records: ${JSON.stringify(clean.map((r, i) => ({ index: i, ...r })))}`,
     setRunIndex(-1);
   };
 
-  const activeRows = mode === "csv" ? csvRows || [] : rows;
   const validCount =
     mode === "csv"
       ? (csvRows || []).filter((r) => !r._issues?.length).length

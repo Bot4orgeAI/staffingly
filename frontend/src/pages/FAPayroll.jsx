@@ -1,5 +1,7 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
+import { useQueryClient, useMutation } from "@tanstack/react-query";
 import { api } from "@/lib/api";
+import { useAuthUserQuery, useEntityListQuery, useEntityFilterQuery } from "@/lib/query";
 import StaffinglyLayout from "@/components/staffingly/StaffinglyLayout";
 import { Download, Plus, Settings, Loader2, AlertTriangle, Edit2, X } from "lucide-react";
 
@@ -40,12 +42,38 @@ function countCaseType(cases, type, periodStart, periodEnd) {
 }
 
 export default function FAPayroll() {
-  const [user, setUser] = useState(null);
-  const [specialists, setSpecialists] = useState([]);
-  const [allCases, setAllCases] = useState([]);
-  const [rates, setRates] = useState([]);
-  const [adjustments, setAdjustments] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const queryClient = useQueryClient();
+  const { data: user, isLoading: loadingAuth } = useAuthUserQuery();
+  
+  const period = getPayPeriod();
+
+  const { data: sData = [], isLoading: loadingS } = useEntityListQuery("StaffinglyUser", null, 1000, {
+    enabled: Boolean(user && ALLOWED_ROLES.includes(user.role)),
+  });
+
+  const { data: cData = [], isLoading: loadingC } = useEntityListQuery("PriorAuthCase", null, 2000, {
+    enabled: Boolean(user && ALLOWED_ROLES.includes(user.role)),
+  });
+
+  const { data: rData = [], isLoading: loadingR } = useEntityListQuery("PayrollRate", null, 1000, {
+    enabled: Boolean(user && ALLOWED_ROLES.includes(user.role)),
+  });
+
+  const { data: aData = [], isLoading: loadingA } = useEntityFilterQuery(
+    "PayrollAdjustment",
+    { pay_period_start: period.start },
+    { enabled: Boolean(user && ALLOWED_ROLES.includes(user.role)) }
+  );
+
+  const specialists = sData.filter((s) =>
+    ["staffingly_specialist", "staffingly_supervisor", "staffingly_admin"].includes(s.role)
+  );
+  const allCases = cData;
+  const rates = rData;
+  const adjustments = aData;
+
+  const loading = loadingAuth || loadingS || loadingC || loadingR || loadingA;
+
   const [activeTab, setActiveTab] = useState("payroll");
   const [configModal, setConfigModal] = useState(null); // specialist object
   const [configRates, setConfigRates] = useState({});
@@ -56,35 +84,19 @@ export default function FAPayroll() {
   const [savingAdj, setSavingAdj] = useState(false);
   const [generating, setGenerating] = useState(false);
 
-  const period = getPayPeriod();
+  const updateRateMutation = useMutation({
+    mutationFn: (args) =>
+      args.id
+        ? api.entities.PayrollRate.update(args.id, args.payload)
+        : api.entities.PayrollRate.create(args.payload),
+  });
 
-  useEffect(() => {
-    api.auth
-      .me()
-      .then(async (u) => {
-        setUser(u);
-        if (!ALLOWED_ROLES.includes(u.role)) {
-          setLoading(false);
-          return;
-        }
-        const [sData, cData, rData, aData] = await Promise.all([
-          api.entities.StaffinglyUser.list(),
-          api.entities.PriorAuthCase.list(),
-          api.entities.PayrollRate.list(),
-          api.entities.PayrollAdjustment.filter({ pay_period_start: period.start }),
-        ]);
-        setSpecialists(
-          sData.filter((s) =>
-            ["staffingly_specialist", "staffingly_supervisor", "staffingly_admin"].includes(s.role)
-          )
-        );
-        setAllCases(cData);
-        setRates(rData);
-        setAdjustments(aData);
-        setLoading(false);
-      })
-      .catch(() => api.auth.redirectToLogin());
-  }, []);
+  const createAdjustmentMutation = useMutation({
+    mutationFn: (payload) => api.entities.PayrollAdjustment.create(payload),
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ["entity", "PayrollAdjustment"] });
+    },
+  });
 
   const getRateForSpecialist = (specId, caseType) => {
     const r = rates.find((r) => r.specialist_id === specId && r.case_type === caseType);
@@ -134,12 +146,10 @@ export default function FAPayroll() {
           effective_date: new Date().toISOString().split("T")[0],
           set_by: user.email,
         };
-        if (existing) await api.entities.PayrollRate.update(existing.id, payload);
-        else await api.entities.PayrollRate.create(payload);
+        await updateRateMutation.mutateAsync({ id: existing?.id, payload });
       })
     );
-    const rData = await api.entities.PayrollRate.list();
-    setRates(rData);
+    await queryClient.invalidateQueries({ queryKey: ["entity", "PayrollRate"] });
     setSavingRates(false);
     setConfigModal(null);
   };
@@ -147,7 +157,7 @@ export default function FAPayroll() {
   const saveAdjustment = async () => {
     if (!adjustNotes.trim() || adjustAmount === "") return;
     setSavingAdj(true);
-    await api.entities.PayrollAdjustment.create({
+    await createAdjustmentMutation.mutateAsync({
       specialist_id: adjustModal.id,
       specialist_name: adjustModal.full_name || adjustModal.email,
       pay_period_start: period.start,
@@ -157,8 +167,6 @@ export default function FAPayroll() {
       added_by: user.email,
       added_at: new Date().toISOString(),
     });
-    const aData = await api.entities.PayrollAdjustment.filter({ pay_period_start: period.start });
-    setAdjustments(aData);
     setSavingAdj(false);
     setAdjustModal(null);
     setAdjustAmount("");

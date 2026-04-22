@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
+import { useMutation } from "@tanstack/react-query";
 import { createPageUrl } from "@/lib/utils/page";
 import { api } from "@/lib/api";
 import { Check, Loader2, ShieldCheck } from "lucide-react";
@@ -34,7 +35,7 @@ export default function Processing() {
   const [currentStep, setCurrentStep] = useState(0);
   const [completedSteps, setCompletedSteps] = useState([]);
   const [done, setDone] = useState(false);
-  const [apiError, setApiError] = useState(null);
+  const [_apiError, setApiError] = useState(null);
   const calledRef = useRef(false);
   const navigate = useNavigate();
 
@@ -47,6 +48,10 @@ export default function Processing() {
   const serviceType = params.get("service_type") || "";
   const dob = params.get("dob") || "";
   const serviceDate = params.get("service_date") || new Date().toISOString().split("T")[0];
+
+  const verifyMutation = useMutation({
+    mutationFn: (payload) => api.functions.invoke("availityEligibility", payload),
+  });
 
   useEffect(() => {
     if (calledRef.current) return;
@@ -65,7 +70,7 @@ export default function Processing() {
     // Call Availity API
     const runVerification = async () => {
       try {
-        const response = await api.functions.invoke("availityEligibility", {
+        const response = await verifyMutation.mutateAsync({
           patient_name: patient,
           dob,
           member_id: memberId,

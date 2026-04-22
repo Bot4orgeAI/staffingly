@@ -1,6 +1,8 @@
-import { useState, useEffect } from "react";
-import { api } from "@/lib/api";
+import { useMemo, useState } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import StaffinglyLayout from "@/components/staffingly/StaffinglyLayout";
+import { api } from "@/lib/api";
+import { useAuthUserQuery, useEntityFilterQuery } from "@/lib/query";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -327,9 +329,6 @@ function EntryCard({ entry, user, onEdit, onDelete }) {
 }
 
 export default function ClientKnowledgeBase() {
-  const [user, setUser] = useState(null);
-  const [entries, setEntries] = useState([]);
-  const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [activeCategory, setActiveCategory] = useState(null);
   const [modalEntry, setModalEntry] = useState(null);
@@ -339,32 +338,29 @@ export default function ClientKnowledgeBase() {
   const params = new URLSearchParams(window.location.search);
   const clientId = params.get("client_id");
   const clientName = params.get("client_name") || "Client";
+  const queryClient = useQueryClient();
+  const { data: user, isLoading: loadingUser } = useAuthUserQuery();
+  const { data: entries = [], isLoading: loadingEntries } = useEntityFilterQuery(
+    "KnowledgeBaseEntry",
+    clientId ? { client_id: clientId } : {},
+    {
+      enabled: Boolean(clientId),
+    }
+  );
 
   const visibleCategories = CAN_SEE_FINANCE_ROLES.includes(user?.role)
     ? CATEGORIES
     : CATEGORIES.filter((c) => !c.restricted);
-
-  useEffect(() => {
-    api.auth
-      .me()
-      .then(setUser)
-      .catch(() => api.auth.redirectToLogin());
-    if (clientId) loadEntries();
-  }, [clientId]);
-
-  const loadEntries = async () => {
-    setLoading(true);
-    const data = await api.entities.KnowledgeBaseEntry.filter({ client_id: clientId });
-    setEntries(data);
-    setLoading(false);
+  const invalidateEntries = async () => {
+    await queryClient.invalidateQueries({ queryKey: ["entity", "KnowledgeBaseEntry"] });
   };
 
   const handleDelete = async (entry) => {
     await api.entities.KnowledgeBaseEntry.delete(entry.id);
-    await loadEntries();
+    await invalidateEntries();
   };
 
-  const handleAccessEntry = async (entry) => {
+  const _handleAccessEntry = async (entry) => {
     await api.entities.KnowledgeBaseEntry.update(entry.id, {
       access_count: (entry.access_count || 0) + 1,
       last_accessed_at: new Date().toISOString(),
@@ -373,20 +369,25 @@ export default function ClientKnowledgeBase() {
 
   const canEdit = CAN_EDIT_ROLES.includes(user?.role);
 
-  const filteredEntries = entries.filter((e) => {
-    if (!CAN_SEE_FINANCE_ROLES.includes(user?.role) && e.category === "Payroll and Finance")
-      return false;
-    if (activeCategory && e.category !== activeCategory) return false;
-    if (search) {
-      const q = search.toLowerCase();
-      return (
-        e.title?.toLowerCase().includes(q) ||
-        e.content?.toLowerCase().includes(q) ||
-        (e.tags || []).some((t) => t.includes(q))
-      );
-    }
-    return true;
-  });
+  const filteredEntries = useMemo(
+    () =>
+      entries.filter((e) => {
+        if (!CAN_SEE_FINANCE_ROLES.includes(user?.role) && e.category === "Payroll and Finance") {
+          return false;
+        }
+        if (activeCategory && e.category !== activeCategory) return false;
+        if (search) {
+          const q = search.toLowerCase();
+          return (
+            e.title?.toLowerCase().includes(q) ||
+            e.content?.toLowerCase().includes(q) ||
+            (e.tags || []).some((t) => t.includes(q))
+          );
+        }
+        return true;
+      }),
+    [activeCategory, entries, search, user?.role]
+  );
 
   const entriesByCategory = (cat) =>
     entries.filter(
@@ -519,7 +520,7 @@ export default function ClientKnowledgeBase() {
         )}
 
         {/* Entries Grid */}
-        {loading ? (
+        {loadingUser || loadingEntries ? (
           <div className="text-center p-12">
             <Loader2 className="w-6 h-6 animate-spin mx-auto text-slate-400" />
           </div>
@@ -559,7 +560,7 @@ export default function ClientKnowledgeBase() {
           user={user}
           onSave={() => {
             setShowModal(false);
-            loadEntries();
+            invalidateEntries();
           }}
           onClose={() => setShowModal(false)}
         />
