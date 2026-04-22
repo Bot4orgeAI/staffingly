@@ -3,7 +3,7 @@ import { Link } from "react-router-dom";
 import { createPageUrl } from "@/lib/utils/page";
 import { api } from "@/lib/api";
 import { useAuthUserQuery } from "@/lib/query";
-import AppHeader from "@/components/insuverif/AppHeader";
+import StaffinglyLayout from "@/components/staffingly/StaffinglyLayout";
 import {
   Check,
   ChevronRight,
@@ -536,24 +536,22 @@ export default function ProviderOnboarding() {
   }
 
   return (
-    <div
-      className="min-h-screen"
-      style={{ backgroundColor: "#eef3ff", fontFamily: "'DM Sans', sans-serif" }}
+    <StaffinglyLayout
+      user={user}
+      currentPage="provider-onboarding"
+      title="Provider Onboarding"
+      breadcrumbs={["Clinical", "Provider Onboarding"]}
     >
-      <AppHeader
-        user={user}
-        breadcrumbs={[
-          { label: "Dashboard", href: createPageUrl("dashboard") },
-          { label: "Provider Onboarding" },
-        ]}
-      />
-
-      <main className="p-6 max-w-3xl mx-auto space-y-6">
-        <div>
-          <h1 className="text-2xl font-bold text-slate-800">Provider Onboarding</h1>
-          <p className="text-slate-500 text-sm mt-1">
-            Complete all 4 steps to enroll a new provider.
-          </p>
+      <div className="max-w-3xl mx-auto space-y-6">
+        <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+          <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+            <div>
+              <h1 className="text-2xl font-bold text-slate-900">Provider Onboarding</h1>
+              <p className="mt-2 text-sm text-slate-500">
+                Complete the following steps to enroll a new provider into the system.
+              </p>
+            </div>
+          </div>
         </div>
 
         {/* Progress Stepper */}
@@ -671,7 +669,7 @@ export default function ProviderOnboarding() {
             )}
           </div>
         </div>
-      </main>
-    </div>
+      </div>
+    </StaffinglyLayout>
   );
 }

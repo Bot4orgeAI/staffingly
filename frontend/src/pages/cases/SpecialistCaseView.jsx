@@ -171,17 +171,21 @@ export default function SpecialistCaseView() {
       title={`${specialistName} — Cases`}
       breadcrumbs={["Staff Tracker", specialistName]}
     >
-      <div className="max-w-[1200px] mx-auto space-y-5">
-        {/* Back + Header */}
-        <div className="flex items-center gap-3">
-          <Link to={createPageUrl("staff-tracker")}>
-            <button className="w-9 h-9 rounded-xl border border-slate-200 bg-white flex items-center justify-center hover:bg-slate-50">
-              <ChevronLeft className="w-4 h-4 text-slate-500" />
-            </button>
-          </Link>
-          <div>
-            <h1 className="text-xl font-bold text-slate-800">{specialistName}</h1>
-            <p className="text-sm text-slate-500">{cases.length} total cases</p>
+      <div className="mx-auto flex flex-col space-y-5 max-w-[1400px]">
+        {/* Page Header */}
+        <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+          <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+            <div className="flex items-center gap-4">
+              <Link to={createPageUrl("staff-tracker")}>
+                <button className="w-10 h-10 rounded-xl border border-slate-200 bg-white flex items-center justify-center hover:bg-slate-50 transition-colors">
+                  <ChevronLeft className="w-5 h-5 text-slate-500" />
+                </button>
+              </Link>
+              <div>
+                <h1 className="text-2xl font-bold text-slate-900">{specialistName}</h1>
+                <p className="mt-1 text-sm text-slate-500">{cases.length} assigned cases in tracker</p>
+              </div>
+            </div>
           </div>
         </div>
 
@@ -202,26 +206,28 @@ export default function SpecialistCaseView() {
         {/* CASES TAB */}
         {currentTab === "cases" && (
           <>
-            <div className="bg-white rounded-2xl border border-slate-200 p-4 flex flex-wrap gap-3 items-center">
-              <div className="relative flex-1 min-w-[200px]">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-                <input
-                  value={search}
-                  onChange={(e) => setSearch(e.target.value)}
-                  placeholder="Search by Case ID or patient…"
-                  className="w-full pl-9 pr-3 py-2 border border-slate-200 rounded-xl text-sm focus:outline-none"
+            <div className="bg-white rounded-2xl border border-slate-200 px-5 py-4 flex flex-col sm:flex-row gap-3 items-start sm:items-center justify-between shadow-sm">
+              <div className="flex flex-wrap gap-3 flex-1">
+                <div className="relative">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400" />
+                  <input
+                    value={search}
+                    onChange={(e) => setSearch(e.target.value)}
+                    placeholder="Search by Case ID or patient…"
+                    className="w-full sm:w-64 pl-9 pr-3 py-2 border border-slate-200 rounded-xl text-xs focus:outline-none focus:ring-1 focus:ring-[#0a7e87]"
+                  />
+                </div>
+                <AppSelect
+                  value={filterStatus}
+                  onValueChange={setFilterStatus}
+                  options={["All", ...Object.keys(STATUS_STYLES)]}
+                  triggerClassName="h-9 w-[180px] rounded-xl px-3 py-2 text-xs"
                 />
               </div>
-              <AppSelect
-                value={filterStatus}
-                onValueChange={setFilterStatus}
-                options={["All", ...Object.keys(STATUS_STYLES)]}
-                triggerClassName="w-[180px]"
-              />
               {canReassign && selectedCases.length > 0 && (
                 <button
                   onClick={() => setReassignModal(true)}
-                  className="flex items-center gap-2 px-4 py-2 rounded-xl text-white text-sm font-bold"
+                  className="flex items-center gap-2 px-5 py-2.5 rounded-xl text-white text-xs font-bold shadow-sm transition-opacity hover:opacity-90"
                   style={{ backgroundColor: "#d97706" }}
                 >
                   <UserCheck className="w-4 h-4" /> Reassign {selectedCases.length} Cases

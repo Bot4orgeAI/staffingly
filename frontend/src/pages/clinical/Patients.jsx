@@ -502,7 +502,7 @@ export default function Patients() {
       title="Patients"
       breadcrumbs={["Patients", "Manage"]}
     >
-      <div className="space-y-5">
+      <div className="max-w-[1400px] mx-auto space-y-5">
         <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
           <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
             <div>

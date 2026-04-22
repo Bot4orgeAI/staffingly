@@ -57,6 +57,30 @@ export default function DriveSyncLogs() {
       breadcrumbs={["Documents", "Sync Logs"]}
     >
       <div className="max-w-[1400px] mx-auto space-y-5">
+        <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+          <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+            <div>
+              <h1 className="text-2xl font-bold text-slate-900">Drive Sync Logs</h1>
+              <p className="mt-2 text-sm text-slate-500">
+                Track document synchronization from external storage providers and manage manual sync runs.
+              </p>
+            </div>
+            <button
+              onClick={handleManualSync}
+              disabled={triggering}
+              className="flex items-center gap-2 px-5 py-3 rounded-2xl text-white text-sm font-bold shadow-sm disabled:opacity-50 hover:opacity-90 transition-all"
+              style={{ backgroundColor: "#293682" }}
+            >
+              {triggering ? (
+                <Loader2 className="w-4 h-4 animate-spin" />
+              ) : (
+                <RefreshCw className="w-4 h-4" />
+              )}
+              {triggering ? "Syncing…" : "Trigger Manual Sync"}
+            </button>
+          </div>
+        </div>
+
         {/* Stats */}
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
           {[
@@ -91,10 +115,10 @@ export default function DriveSyncLogs() {
           ].map((s, i) => (
             <div
               key={i}
-              className="bg-white rounded-2xl border border-slate-200 p-4 flex items-center gap-4"
+              className="bg-white rounded-2xl border border-slate-200 p-5 flex items-center gap-4 shadow-sm"
             >
               <div
-                className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0"
+                className="w-12 h-12 rounded-xl flex items-center justify-center flex-shrink-0"
                 style={{ backgroundColor: s.bg }}
               >
                 <s.icon className="w-5 h-5" style={{ color: s.color }} />
@@ -110,32 +134,21 @@ export default function DriveSyncLogs() {
         </div>
 
         {/* Controls */}
-        <div className="bg-white rounded-2xl border border-slate-200 p-4 flex flex-wrap gap-3 items-center">
-          <AppSelect
-            value={filterStatus}
-            onValueChange={setFilterStatus}
-            options={["All", "Completed", "Running", "Failed"]}
-            triggerClassName="w-[180px]"
-          />
-          <div className="flex-1" />
+        <div className="bg-white rounded-2xl border border-slate-200 px-5 py-4 flex flex-col sm:flex-row gap-3 items-start sm:items-center justify-between shadow-sm">
+          <div className="flex flex-wrap gap-3 flex-1 items-center">
+            <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">Filter Status</span>
+            <AppSelect
+              value={filterStatus}
+              onValueChange={setFilterStatus}
+              options={["All", "Completed", "Running", "Failed"]}
+              triggerClassName="h-9 w-[180px] rounded-xl px-3 py-2 text-xs"
+            />
+          </div>
           <button
             onClick={refreshLogs}
-            className="flex items-center gap-2 px-4 py-2 rounded-xl border border-slate-200 text-sm text-slate-600 hover:bg-slate-50 transition-colors"
+            className="flex items-center gap-2 px-4 py-2 rounded-xl border border-slate-200 text-xs font-semibold text-slate-600 hover:bg-slate-50 transition-colors"
           >
-            <RefreshCw className="w-4 h-4" /> Refresh
-          </button>
-          <button
-            onClick={handleManualSync}
-            disabled={triggering}
-            className="flex items-center gap-2 px-5 py-2 rounded-xl text-white text-sm font-bold disabled:opacity-50 hover:opacity-90"
-            style={{ backgroundColor: "#293682" }}
-          >
-            {triggering ? (
-              <Loader2 className="w-4 h-4 animate-spin" />
-            ) : (
-              <RefreshCw className="w-4 h-4" />
-            )}
-            {triggering ? "Syncing…" : "Trigger Manual Sync"}
+            <RefreshCw className="w-3.5 h-3.5" /> Refresh Logs
           </button>
         </div>
 
