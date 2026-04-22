@@ -1,5 +1,7 @@
 import { useState } from "react";
+import { motion } from "framer-motion";
 import { X } from "lucide-react";
+import AppSelect from "@/components/ui/app-select";
 
 const GENDERS = ["Male", "Female", "Non-binary", "Other", "Prefer not to say"];
 const US_STATES = [
@@ -10,20 +12,39 @@ const US_STATES = [
   "SD", "TN", "TX", "UT", "VT", "VA", "WA", "WV", "WI", "WY",
 ];
 
-function FormInput({ label, required, children }) {
+function TextField({ label, value, onChange, type = "text", placeholder = "" }) {
   return (
     <div>
-      <label className="text-xs font-semibold text-slate-500 uppercase tracking-wider block mb-1.5">
-        {label} {required && <span className="text-red-500">*</span>}
+      <label className="mb-1.5 block text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">
+        {label}
       </label>
-      {children}
+      <input
+        value={value}
+        onChange={onChange}
+        type={type}
+        placeholder={placeholder}
+        className="h-11 w-full rounded-2xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm text-slate-700 focus:border-slate-300 focus:outline-none"
+      />
     </div>
   );
 }
 
-const inputClass =
-  "w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 bg-white";
-const ringStyle = { "--tw-ring-color": "#293682" };
+function SelectField({ label, value, onValueChange, options, placeholder = "Select..." }) {
+  return (
+    <div>
+      <label className="mb-1.5 block text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">
+        {label}
+      </label>
+      <AppSelect
+        value={value}
+        onValueChange={onValueChange}
+        options={options}
+        placeholder={placeholder}
+        triggerClassName="h-11 rounded-2xl border-slate-200 bg-slate-50 px-3 py-2.5 text-sm focus:ring-0 focus:border-slate-300"
+      />
+    </div>
+  );
+}
 
 export default function PatientForm({
   patient,
@@ -51,10 +72,10 @@ export default function PatientForm({
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState(null);
 
-  const update = (k, v) => setForm((p) => ({ ...p, [k]: v }));
+  const updateField = (field) => (event) =>
+    setForm((current) => ({ ...current, [field]: event.target.value }));
 
   const handleSave = async () => {
-    // Validate required fields
     if (!form.firstName.trim() || !form.lastName.trim() || !form.dob) {
       setError("First name, last name, and date of birth are required");
       return;
@@ -69,9 +90,8 @@ export default function PatientForm({
     setError(null);
 
     try {
-      await onSave({
-        ...form,
-      });
+      await onSave({ ...form });
+      onClose();
     } catch (err) {
       setError(err.message || "Failed to save patient");
       setSaving(false);
@@ -79,201 +99,208 @@ export default function PatientForm({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
-      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto">
-        {/* Header */}
-        <div className="flex justify-between items-center p-6 border-b border-slate-100">
-          <h3 className="font-bold text-slate-800 text-lg">
-            {patient ? "Edit Patient" : "New Patient"}
-          </h3>
-          <button onClick={onClose}>
-            <X className="w-5 h-5 text-slate-400" />
-          </button>
+    <motion.div className="fixed inset-0 z-50" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
+      <motion.button
+        type="button"
+        aria-label="Close patient drawer"
+        className="absolute inset-0 bg-slate-950/45 backdrop-blur-[2px]"
+        onClick={onClose}
+      />
+      <motion.div
+        initial={{ x: "100%", opacity: 0.9 }}
+        animate={{ x: 0, opacity: 1 }}
+        exit={{ x: "100%", opacity: 0.9 }}
+        transition={{ type: "spring", stiffness: 320, damping: 32 }}
+        className="absolute right-0 top-0 flex h-full w-full max-w-xl flex-col overflow-hidden bg-white shadow-2xl"
+      >
+        <div className="sticky top-0 z-10 border-b border-slate-100 bg-gradient-to-br from-[#f7fbfb] via-white to-[#eef7f8] px-6 py-6">
+          <div className="flex items-start justify-between gap-4">
+            <div>
+              <p className="text-[11px] font-semibold uppercase tracking-[0.24em] text-[#0a7e87]">
+                Patient Registry
+              </p>
+              <h3 className="mt-2 text-2xl font-bold text-slate-800">
+                {patient ? "Edit Patient" : "Register New Patient"}
+              </h3>
+              <p className="mt-2 max-w-md text-sm text-slate-500">
+                Capture patient demographics, contact details, and assignment information in one place.
+              </p>
+            </div>
+            <button
+              onClick={onClose}
+              className="flex h-10 w-10 items-center justify-center rounded-2xl border border-slate-200 bg-white text-slate-400"
+            >
+              <X className="h-5 w-5" />
+            </button>
+          </div>
         </div>
 
-        {/* Form */}
-        <div className="p-6 space-y-5">
-          {error && (
-            <div className="p-3 rounded-xl bg-red-50 border border-red-200 text-red-700 text-sm">
+        <div className="flex-1 space-y-6 overflow-y-auto bg-slate-50/60 px-6 py-6">
+          {error ? (
+            <div className="rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">
               {error}
             </div>
-          )}
+          ) : null}
 
-          {!patient && requireClientSelection && (
-            <FormInput label="Client" required>
+          {!patient && requireClientSelection ? (
+            <section className="rounded-[24px] border border-slate-200 bg-white p-5 shadow-sm">
+              <div className="mb-4">
+                <h4 className="text-sm font-bold text-slate-800">Client Assignment</h4>
+                <p className="mt-1 text-xs text-slate-500">
+                  Assign the patient to the correct client account before saving.
+                </p>
+              </div>
               <div className="space-y-2">
-                <select
-                  className={inputClass}
-                  style={ringStyle}
+                <SelectField
+                  label="Client"
                   value={form.clientId}
-                  onChange={(e) => update("clientId", e.target.value)}
-                  disabled={loadingClients || clientOptions.length === 0}
-                >
-                  <option value="">
-                    {loadingClients ? "Loading clients..." : "Select client..."}
-                  </option>
-                  {clientOptions.map((client) => (
-                    <option key={client.id} value={client.id}>
-                      {client.practiceName ? `${client.name} (${client.practiceName})` : client.name}
-                    </option>
-                  ))}
-                </select>
-                {!loadingClients && clientOptions.length === 0 && (
+                  onValueChange={(value) =>
+                    setForm((current) => ({ ...current, clientId: value }))
+                  }
+                  options={clientOptions.map((client) => ({
+                    value: client.id,
+                    label: client.practiceName
+                      ? `${client.name} (${client.practiceName})`
+                      : client.name,
+                  }))}
+                  placeholder={loadingClients ? "Loading clients..." : "Select client..."}
+                />
+                {!loadingClients && clientOptions.length === 0 ? (
                   <p className="text-xs text-amber-600">
                     No clients are available to assign. Create a client first or refresh the page.
                   </p>
-                )}
+                ) : null}
               </div>
-            </FormInput>
-          )}
+            </section>
+          ) : null}
 
-          {/* Name Section */}
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-            <FormInput label="First Name" required>
-              <input
-                className={inputClass}
-                style={ringStyle}
+          <section className="rounded-[24px] border border-slate-200 bg-white p-5 shadow-sm">
+            <div className="mb-4">
+              <h4 className="text-sm font-bold text-slate-800">Patient Identity</h4>
+              <p className="mt-1 text-xs text-slate-500">
+                Store the patient&apos;s core demographic and identity information.
+              </p>
+            </div>
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+              <TextField
+                label="First Name *"
                 value={form.firstName}
-                onChange={(e) => update("firstName", e.target.value)}
+                onChange={updateField("firstName")}
                 placeholder="John"
               />
-            </FormInput>
-            <FormInput label="Middle Name">
-              <input
-                className={inputClass}
-                style={ringStyle}
+              <TextField
+                label="Middle Name"
                 value={form.middleName}
-                onChange={(e) => update("middleName", e.target.value)}
+                onChange={updateField("middleName")}
                 placeholder="William"
               />
-            </FormInput>
-            <FormInput label="Last Name" required>
-              <input
-                className={inputClass}
-                style={ringStyle}
+              <TextField
+                label="Last Name *"
                 value={form.lastName}
-                onChange={(e) => update("lastName", e.target.value)}
+                onChange={updateField("lastName")}
                 placeholder="Smith"
               />
-            </FormInput>
-          </div>
-
-          {/* DOB and Gender */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <FormInput label="Date of Birth" required>
-              <input
+              <TextField
+                label="Date of Birth *"
                 type="date"
-                className={inputClass}
-                style={ringStyle}
                 value={form.dob}
-                onChange={(e) => update("dob", e.target.value)}
+                onChange={updateField("dob")}
               />
-            </FormInput>
-            <FormInput label="Gender">
-              <select
-                className={inputClass}
-                style={ringStyle}
+              <SelectField
+                label="Gender"
                 value={form.gender}
-                onChange={(e) => update("gender", e.target.value)}
-              >
-                <option value="">Select...</option>
-                {GENDERS.map((g) => (
-                  <option key={g}>{g}</option>
-                ))}
-              </select>
-            </FormInput>
-          </div>
+                onValueChange={(value) => setForm((current) => ({ ...current, gender: value }))}
+                options={GENDERS}
+              />
+            </div>
+          </section>
 
-          {/* Contact */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <FormInput label="Phone">
-              <input
+          <section className="rounded-[24px] border border-slate-200 bg-white p-5 shadow-sm">
+            <div className="mb-4">
+              <h4 className="text-sm font-bold text-slate-800">Contact Details</h4>
+              <p className="mt-1 text-xs text-slate-500">
+                Capture the patient&apos;s direct contact information for communication and follow-up.
+              </p>
+            </div>
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+              <TextField
+                label="Phone"
                 type="tel"
-                className={inputClass}
-                style={ringStyle}
                 value={form.phone}
-                onChange={(e) => update("phone", e.target.value)}
+                onChange={updateField("phone")}
                 placeholder="(555) 123-4567"
               />
-            </FormInput>
-            <FormInput label="Email">
-              <input
+              <TextField
+                label="Email"
                 type="email"
-                className={inputClass}
-                style={ringStyle}
                 value={form.email}
-                onChange={(e) => update("email", e.target.value)}
+                onChange={updateField("email")}
                 placeholder="patient@email.com"
               />
-            </FormInput>
-          </div>
-
-          {/* Address */}
-          <FormInput label="Street Address">
-            <input
-              className={inputClass}
-              style={ringStyle}
-              value={form.address}
-              onChange={(e) => update("address", e.target.value)}
-              placeholder="123 Main Street"
-            />
-          </FormInput>
-
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-            <div className="col-span-2 sm:col-span-2">
-              <FormInput label="City">
-                <input
-                  className={inputClass}
-                  style={ringStyle}
-                  value={form.city}
-                  onChange={(e) => update("city", e.target.value)}
-                  placeholder="Austin"
-                />
-              </FormInput>
             </div>
-            <FormInput label="State">
-              <select
-                className={inputClass}
-                style={ringStyle}
-                value={form.state}
-                onChange={(e) => update("state", e.target.value)}
-              >
-                <option value="">Select...</option>
-                {US_STATES.map((s) => (
-                  <option key={s}>{s}</option>
-                ))}
-              </select>
-            </FormInput>
-            <FormInput label="ZIP">
-              <input
-                className={inputClass}
-                style={ringStyle}
-                value={form.zip}
-                onChange={(e) => update("zip", e.target.value)}
-                placeholder="78701"
+          </section>
+
+          <section className="rounded-[24px] border border-slate-200 bg-white p-5 shadow-sm">
+            <div className="mb-4">
+              <h4 className="text-sm font-bold text-slate-800">Address Information</h4>
+              <p className="mt-1 text-xs text-slate-500">
+                Keep mailing and geographic details available for payer and patient workflows.
+              </p>
+            </div>
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+              <div className="sm:col-span-2">
+                <label className="mb-1.5 block text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">
+                  Street Address
+                </label>
+                <textarea
+                  value={form.address}
+                  onChange={updateField("address")}
+                  rows={3}
+                  placeholder="123 Main Street"
+                  className="w-full rounded-2xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm text-slate-700 focus:border-slate-300 focus:outline-none"
+                />
+              </div>
+              <TextField
+                label="City"
+                value={form.city}
+                onChange={updateField("city")}
+                placeholder="Austin"
               />
-            </FormInput>
-          </div>
+              <div className="grid grid-cols-2 gap-4 sm:col-span-1">
+                <SelectField
+                  label="State"
+                  value={form.state}
+                  onValueChange={(value) => setForm((current) => ({ ...current, state: value }))}
+                  options={US_STATES}
+                />
+                <TextField
+                  label="ZIP"
+                  value={form.zip}
+                  onChange={updateField("zip")}
+                  placeholder="78701"
+                />
+              </div>
+            </div>
+          </section>
         </div>
 
-        {/* Footer */}
-        <div className="p-6 border-t border-slate-100 flex gap-3 justify-end">
+        <div className="sticky bottom-0 z-10 flex gap-3 border-t border-slate-200 bg-white px-6 py-4">
           <button
             onClick={onClose}
-            className="px-5 py-2.5 border border-slate-200 rounded-xl text-sm text-slate-600 hover:bg-slate-50"
+            className="flex-1 rounded-2xl border border-slate-200 py-3 text-sm font-medium text-slate-600"
           >
             Cancel
           </button>
           <button
             onClick={handleSave}
             disabled={saving}
-            className="px-5 py-2.5 rounded-xl text-white text-sm font-bold disabled:opacity-60"
-            style={{ backgroundColor: "#293682" }}
+            className="flex-1 rounded-2xl py-3 text-sm font-bold text-white shadow-lg shadow-cyan-900/10 disabled:cursor-not-allowed disabled:opacity-60"
+            style={{ backgroundColor: "#0a7e87" }}
           >
-            {saving ? "Saving..." : patient ? "Update Patient" : "Create Patient"}
+            {saving ? "Saving..." : patient ? "Update Patient" : "Register Patient"}
           </button>
         </div>
-      </div>
-    </div>
+      </motion.div>
+    </motion.div>
   );
 }

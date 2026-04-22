@@ -1,5 +1,7 @@
 import { useState } from "react";
+import { motion } from "framer-motion";
 import { X, Upload } from "lucide-react";
+import AppSelect from "@/components/ui/app-select";
 import InsuranceCardCapture from "./InsuranceCardCapture";
 
 const PAYERS = [
@@ -41,20 +43,48 @@ const POLICY_TYPES = [
 
 const RELATIONSHIPS = ["Self", "Spouse", "Child", "Other Dependent"];
 
-function FormInput({ label, required, children }) {
+function TextField({ label, value, onChange, type = "text", placeholder = "", prefix = null }) {
   return (
     <div>
-      <label className="text-xs font-semibold text-slate-500 uppercase tracking-wider block mb-1.5">
-        {label} {required && <span className="text-red-500">*</span>}
+      <label className="mb-1.5 block text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">
+        {label}
       </label>
-      {children}
+      <div className="relative">
+        {prefix ? (
+          <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-slate-400">
+            {prefix}
+          </span>
+        ) : null}
+        <input
+          value={value}
+          onChange={onChange}
+          type={type}
+          placeholder={placeholder}
+          className={`h-11 w-full rounded-2xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm text-slate-700 focus:border-slate-300 focus:outline-none ${
+            prefix ? "pl-7" : ""
+          }`}
+        />
+      </div>
     </div>
   );
 }
 
-const inputClass =
-  "w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 bg-white";
-const ringStyle = { "--tw-ring-color": "#293682" };
+function SelectField({ label, value, onValueChange, options, placeholder = "Select..." }) {
+  return (
+    <div>
+      <label className="mb-1.5 block text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">
+        {label}
+      </label>
+      <AppSelect
+        value={value}
+        onValueChange={onValueChange}
+        options={options}
+        placeholder={placeholder}
+        triggerClassName="h-11 rounded-2xl border-slate-200 bg-slate-50 px-3 py-2.5 text-sm focus:ring-0 focus:border-slate-300"
+      />
+    </div>
+  );
+}
 
 export default function InsurancePolicyForm({
   policy,
@@ -86,10 +116,10 @@ export default function InsurancePolicyForm({
   const [error, setError] = useState(null);
   const [showCardCapture, setShowCardCapture] = useState(false);
 
-  const update = (k, v) => setForm((p) => ({ ...p, [k]: v }));
+  const updateField = (field) => (event) =>
+    setForm((current) => ({ ...current, [field]: event.target.value }));
 
   const handleSave = async () => {
-    // Validate required fields
     if (!form.payerName.trim() || !form.memberId.trim()) {
       setError("Payer name and member ID are required");
       return;
@@ -109,6 +139,7 @@ export default function InsurancePolicyForm({
         copayPcp: form.copayPcp ? parseFloat(form.copayPcp) : null,
         copaySpecialist: form.copaySpecialist ? parseFloat(form.copaySpecialist) : null,
       });
+      onClose();
     } catch (err) {
       setError(err.message || "Failed to save insurance policy");
       setSaving(false);
@@ -116,7 +147,6 @@ export default function InsurancePolicyForm({
   };
 
   const handleOcrExtraction = (extractedData) => {
-    // Pre-fill form with extracted data
     setForm((prev) => ({
       ...prev,
       payerName: extractedData.payerName || prev.payerName,
@@ -146,277 +176,267 @@ export default function InsurancePolicyForm({
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
-      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto">
-        {/* Header */}
-        <div className="flex justify-between items-center p-6 border-b border-slate-100">
-          <h3 className="font-bold text-slate-800 text-lg">
-            {policy ? "Edit Insurance Policy" : "Add Insurance Policy"}
-          </h3>
-          <button onClick={onClose}>
-            <X className="w-5 h-5 text-slate-400" />
-          </button>
+    <motion.div className="fixed inset-0 z-50" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
+      <motion.button
+        type="button"
+        aria-label="Close insurance drawer"
+        className="absolute inset-0 bg-slate-950/45 backdrop-blur-[2px]"
+        onClick={onClose}
+      />
+      <motion.div
+        initial={{ x: "100%", opacity: 0.9 }}
+        animate={{ x: 0, opacity: 1 }}
+        exit={{ x: "100%", opacity: 0.9 }}
+        transition={{ type: "spring", stiffness: 320, damping: 32 }}
+        className="absolute right-0 top-0 flex h-full w-full max-w-xl flex-col overflow-hidden bg-white shadow-2xl"
+      >
+        <div className="sticky top-0 z-10 border-b border-slate-100 bg-gradient-to-br from-[#f7fbfb] via-white to-[#eef7f8] px-6 py-6">
+          <div className="flex items-start justify-between gap-4">
+            <div>
+              <p className="text-[11px] font-semibold uppercase tracking-[0.24em] text-[#0a7e87]">
+                Insurance Registry
+              </p>
+              <h3 className="mt-2 text-2xl font-bold text-slate-800">
+                {policy ? "Edit Insurance Policy" : "Add Insurance Policy"}
+              </h3>
+              <p className="mt-2 max-w-md text-sm text-slate-500">
+                Capture payer, subscriber, and benefit details for the selected patient in one place.
+              </p>
+            </div>
+            <button
+              onClick={onClose}
+              className="flex h-10 w-10 items-center justify-center rounded-2xl border border-slate-200 bg-white text-slate-400"
+            >
+              <X className="h-5 w-5" />
+            </button>
+          </div>
         </div>
 
-        {/* Form */}
-        <div className="p-6 space-y-5">
-          {error && (
-            <div className="p-3 rounded-xl bg-red-50 border border-red-200 text-red-700 text-sm">
+        <div className="flex-1 space-y-6 overflow-y-auto bg-slate-50/60 px-6 py-6">
+          {error ? (
+            <div className="rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">
               {error}
             </div>
-          )}
+          ) : null}
 
-          {/* Upload Card Button */}
-          {!policy && (
-            <button
-              type="button"
-              onClick={() => setShowCardCapture(true)}
-              className="w-full flex items-center justify-center gap-2 p-4 rounded-xl border-2 border-dashed border-slate-300 hover:border-blue-400 hover:bg-blue-50/50 transition-colors"
-            >
-              <Upload className="w-5 h-5 text-slate-500" />
-              <span className="text-sm font-semibold text-slate-600">
-                Upload Insurance Card to Auto-Fill
-              </span>
-            </button>
-          )}
-
-          {/* Policy Type */}
-          <FormInput label="Policy Type" required>
-            <div className="flex gap-2">
-              {POLICY_TYPES.map((pt) => (
-                <button
-                  key={pt.value}
-                  type="button"
-                  onClick={() => update("policyType", pt.value)}
-                  className={`flex-1 py-2.5 rounded-xl text-sm font-semibold transition-all ${
-                    form.policyType === pt.value
-                      ? "text-white"
-                      : "text-slate-600 border border-slate-200 hover:bg-slate-50"
-                  }`}
-                  style={
-                    form.policyType === pt.value ? { backgroundColor: "#293682" } : {}
-                  }
-                >
-                  {pt.label}
-                </button>
-              ))}
-            </div>
-          </FormInput>
-
-          {/* Payer Info */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <FormInput label="Insurance Payer" required>
-              <select
-                className={inputClass}
-                style={ringStyle}
-                value={form.payerName}
-                onChange={(e) => update("payerName", e.target.value)}
+          {!policy ? (
+            <section className="rounded-[24px] border border-dashed border-slate-300 bg-white p-5 shadow-sm">
+              <button
+                type="button"
+                onClick={() => setShowCardCapture(true)}
+                className="flex w-full items-center justify-center gap-2 rounded-2xl border-2 border-dashed border-slate-300 bg-slate-50/70 p-4 text-sm font-semibold text-slate-600 transition-colors hover:border-blue-400 hover:bg-blue-50/50"
               >
-                <option value="">Select payer...</option>
-                {PAYERS.map((p) => (
-                  <option key={p}>{p}</option>
-                ))}
-              </select>
-            </FormInput>
-            <FormInput label="Payer ID">
-              <input
-                className={inputClass}
-                style={ringStyle}
-                value={form.payerId}
-                onChange={(e) => update("payerId", e.target.value)}
-                placeholder="e.g., 87726"
-              />
-            </FormInput>
-          </div>
+                <Upload className="h-5 w-5 text-slate-500" />
+                Upload Insurance Card to Auto-Fill
+              </button>
+            </section>
+          ) : null}
 
-          {/* Member Info */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <FormInput label="Member ID" required>
-              <input
-                className={inputClass}
-                style={ringStyle}
+          <section className="rounded-[24px] border border-slate-200 bg-white p-5 shadow-sm">
+            <div className="mb-4">
+              <h4 className="text-sm font-bold text-slate-800">Coverage Setup</h4>
+              <p className="mt-1 text-xs text-slate-500">
+                Define how this policy is classified and which payer is responsible.
+              </p>
+            </div>
+            <div className="space-y-5">
+              <div>
+                <label className="mb-1.5 block text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">
+                  Policy Type
+                </label>
+                <div className="flex gap-2">
+                  {POLICY_TYPES.map((policyType) => (
+                    <button
+                      key={policyType.value}
+                      type="button"
+                      onClick={() => setForm((current) => ({ ...current, policyType: policyType.value }))}
+                      className={`flex-1 rounded-2xl py-2.5 text-sm font-semibold transition-all ${
+                        form.policyType === policyType.value
+                          ? "text-white"
+                          : "border border-slate-200 bg-slate-50 text-slate-600 hover:bg-slate-100"
+                      }`}
+                      style={
+                        form.policyType === policyType.value
+                          ? { backgroundColor: "#0a7e87" }
+                          : {}
+                      }
+                    >
+                      {policyType.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                <SelectField
+                  label="Insurance Payer *"
+                  value={form.payerName}
+                  onValueChange={(value) => setForm((current) => ({ ...current, payerName: value }))}
+                  options={PAYERS}
+                  placeholder="Select payer..."
+                />
+                <TextField
+                  label="Payer ID"
+                  value={form.payerId}
+                  onChange={updateField("payerId")}
+                  placeholder="e.g., 87726"
+                />
+              </div>
+            </div>
+          </section>
+
+          <section className="rounded-[24px] border border-slate-200 bg-white p-5 shadow-sm">
+            <div className="mb-4">
+              <h4 className="text-sm font-bold text-slate-800">Member Information</h4>
+              <p className="mt-1 text-xs text-slate-500">
+                Store the cardholder identifiers and group details used in eligibility workflows.
+              </p>
+            </div>
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+              <TextField
+                label="Member ID *"
                 value={form.memberId}
-                onChange={(e) => update("memberId", e.target.value)}
+                onChange={updateField("memberId")}
                 placeholder="e.g., UHC-884720193"
               />
-            </FormInput>
-            <FormInput label="Group Number">
-              <input
-                className={inputClass}
-                style={ringStyle}
+              <TextField
+                label="Group Number"
                 value={form.groupNumber}
-                onChange={(e) => update("groupNumber", e.target.value)}
+                onChange={updateField("groupNumber")}
                 placeholder="e.g., GRP-44821"
               />
-            </FormInput>
-          </div>
+            </div>
+          </section>
 
-          {/* Subscriber Info */}
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-            <FormInput label="Subscriber Name">
-              <input
-                className={inputClass}
-                style={ringStyle}
+          <section className="rounded-[24px] border border-slate-200 bg-white p-5 shadow-sm">
+            <div className="mb-4">
+              <h4 className="text-sm font-bold text-slate-800">Subscriber Details</h4>
+              <p className="mt-1 text-xs text-slate-500">
+                Record the subscriber demographics when they differ from the patient.
+              </p>
+            </div>
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+              <TextField
+                label="Subscriber Name"
                 value={form.subscriberName}
-                onChange={(e) => update("subscriberName", e.target.value)}
+                onChange={updateField("subscriberName")}
                 placeholder="Name on card"
               />
-            </FormInput>
-            <FormInput label="Subscriber DOB">
-              <input
+              <TextField
+                label="Subscriber DOB"
                 type="date"
-                className={inputClass}
-                style={ringStyle}
                 value={form.subscriberDob}
-                onChange={(e) => update("subscriberDob", e.target.value)}
+                onChange={updateField("subscriberDob")}
               />
-            </FormInput>
-            <FormInput label="Relationship">
-              <select
-                className={inputClass}
-                style={ringStyle}
+              <SelectField
+                label="Relationship"
                 value={form.subscriberRelationship}
-                onChange={(e) => update("subscriberRelationship", e.target.value)}
-              >
-                {RELATIONSHIPS.map((r) => (
-                  <option key={r}>{r}</option>
-                ))}
-              </select>
-            </FormInput>
-          </div>
+                onValueChange={(value) =>
+                  setForm((current) => ({ ...current, subscriberRelationship: value }))
+                }
+                options={RELATIONSHIPS}
+              />
+            </div>
+          </section>
 
-          {/* Plan Info */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <FormInput label="Plan Name">
-              <input
-                className={inputClass}
-                style={ringStyle}
+          <section className="rounded-[24px] border border-slate-200 bg-white p-5 shadow-sm">
+            <div className="mb-4">
+              <h4 className="text-sm font-bold text-slate-800">Plan Details</h4>
+              <p className="mt-1 text-xs text-slate-500">
+                Capture plan labels, dates, and pharmacy information returned by the payer.
+              </p>
+            </div>
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+              <TextField
+                label="Plan Name"
                 value={form.planName}
-                onChange={(e) => update("planName", e.target.value)}
+                onChange={updateField("planName")}
                 placeholder="e.g., Choice Plus PPO"
               />
-            </FormInput>
-            <FormInput label="Plan Type">
-              <select
-                className={inputClass}
-                style={ringStyle}
+              <SelectField
+                label="Plan Type"
                 value={form.planType}
-                onChange={(e) => update("planType", e.target.value)}
-              >
-                <option value="">Select type...</option>
-                {PLAN_TYPES.map((t) => (
-                  <option key={t}>{t}</option>
-                ))}
-              </select>
-            </FormInput>
-          </div>
-
-          {/* Dates */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <FormInput label="Effective Date">
-              <input
+                onValueChange={(value) => setForm((current) => ({ ...current, planType: value }))}
+                options={PLAN_TYPES}
+                placeholder="Select type..."
+              />
+              <TextField
+                label="Effective Date"
                 type="date"
-                className={inputClass}
-                style={ringStyle}
                 value={form.effectiveDate}
-                onChange={(e) => update("effectiveDate", e.target.value)}
+                onChange={updateField("effectiveDate")}
               />
-            </FormInput>
-            <FormInput label="Termination Date">
-              <input
+              <TextField
+                label="Termination Date"
                 type="date"
-                className={inputClass}
-                style={ringStyle}
                 value={form.terminationDate}
-                onChange={(e) => update("terminationDate", e.target.value)}
+                onChange={updateField("terminationDate")}
               />
-            </FormInput>
-          </div>
-
-          {/* Rx Info */}
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-            <FormInput label="Rx BIN">
-              <input
-                className={inputClass}
-                style={ringStyle}
+              <TextField
+                label="Rx BIN"
                 value={form.rxBin}
-                onChange={(e) => update("rxBin", e.target.value)}
+                onChange={updateField("rxBin")}
                 placeholder="e.g., 610014"
               />
-            </FormInput>
-            <FormInput label="Rx PCN">
-              <input
-                className={inputClass}
-                style={ringStyle}
+              <TextField
+                label="Rx PCN"
                 value={form.rxPcn}
-                onChange={(e) => update("rxPcn", e.target.value)}
+                onChange={updateField("rxPcn")}
                 placeholder="e.g., OHCARD"
               />
-            </FormInput>
-            <FormInput label="Rx Group">
-              <input
-                className={inputClass}
-                style={ringStyle}
+              <TextField
+                label="Rx Group"
                 value={form.rxGroup}
-                onChange={(e) => update("rxGroup", e.target.value)}
+                onChange={updateField("rxGroup")}
                 placeholder="e.g., OHRX"
               />
-            </FormInput>
-          </div>
+            </div>
+          </section>
 
-          {/* Copays */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <FormInput label="Copay (PCP)">
-              <div className="relative">
-                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400">
-                  $
-                </span>
-                <input
-                  type="number"
-                  className={`${inputClass} pl-7`}
-                  style={ringStyle}
-                  value={form.copayPcp}
-                  onChange={(e) => update("copayPcp", e.target.value)}
-                  placeholder="0"
-                />
-              </div>
-            </FormInput>
-            <FormInput label="Copay (Specialist)">
-              <div className="relative">
-                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400">
-                  $
-                </span>
-                <input
-                  type="number"
-                  className={`${inputClass} pl-7`}
-                  style={ringStyle}
-                  value={form.copaySpecialist}
-                  onChange={(e) => update("copaySpecialist", e.target.value)}
-                  placeholder="0"
-                />
-              </div>
-            </FormInput>
-          </div>
+          <section className="rounded-[24px] border border-slate-200 bg-white p-5 shadow-sm">
+            <div className="mb-4">
+              <h4 className="text-sm font-bold text-slate-800">Benefit Amounts</h4>
+              <p className="mt-1 text-xs text-slate-500">
+                Track the common office-visit copays associated with this plan.
+              </p>
+            </div>
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+              <TextField
+                label="Copay (PCP)"
+                type="number"
+                value={form.copayPcp}
+                onChange={updateField("copayPcp")}
+                placeholder="0"
+                prefix="$"
+              />
+              <TextField
+                label="Copay (Specialist)"
+                type="number"
+                value={form.copaySpecialist}
+                onChange={updateField("copaySpecialist")}
+                placeholder="0"
+                prefix="$"
+              />
+            </div>
+          </section>
         </div>
 
-        {/* Footer */}
-        <div className="p-6 border-t border-slate-100 flex gap-3 justify-end">
+        <div className="sticky bottom-0 z-10 flex gap-3 border-t border-slate-200 bg-white px-6 py-4">
           <button
             onClick={onClose}
-            className="px-5 py-2.5 border border-slate-200 rounded-xl text-sm text-slate-600 hover:bg-slate-50"
+            className="flex-1 rounded-2xl border border-slate-200 py-3 text-sm font-medium text-slate-600"
           >
             Cancel
           </button>
           <button
             onClick={handleSave}
             disabled={saving}
-            className="px-5 py-2.5 rounded-xl text-white text-sm font-bold disabled:opacity-60"
-            style={{ backgroundColor: "#293682" }}
+            className="flex-1 rounded-2xl py-3 text-sm font-bold text-white shadow-lg shadow-cyan-900/10 disabled:cursor-not-allowed disabled:opacity-60"
+            style={{ backgroundColor: "#0a7e87" }}
           >
             {saving ? "Saving..." : policy ? "Update Policy" : "Add Policy"}
           </button>
         </div>
-      </div>
-    </div>
+      </motion.div>
+    </motion.div>
   );
 }
