@@ -66,6 +66,7 @@ const ENTITY_ENDPOINTS = {
 function toSnakeCase(obj) {
   if (obj === null || obj === undefined) return obj;
   if (Array.isArray(obj)) return obj.map(toSnakeCase);
+  if (obj instanceof Date || obj instanceof File || obj instanceof Blob) return obj;
   if (typeof obj !== "object") return obj;
 
   const result = {};
@@ -80,6 +81,7 @@ function toSnakeCase(obj) {
 function toCamelCase(obj) {
   if (obj === null || obj === undefined) return obj;
   if (Array.isArray(obj)) return obj.map(toCamelCase);
+  if (obj instanceof Date || obj instanceof File || obj instanceof Blob) return obj;
   if (typeof obj !== "object") return obj;
 
   const result = {};
@@ -88,6 +90,26 @@ function toCamelCase(obj) {
     result[camelKey] = toCamelCase(value);
   }
   return result;
+}
+
+function normalizeRequest(value) {
+  return toCamelCase(value);
+}
+
+function unwrapCollectionResponse(response) {
+  if (Array.isArray(response)) return response;
+  if (Array.isArray(response?.data)) return response.data;
+  if (Array.isArray(response?.items)) return response.items;
+
+  const firstArray = Object.values(response || {}).find((value) => Array.isArray(value));
+  return Array.isArray(firstArray) ? firstArray : [];
+}
+
+function unwrapEntityResponse(response) {
+  if (response?.data !== undefined && !Array.isArray(response?.data)) {
+    return response.data;
+  }
+  return response;
 }
 
 class EntityProxy {
@@ -127,8 +149,8 @@ class EntityProxy {
 
     if (limit) params.limit = limit;
 
-    const response = await apiClient.get(this.endpoint, params);
-    return Array.isArray(response) ? response : response.data || response.items || [];
+    const response = await apiClient.get(this.endpoint, normalizeRequest(params));
+    return unwrapCollectionResponse(response);
   }
 
   async filter(filters = {}, sortBy = null, limit = null) {
@@ -145,24 +167,28 @@ class EntityProxy {
     }
     if (limit) params.limit = limit;
 
-    const response = await apiClient.get(this.endpoint, params);
-    return Array.isArray(response) ? response : response.data || response.items || [];
+    const response = await apiClient.get(this.endpoint, normalizeRequest(params));
+    return unwrapCollectionResponse(response);
   }
 
   async get(id) {
-    return apiClient.get(`${this.endpoint}/${id}`);
+    const response = await apiClient.get(`${this.endpoint}/${id}`);
+    return unwrapEntityResponse(response);
   }
 
   async create(data) {
-    return apiClient.post(this.endpoint, data);
+    const response = await apiClient.post(this.endpoint, normalizeRequest(data));
+    return unwrapEntityResponse(response);
   }
 
   async update(id, data) {
-    return apiClient.put(`${this.endpoint}/${id}`, data);
+    const response = await apiClient.put(`${this.endpoint}/${id}`, normalizeRequest(data));
+    return unwrapEntityResponse(response);
   }
 
   async patch(id, data) {
-    return apiClient.patch(`${this.endpoint}/${id}`, data);
+    const response = await apiClient.patch(`${this.endpoint}/${id}`, normalizeRequest(data));
+    return unwrapEntityResponse(response);
   }
 
   async delete(id) {

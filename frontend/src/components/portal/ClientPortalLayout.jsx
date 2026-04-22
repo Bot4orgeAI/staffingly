@@ -2,6 +2,7 @@ import { useState } from "react";
 import { Link } from "react-router-dom";
 import { createPageUrl } from "@/lib/utils/page";
 import { api } from "@/lib/api";
+import { getAccentColor, getPracticeName, getUserDisplayName } from "@/lib/utils/clientPortal";
 import {
   LayoutDashboard,
   Briefcase,
@@ -31,9 +32,9 @@ export default function ClientPortalLayout({
 }) {
   const [mobileOpen, setMobileOpen] = useState(false);
 
-  const accent = branding?.accent_color || "#293682";
-  const practiceName = branding?.practice_name || user?.practice_name || "Your Practice";
-  const logoUrl = branding?.logo_url;
+  const accent = getAccentColor(branding);
+  const practiceName = getPracticeName(user, branding);
+  const logoUrl = branding?.logoUrl;
 
   return (
     <div
@@ -82,7 +83,7 @@ export default function ClientPortalLayout({
                 >
                   <item.icon className="w-4 h-4 flex-shrink-0" />
                   <span className="flex-1">{item.label}</span>
-                  {item.page === "ClientNotifications" && notifCount > 0 && (
+                  {item.page === "client-notifications" && notifCount > 0 && (
                     <span
                       className={`w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold ${isActive ? "bg-white/30 text-white" : "bg-red-500 text-white"}`}
                     >
@@ -103,10 +104,12 @@ export default function ClientPortalLayout({
               className="w-8 h-8 rounded-full flex items-center justify-center text-white text-xs font-bold flex-shrink-0"
               style={{ backgroundColor: accent }}
             >
-              {user?.full_name?.charAt(0) || "C"}
+              {getUserDisplayName(user).charAt(0)}
             </div>
             <div className="flex-1 min-w-0">
-              <p className="text-xs font-semibold text-slate-800 truncate">{user?.full_name}</p>
+              <p className="text-xs font-semibold text-slate-800 truncate">
+                {getUserDisplayName(user)}
+              </p>
               <p className="text-[10px] text-slate-400 truncate">{user?.email}</p>
             </div>
           </div>

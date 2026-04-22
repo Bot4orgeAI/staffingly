@@ -29,6 +29,9 @@ export function normalizeClient(client) {
     emrSystem: client.emrSystem || "",
     cloudStorageType: client.cloudStorageType || "none",
     subdomain: client.subdomain || "",
+    verificationTriggers: client.verificationTriggers || "",
+    escalationRules: client.escalationRules || "",
+    reportingPreferences: client.reportingPreferences || "",
     status: client.status || "ONBOARDING",
     onboardedAt: client.onboardedAt || null,
     specialistsCount: specialists.length,
@@ -50,6 +53,9 @@ export function toClientPayload(form) {
     emrSystem: form.emrSystem || null,
     cloudStorageType: form.cloudStorageType || null,
     subdomain: form.subdomain.trim() || null,
+    verificationTriggers: form.verificationTriggers.trim() || null,
+    escalationRules: form.escalationRules.trim() || null,
+    reportingPreferences: form.reportingPreferences.trim() || null,
     status: form.active ? "ACTIVE" : "INACTIVE",
   };
 }

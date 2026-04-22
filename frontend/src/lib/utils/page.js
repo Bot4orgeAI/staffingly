@@ -6,11 +6,15 @@
  */
 export function createPageUrl(pageName) {
   if (!pageName) return "/";
-  return (
+  const [pathAndQuery, hash = ""] = pageName.split("#");
+  const [rawPath, query = ""] = pathAndQuery.split("?");
+  const normalizedPath =
     "/" +
-    pageName
+    rawPath
+      .replace(/^\//, "")
       .replace(/([a-z])([A-Z])/g, "$1-$2")
       .replace(/[\s_]+/g, "-")
-      .toLowerCase()
-  );
+      .toLowerCase();
+
+  return `${normalizedPath}${query ? `?${query}` : ""}${hash ? `#${hash}` : ""}`;
 }

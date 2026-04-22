@@ -2,18 +2,26 @@ import { useState, useEffect } from "react";
 import { api } from "@/lib/api";
 import { createPageUrl } from "@/lib/utils/page";
 import ClientPortalLayout from "@/components/portal/ClientPortalLayout";
+import {
+  getAccentColor,
+  getClientId,
+  normalizeBranding,
+  normalizeCase,
+} from "@/lib/utils/clientPortal";
 import { Search, Loader2, ChevronRight } from "lucide-react";
 
 const STATUS_STYLES = {
   New: { bg: "#f1f5f9", text: "#475569" },
   "In Progress": { bg: "#eff6ff", text: "#1d4ed8" },
   "Awaiting Documents": { bg: "#fffbeb", text: "#92400e" },
+  "Ready for Submission": { bg: "#e0f2fe", text: "#0369a1" },
   "Awaiting AI Review": { bg: "#f5f3ff", text: "#6d28d9" },
   "Pending Supervisor Approval": { bg: "#fff7ed", text: "#c2410c" },
   Submitted: { bg: "#f0fdfa", text: "#0f766e" },
   Approved: { bg: "#f0fdf4", text: "#15803d" },
   Denied: { bg: "#fef2f2", text: "#b91c1c" },
   "Appeal In Progress": { bg: "#fff7ed", text: "#9a3412" },
+  "Peer To Peer Requested": { bg: "#fdf4ff", text: "#a21caf" },
   Closed: { bg: "#f8fafc", text: "#64748b" },
 };
 
@@ -36,16 +44,17 @@ export default function ClientCases() {
       .me()
       .then(async (u) => {
         setUser(u);
+        const clientId = getClientId(u);
         const [bData, cData] = await Promise.all([
-          api.entities.ClientBranding.filter({ client_id: u.id }).catch(() => []),
-          api.entities.PriorAuthCase.filter({ client_id: u.id }),
+          clientId ? api.entities.ClientBranding.filter({ clientId }).catch(() => []) : [],
+          api.entities.PriorAuthCase.filter(clientId ? { clientId } : {}),
         ]);
-        setBranding(bData[0] || null);
+        setBranding(normalizeBranding(bData[0] || null));
         setCases(
-          cData.sort(
+          cData.map(normalizeCase).sort(
             (a, b) =>
-              new Date(b.updated_date || b.created_date).getTime() -
-              new Date(a.updated_date || a.created_date).getTime()
+              new Date(b.updatedAt || b.createdAt).getTime() -
+              new Date(a.updatedAt || a.createdAt).getTime()
           )
         );
         setLoading(false);
@@ -54,20 +63,21 @@ export default function ClientCases() {
   }, []);
 
   const filtered = cases.filter((c) => {
-    const matchStatus = filterStatus === "All" || c.status === filterStatus;
+    const matchStatus = filterStatus === "All" || c.displayStatus === filterStatus;
     const q = search.toLowerCase();
     const matchSearch =
       !search ||
-      (c.case_id || c.id)?.toLowerCase().includes(q) ||
-      c.patient_initials?.toLowerCase().includes(q) ||
-      c.payer_name?.toLowerCase().includes(q);
-    const created = c.created_date ? new Date(c.created_date) : null;
+      (c.caseNumber || c.id)?.toLowerCase().includes(q) ||
+      c.patientInitials?.toLowerCase().includes(q) ||
+      c.patientName?.toLowerCase().includes(q) ||
+      c.payerName?.toLowerCase().includes(q);
+    const created = c.createdAt ? new Date(c.createdAt) : null;
     const matchFrom = !dateFrom || (created && created >= new Date(dateFrom));
     const matchTo = !dateTo || (created && created <= new Date(dateTo + "T23:59:59"));
     return matchStatus && matchSearch && matchFrom && matchTo;
   });
 
-  const accent = branding?.accent_color || "#293682";
+  const accent = getAccentColor(branding);
 
   if (loading)
     return (
@@ -157,38 +167,38 @@ export default function ClientCases() {
                 </thead>
                 <tbody>
                   {filtered.map((c) => {
-                    const st = STATUS_STYLES[c.status] || STATUS_STYLES["New"];
+                    const st = STATUS_STYLES[c.displayStatus] || STATUS_STYLES["New"];
                     return (
                       <tr
                         key={c.id}
                         className="border-b border-slate-50 hover:bg-slate-50 transition-colors cursor-pointer"
                         onClick={() =>
-                          (window.location.href = createPageUrl(`ClientCaseDetail?id=${c.id}`))
+                          (window.location.href = createPageUrl(`client-case-detail?id=${c.id}`))
                         }
                       >
                         <td className="px-4 py-3 font-bold text-sm" style={{ color: accent }}>
-                          {c.case_id || c.id?.slice(-6)}
+                          {c.caseNumber || c.id?.slice(-6)}
                         </td>
                         <td className="px-4 py-3 text-slate-700 font-semibold">
-                          {c.patient_initials}
+                          {c.patientInitials}
                         </td>
                         <td className="px-4 py-3 text-slate-600 text-xs max-w-[160px] truncate">
-                          {c.procedure_name}
+                          {c.procedureLabel}
                         </td>
-                        <td className="px-4 py-3 text-slate-600 text-xs">{c.payer_name}</td>
+                        <td className="px-4 py-3 text-slate-600 text-xs">{c.payerName}</td>
                         <td className="px-4 py-3">
                           <span
                             className="px-2 py-0.5 rounded-full text-[11px] font-bold"
                             style={{ backgroundColor: st.bg, color: st.text }}
                           >
-                            {c.status}
+                            {c.displayStatus}
                           </span>
                         </td>
                         <td className="px-4 py-3 text-xs text-slate-400">
-                          {c.created_date ? new Date(c.created_date).toLocaleDateString() : "—"}
+                          {c.createdAt ? new Date(c.createdAt).toLocaleDateString() : "—"}
                         </td>
                         <td className="px-4 py-3 text-xs text-slate-400">
-                          {c.updated_date ? new Date(c.updated_date).toLocaleDateString() : "—"}
+                          {c.updatedAt ? new Date(c.updatedAt).toLocaleDateString() : "—"}
                         </td>
                         <td className="px-4 py-3">
                           <ChevronRight className="w-4 h-4 text-slate-400" />

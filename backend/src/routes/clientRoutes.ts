@@ -19,24 +19,6 @@ router.get(
   asyncHandler(clientController.getClients)
 );
 
-router.get("/:id", requireRoles(...VIEW_ROLES), asyncHandler(clientController.getClientById));
-
-router.post(
-  "/",
-  requireRoles(...ADMIN_ROLES),
-  validateBody(createClientSchema),
-  asyncHandler(clientController.createClient)
-);
-
-router.put(
-  "/:id",
-  requireRoles(...ADMIN_ROLES),
-  validateBody(updateClientSchema),
-  asyncHandler(clientController.updateClient)
-);
-
-router.delete("/:id", requireRoles(...ADMIN_ROLES), asyncHandler(clientController.deleteClient));
-
 // Client Branding routes
 router.get("/branding", requireRoles(...VIEW_ROLES), asyncHandler(clientController.listBranding));
 
@@ -76,5 +58,23 @@ router.put(
   requireRoles(...VIEW_ROLES),
   asyncHandler(clientController.updateNotification)
 );
+
+router.get("/:id", requireRoles(...VIEW_ROLES), asyncHandler(clientController.getClientById));
+
+router.post(
+  "/",
+  requireRoles(...ADMIN_ROLES),
+  validateBody(createClientSchema),
+  asyncHandler(clientController.createClient)
+);
+
+router.put(
+  "/:id",
+  requireRoles(...ADMIN_ROLES),
+  validateBody(updateClientSchema),
+  asyncHandler(clientController.updateClient)
+);
+
+router.delete("/:id", requireRoles(...ADMIN_ROLES), asyncHandler(clientController.deleteClient));
 
 export default router;

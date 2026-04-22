@@ -36,6 +36,9 @@ export default function ClientDrawer({ client, onClose, onSubmit, saveError, sav
     emrSystem: client?.emrSystem || "Epic",
     cloudStorageType: client?.cloudStorageType || "none",
     subdomain: client?.subdomain || "",
+    verificationTriggers: client?.verificationTriggers || "",
+    escalationRules: client?.escalationRules || "",
+    reportingPreferences: client?.reportingPreferences || "",
     active: client ? client.status === "ACTIVE" : true,
   });
   const updateField = (field) => (event) =>
@@ -171,6 +174,53 @@ export default function ClientDrawer({ client, onClose, onSubmit, saveError, sav
                   className={`mt-1 h-5 w-5 rounded-full bg-white transition-transform ${form.active ? "translate-x-6" : "translate-x-1"}`}
                 />
               </button>
+            </div>
+          </section>
+
+          <section className="rounded-[24px] border border-slate-200 bg-white p-5 shadow-sm">
+            <div className="mb-4">
+              <h4 className="text-sm font-bold text-slate-800">Workflow Preferences</h4>
+              <p className="mt-1 text-xs text-slate-500">
+                Capture the client&apos;s verification triggers, escalation rules, and reporting expectations.
+              </p>
+            </div>
+            <div className="space-y-4">
+              <div>
+                <label className="mb-1.5 block text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">
+                  Verification Triggers
+                </label>
+                <textarea
+                  value={form.verificationTriggers}
+                  onChange={updateField("verificationTriggers")}
+                  rows={3}
+                  placeholder="Example: Verify all next-day appointments nightly and rerun on demographic changes."
+                  className="w-full rounded-2xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm text-slate-700 focus:border-slate-300 focus:outline-none"
+                />
+              </div>
+              <div>
+                <label className="mb-1.5 block text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">
+                  Escalation Rules
+                </label>
+                <textarea
+                  value={form.escalationRules}
+                  onChange={updateField("escalationRules")}
+                  rows={3}
+                  placeholder="Example: Escalate low-confidence or high-dollar cases to virtual staff within 30 minutes."
+                  className="w-full rounded-2xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm text-slate-700 focus:border-slate-300 focus:outline-none"
+                />
+              </div>
+              <div>
+                <label className="mb-1.5 block text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">
+                  Reporting Preferences
+                </label>
+                <textarea
+                  value={form.reportingPreferences}
+                  onChange={updateField("reportingPreferences")}
+                  rows={3}
+                  placeholder="Example: Weekly executive summary, denial trends, and payer turnaround tracking."
+                  className="w-full rounded-2xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm text-slate-700 focus:border-slate-300 focus:outline-none"
+                />
+              </div>
             </div>
           </section>
         </div>

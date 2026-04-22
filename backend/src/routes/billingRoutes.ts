@@ -8,6 +8,7 @@ import {
   chargeInvoiceSchema,
   cardInfoSchema,
   cardUpdateLinkSchema,
+  updateInvoiceSchema,
   paginationSchema,
 } from "../lib/schemas.js";
 
@@ -87,6 +88,14 @@ router.get(
   authenticate,
   requireRoles(...VIEW_ROLES),
   asyncHandler(billingController.getInvoiceById)
+);
+
+router.put(
+  "/invoices/:id",
+  authenticate,
+  requireRoles(...VIEW_ROLES),
+  validateBody(updateInvoiceSchema),
+  asyncHandler(billingController.updateInvoice)
 );
 
 // Billing Profiles

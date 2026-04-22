@@ -57,6 +57,9 @@ model Client {
   emrSystem    String?
   cloudStorageType String?
   subdomain    String?
+  verificationTriggers String? @db.Text
+  escalationRules String? @db.Text
+  reportingPreferences String? @db.Text
   status       ClientStatus @default(ACTIVE)
   onboardedAt  DateTime?
   createdAt    DateTime     @default(now())
@@ -155,6 +158,9 @@ model Invoice {
   stripeErrorCode       String?
   stripeErrorMessage    String?
   retryScheduledAt      DateTime?
+  disputeReason         String?       @db.Text
+  disputeStatus         String?
+  disputeOpenedAt       DateTime?
   pricingPackageName    String?
   generatedBy           String?
   createdAt             DateTime      @default(now())

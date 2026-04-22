@@ -20,6 +20,13 @@ interface ChargeInvoiceBody {
   invoiceId: string;
 }
 
+interface UpdateInvoiceBody {
+  status?: InvoiceStatus;
+  disputeReason?: string;
+  disputeStatus?: string;
+  disputeOpenedAt?: string;
+}
+
 interface SendCardUpdateLinkBody {
   clientId: string;
 }
@@ -197,7 +204,11 @@ export async function getInvoices(req: AuthenticatedRequest, res: Response): Pro
   const { clientId, status, limit = "50", offset = "0" } = req.query as GetInvoicesQuery;
 
   const where: { clientId?: string; status?: InvoiceStatus } = {};
-  if (clientId) where.clientId = clientId;
+  if (req.user?.role === "CLIENT_USER" && req.user.clientId) {
+    where.clientId = req.user.clientId;
+  } else if (clientId) {
+    where.clientId = clientId;
+  }
   if (status) where.status = status.toUpperCase() as InvoiceStatus;
 
   const [invoices, total] = await Promise.all([
@@ -227,14 +238,74 @@ export async function getInvoiceById(req: AuthenticatedRequest, res: Response): 
     return;
   }
 
+  if (req.user?.role === "CLIENT_USER" && invoice.clientId !== req.user.clientId) {
+    res.status(403).json({ error: "Forbidden" });
+    return;
+  }
+
   res.json(invoice);
+}
+
+export async function updateInvoice(req: AuthenticatedRequest, res: Response): Promise<void> {
+  const { id } = req.params;
+  const body = req.body as UpdateInvoiceBody;
+
+  const invoice = await prisma.invoice.findUnique({
+    where: { id: id as string },
+  });
+
+  if (!invoice) {
+    res.status(404).json({ error: "Invoice not found" });
+    return;
+  }
+
+  if (req.user?.role === "CLIENT_USER") {
+    if (invoice.clientId !== req.user.clientId) {
+      res.status(403).json({ error: "Forbidden" });
+      return;
+    }
+
+    if (body.status !== "DISPUTED") {
+      res.status(403).json({ error: "Clients may only dispute invoices" });
+      return;
+    }
+  }
+
+  const updatedInvoice = await prisma.invoice.update({
+    where: { id: invoice.id },
+    data: {
+      status: body.status,
+      disputeReason: body.disputeReason,
+      disputeStatus: body.disputeStatus,
+      disputeOpenedAt: body.disputeOpenedAt ? new Date(body.disputeOpenedAt) : undefined,
+    },
+  });
+
+  if (body.status === "DISPUTED") {
+    await prisma.billingAuditLog.create({
+      data: {
+        eventType: "invoice_disputed",
+        clientId: invoice.clientId,
+        clientName: invoice.clientName,
+        invoiceId: invoice.id,
+        description: body.disputeReason || "Invoice marked as disputed",
+        performedBy: req.user?.email || "system",
+      },
+    });
+  }
+
+  res.json(updatedInvoice);
 }
 
 export async function getProfiles(req: AuthenticatedRequest, res: Response): Promise<void> {
   const { clientId, limit = "100", offset = "0" } = req.query as GetProfilesQuery;
 
   const where: { clientId?: string } = {};
-  if (clientId) where.clientId = clientId;
+  if (req.user?.role === "CLIENT_USER" && req.user.clientId) {
+    where.clientId = req.user.clientId;
+  } else if (clientId) {
+    where.clientId = clientId;
+  }
 
   const [profiles, total] = await Promise.all([
     prisma.billingProfile.findMany({
@@ -261,6 +332,11 @@ export async function getProfileById(req: AuthenticatedRequest, res: Response): 
     return;
   }
 
+  if (req.user?.role === "CLIENT_USER" && profile.clientId !== req.user.clientId) {
+    res.status(403).json({ error: "Forbidden" });
+    return;
+  }
+
   res.json(profile);
 }
 
@@ -277,7 +353,11 @@ export async function getCredits(req: AuthenticatedRequest, res: Response): Prom
   const { clientId, limit = "100", offset = "0" } = req.query as GetCreditsQuery;
 
   const where: { clientId?: string } = {};
-  if (clientId) where.clientId = clientId;
+  if (req.user?.role === "CLIENT_USER" && req.user.clientId) {
+    where.clientId = req.user.clientId;
+  } else if (clientId) {
+    where.clientId = clientId;
+  }
 
   const [credits, total] = await Promise.all([
     prisma.billingCredit.findMany({
@@ -304,7 +384,11 @@ export async function getAuditLogs(req: AuthenticatedRequest, res: Response): Pr
   const { clientId, eventType, limit = "100", offset = "0" } = req.query as GetAuditLogsQuery;
 
   const where: { clientId?: string; eventType?: string } = {};
-  if (clientId) where.clientId = clientId;
+  if (req.user?.role === "CLIENT_USER" && req.user.clientId) {
+    where.clientId = req.user.clientId;
+  } else if (clientId) {
+    where.clientId = clientId;
+  }
   if (eventType) where.eventType = eventType;
 
   const [logs, total] = await Promise.all([

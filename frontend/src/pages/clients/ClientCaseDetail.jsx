@@ -4,6 +4,15 @@ import { Link } from "react-router-dom";
 import { createPageUrl } from "@/lib/utils/page";
 import ClientPortalLayout from "@/components/portal/ClientPortalLayout";
 import {
+  getAccentColor,
+  getClientId,
+  getUserDisplayName,
+  normalizeBranding,
+  normalizeCase,
+  normalizeDocument,
+  normalizeMessage,
+} from "@/lib/utils/clientPortal";
+import {
   ChevronLeft,
   Send,
   Loader2,
@@ -19,19 +28,19 @@ const STATUS_STYLES = {
   New: { bg: "#f1f5f9", text: "#475569" },
   "In Progress": { bg: "#eff6ff", text: "#1d4ed8" },
   "Awaiting Documents": { bg: "#fffbeb", text: "#92400e" },
+  "Ready for Submission": { bg: "#e0f2fe", text: "#0369a1" },
   Submitted: { bg: "#f0fdfa", text: "#0f766e" },
   Approved: { bg: "#f0fdf4", text: "#15803d" },
   Denied: { bg: "#fef2f2", text: "#b91c1c" },
   "Appeal In Progress": { bg: "#fff7ed", text: "#9a3412" },
+  "Peer To Peer Requested": { bg: "#fdf4ff", text: "#a21caf" },
   Closed: { bg: "#f8fafc", text: "#64748b" },
 };
 
 const STATUS_ORDER = [
   "New",
-  "In Progress",
   "Awaiting Documents",
-  "Awaiting AI Review",
-  "Pending Supervisor Approval",
+  "Ready for Submission",
   "Submitted",
   "Approved",
 ];
@@ -57,25 +66,29 @@ export default function ClientCaseDetail() {
       .me()
       .then(async (u) => {
         setUser(u);
-        const [bData, cData, dData, mData] = await Promise.all([
-          api.entities.ClientBranding.filter({ client_id: u.id }).catch(() => []),
-          api.entities.PriorAuthCase.filter({ id: caseId }),
-          api.entities.PriorAuthDocument.filter({ case_id: caseId }),
-          api.entities.CaseMessage.filter({ case_id: caseId }),
+        const clientId = getClientId(u);
+        const [bData, caseData, mData] = await Promise.all([
+          clientId ? api.entities.ClientBranding.filter({ clientId }).catch(() => []) : [],
+          api.entities.PriorAuthCase.get(caseId),
+          api.entities.CaseMessage.filter({ caseId }),
         ]);
-        setBranding(bData[0] || null);
-        setPaCase(cData[0] || null);
-        setDocs(dData);
+        const normalizedCase = caseData ? normalizeCase(caseData) : null;
+        setBranding(normalizeBranding(bData[0] || null));
+        setPaCase(normalizedCase);
+        setDocs(Array.isArray(caseData?.documents) ? caseData.documents.map(normalizeDocument) : []);
         setMessages(
-          mData.sort(
-            (a, b) => new Date(a.created_date).getTime() - new Date(b.created_date).getTime()
+          mData
+            .map(normalizeMessage)
+            .sort(
+            (a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
           )
         );
         // Mark messages as read by client
         mData
-          .filter((m) => m.sender_role === "staffingly" && !m.read_by_client)
+          .map(normalizeMessage)
+          .filter((m) => m.senderRole === "staff" && !m.readByClient)
           .forEach((m) => {
-            api.entities.CaseMessage.update(m.id, { read_by_client: true });
+            api.entities.CaseMessage.update(m.id, { readByClient: true });
           });
         setLoading(false);
       })
@@ -90,16 +103,16 @@ export default function ClientCaseDetail() {
     if (!msgInput.trim() || sendingMsg) return;
     setSendingMsg(true);
     const msg = await api.entities.CaseMessage.create({
-      case_id: caseId,
-      client_id: user.id,
-      sender_role: "client",
-      sender_id: user.id,
-      sender_name: user.full_name || "Client",
-      content: msgInput.trim(),
-      read_by_client: true,
-      read_by_specialist: false,
+      caseId,
+      clientId: getClientId(user),
+      senderRole: "client",
+      senderId: user?.id,
+      senderName: getUserDisplayName(user),
+      message: msgInput.trim(),
+      readByClient: true,
+      readByStaff: false,
     });
-    setMessages((prev) => [...prev, msg]);
+    setMessages((prev) => [...prev, normalizeMessage(msg)]);
     setMsgInput("");
     setSendingMsg(false);
   };
@@ -108,29 +121,28 @@ export default function ClientCaseDetail() {
     setUploading(true);
     for (const file of Array.from(files)) {
       const { file_url } = await api.integrations.Core.UploadFile({ file });
-      await api.entities.PriorAuthDocument.create({
-        case_id: caseId,
-        document_type: "Client Upload",
-        checklist_item_key: "Client Upload",
-        file_url,
-        file_name: file.name,
-        status: "Uploaded",
-        uploaded_by: "specialist",
+      await api.client.post(`/api/prior-auth/cases/${caseId}/documents`, {
+        documentType: "Client Upload",
+        checklistItemKey: "client-upload",
+        fileUrl: file_url,
+        fileName: file.name,
       });
       // Notify via message
       await api.entities.CaseMessage.create({
-        case_id: caseId,
-        client_id: user.id,
-        sender_role: "client",
-        sender_id: user.id,
-        sender_name: user.full_name || "Client",
-        content: `📎 Uploaded document: ${file.name}`,
-        read_by_client: true,
-        read_by_specialist: false,
+        caseId,
+        clientId: getClientId(user),
+        senderRole: "client",
+        senderId: user?.id,
+        senderName: getUserDisplayName(user),
+        message: `Uploaded document: ${file.name}`,
+        readByClient: true,
+        readByStaff: false,
       });
     }
-    const dData = await api.entities.PriorAuthDocument.filter({ case_id: caseId });
-    setDocs(dData);
+    const refreshedCase = await api.entities.PriorAuthCase.get(caseId);
+    setDocs(
+      Array.isArray(refreshedCase?.documents) ? refreshedCase.documents.map(normalizeDocument) : []
+    );
     setUploading(false);
   };
 
@@ -151,8 +163,8 @@ export default function ClientCaseDetail() {
       </ClientPortalLayout>
     );
 
-  const accent = branding?.accent_color || "#293682";
-  const st = STATUS_STYLES[paCase.status] || STATUS_STYLES["New"];
+  const accent = getAccentColor(branding);
+  const st = STATUS_STYLES[paCase.displayStatus] || STATUS_STYLES["New"];
 
   const TABS = [
     { key: "overview", label: "Overview", icon: Clock },
@@ -174,17 +186,17 @@ export default function ClientCaseDetail() {
           <div className="flex-1">
             <div className="flex items-center gap-2 flex-wrap">
               <h1 className="text-xl font-bold text-slate-800">
-                Case {paCase.case_id || paCase.id?.slice(-6)}
+                Case {paCase.caseNumber || paCase.id?.slice(-6)}
               </h1>
               <span
                 className="px-3 py-1 rounded-full text-xs font-bold"
                 style={{ backgroundColor: st.bg, color: st.text }}
               >
-                {paCase.status}
+                {paCase.displayStatus}
               </span>
             </div>
             <p className="text-sm text-slate-500">
-              {paCase.procedure_name} · {paCase.payer_name}
+              {paCase.procedureLabel} · {paCase.payerName}
             </p>
           </div>
         </div>
@@ -212,9 +224,9 @@ export default function ClientCaseDetail() {
               <div className="absolute left-4 top-0 bottom-0 w-0.5 bg-slate-100" />
               <div className="space-y-4">
                 {STATUS_ORDER.map((status, i) => {
-                  const currentIdx = STATUS_ORDER.indexOf(paCase.status);
-                  const isDone = i <= currentIdx || paCase.status === "Approved";
-                  const isCurrent = status === paCase.status;
+                  const currentIdx = STATUS_ORDER.indexOf(paCase.displayStatus);
+                  const isDone = i <= currentIdx || paCase.displayStatus === "Approved";
+                  const isCurrent = status === paCase.displayStatus;
                   return (
                     <div key={status} className="flex items-start gap-4">
                       <div
@@ -236,8 +248,8 @@ export default function ClientCaseDetail() {
                         {isCurrent && (
                           <p className="text-xs text-slate-400 mt-0.5">
                             Current status ·{" "}
-                            {paCase.updated_date
-                              ? new Date(paCase.updated_date).toLocaleDateString()
+                            {paCase.updatedAt
+                              ? new Date(paCase.updatedAt).toLocaleDateString()
                               : "—"}
                           </p>
                         )}
@@ -245,16 +257,16 @@ export default function ClientCaseDetail() {
                     </div>
                   );
                 })}
-                {paCase.status === "Denied" && (
+                {paCase.displayStatus === "Denied" && (
                   <div className="flex items-start gap-4">
                     <div className="w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 z-10 bg-red-500">
                       <XCircle className="w-4 h-4 text-white" />
                     </div>
                     <div className="flex-1 pt-1">
                       <p className="text-sm font-semibold text-red-700">Denied</p>
-                      {paCase.denial_reason && (
+                      {paCase.denialReason && (
                         <p className="text-xs text-slate-500 mt-0.5">
-                          Reason: {paCase.denial_reason}
+                          Reason: {paCase.denialReason}
                         </p>
                       )}
                     </div>
@@ -306,22 +318,22 @@ export default function ClientCaseDetail() {
                       <FileText className="w-4 h-4 text-slate-400 flex-shrink-0" />
                       <div className="flex-1 min-w-0">
                         <p className="text-sm font-semibold text-slate-700 truncate">
-                          {doc.file_name || doc.document_type}
+                          {doc.fileName || doc.documentType}
                         </p>
-                        <p className="text-xs text-slate-400">{doc.document_type}</p>
+                        <p className="text-xs text-slate-400">{doc.documentType}</p>
                       </div>
                       <span
-                        className={`px-2 py-0.5 rounded-full text-[11px] font-bold ${doc.status === "Verified" ? "bg-emerald-50 text-emerald-700" : doc.status === "Uploaded" ? "bg-blue-50 text-blue-700" : "bg-slate-100 text-slate-500"}`}
+                        className={`px-2 py-0.5 rounded-full text-[11px] font-bold ${doc.status === "VERIFIED" ? "bg-emerald-50 text-emerald-700" : doc.status === "UPLOADED" ? "bg-blue-50 text-blue-700" : "bg-slate-100 text-slate-500"}`}
                       >
-                        {doc.status === "Verified"
+                        {doc.status === "VERIFIED"
                           ? "✓ Processed"
-                          : doc.status === "Uploaded"
+                          : doc.status === "UPLOADED"
                             ? "Received"
                             : doc.status}
                       </span>
-                      {doc.file_url && (
+                      {doc.fileUrl && (
                         <a
-                          href={doc.file_url}
+                          href={doc.fileUrl}
                           target="_blank"
                           rel="noopener noreferrer"
                           className="text-xs font-semibold hover:underline"
@@ -363,7 +375,7 @@ export default function ClientCaseDetail() {
                 </p>
               )}
               {messages.map((msg) => {
-                const isClient = msg.sender_role === "client";
+                const isClient = msg.senderRole === "client";
                 return (
                   <div
                     key={msg.id}
@@ -384,11 +396,11 @@ export default function ClientCaseDetail() {
                       {!isClient && (
                         <p className="text-[10px] font-bold mb-1 opacity-60">Staffingly Team</p>
                       )}
-                      <p className="leading-relaxed">{msg.content}</p>
+                      <p className="leading-relaxed">{msg.body}</p>
                       <p
                         className={`text-[10px] mt-1 ${isClient ? "text-white/60 text-right" : "text-slate-400"}`}
                       >
-                        {msg.created_date ? new Date(msg.created_date).toLocaleString() : ""}
+                        {msg.createdAt ? new Date(msg.createdAt).toLocaleString() : ""}
                       </p>
                     </div>
                     {isClient && (
@@ -396,7 +408,7 @@ export default function ClientCaseDetail() {
                         className="w-8 h-8 rounded-full flex items-center justify-center text-white text-xs font-bold flex-shrink-0 mt-0.5"
                         style={{ backgroundColor: "#f6b037" }}
                       >
-                        {user?.full_name?.charAt(0) || "C"}
+                        {getUserDisplayName(user).charAt(0)}
                       </div>
                     )}
                   </div>
@@ -434,7 +446,7 @@ export default function ClientCaseDetail() {
         {/* Outcome Tab */}
         {activeTab === "outcome" && (
           <div className="space-y-4">
-            {paCase.status === "Approved" && (
+            {paCase.displayStatus === "Approved" && (
               <div className="bg-white rounded-2xl border-2 border-emerald-300 p-6">
                 <div className="flex items-center gap-3 mb-4">
                   <div className="w-12 h-12 rounded-2xl flex items-center justify-center bg-emerald-50">
@@ -442,7 +454,7 @@ export default function ClientCaseDetail() {
                   </div>
                   <div>
                     <h3 className="font-bold text-emerald-800 text-lg">Authorization Approved</h3>
-                    <p className="text-sm text-emerald-700">{paCase.payer_name}</p>
+                    <p className="text-sm text-emerald-700">{paCase.payerName}</p>
                   </div>
                 </div>
                 <div className="grid grid-cols-2 gap-4 text-sm">
@@ -470,7 +482,7 @@ export default function ClientCaseDetail() {
               </div>
             )}
 
-            {paCase.status === "Denied" && (
+            {paCase.displayStatus === "Denied" && (
               <div className="bg-white rounded-2xl border-2 border-red-300 p-6">
                 <div className="flex items-center gap-3 mb-4">
                   <div className="w-12 h-12 rounded-2xl flex items-center justify-center bg-red-50">
@@ -478,16 +490,16 @@ export default function ClientCaseDetail() {
                   </div>
                   <div>
                     <h3 className="font-bold text-red-800 text-lg">Authorization Denied</h3>
-                    <p className="text-sm text-red-700">{paCase.payer_name}</p>
+                    <p className="text-sm text-red-700">{paCase.payerName}</p>
                   </div>
                 </div>
                 <div className="space-y-3 text-sm">
-                  {paCase.denial_reason && (
+                  {paCase.denialReason && (
                     <div>
                       <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider mb-0.5">
                         Denial Reason
                       </p>
-                      <p className="text-slate-700">{paCase.denial_reason}</p>
+                      <p className="text-slate-700">{paCase.denialReason}</p>
                     </div>
                   )}
                   {paCase.denial_date && (
@@ -515,7 +527,7 @@ export default function ClientCaseDetail() {
                       <p className="text-xs font-bold text-amber-800">✓ Appeal Filed</p>
                       <p className="text-xs text-amber-700 mt-0.5">
                         Filed {new Date(paCase.appeal_submitted_at).toLocaleDateString()} ·{" "}
-                        {paCase.status}
+                        {paCase.displayStatus}
                       </p>
                     </div>
                   )}
@@ -523,12 +535,12 @@ export default function ClientCaseDetail() {
               </div>
             )}
 
-            {!["Approved", "Denied"].includes(paCase.status) && (
+            {!["Approved", "Denied"].includes(paCase.displayStatus) && (
               <div className="bg-white rounded-2xl border border-slate-200 p-8 text-center">
                 <Clock className="w-10 h-10 mx-auto text-slate-300 mb-3" />
                 <p className="font-semibold text-slate-600">Outcome Pending</p>
                 <p className="text-sm text-slate-400 mt-1">
-                  Current status: <strong>{paCase.status}</strong>. We'll notify you when a decision
+                  Current status: <strong>{paCase.displayStatus}</strong>. We'll notify you when a decision
                   is made.
                 </p>
               </div>

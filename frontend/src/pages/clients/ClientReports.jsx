@@ -2,6 +2,13 @@ import { useState, useEffect } from "react";
 import { api } from "@/lib/api";
 import ClientPortalLayout from "@/components/portal/ClientPortalLayout";
 import {
+  getAccentColor,
+  getClientId,
+  getPracticeName,
+  normalizeBranding,
+  normalizeCase,
+} from "@/lib/utils/clientPortal";
+import {
   BarChart,
   Bar,
   XAxis,
@@ -30,19 +37,20 @@ export default function ClientReports() {
       .me()
       .then(async (u) => {
         setUser(u);
+        const clientId = getClientId(u);
         const [bData, cData] = await Promise.all([
-          api.entities.ClientBranding.filter({ client_id: u.id }).catch(() => []),
-          api.entities.PriorAuthCase.filter({ client_id: u.id }),
+          clientId ? api.entities.ClientBranding.filter({ clientId }).catch(() => []) : [],
+          api.entities.PriorAuthCase.filter(clientId ? { clientId } : {}),
         ]);
-        setBranding(bData[0] || null);
-        setCases(cData);
+        setBranding(normalizeBranding(bData[0] || null));
+        setCases(cData.map(normalizeCase));
         setLoading(false);
       })
       .catch(() => api.auth.redirectToLogin());
   }, []);
 
-  const accent = branding?.accent_color || "#293682";
-  const practiceName = branding?.practice_name || user?.full_name || "Your Practice";
+  const accent = getAccentColor(branding);
+  const practiceName = getPracticeName(user, branding);
 
   // Monthly approval rates (last 6 months)
   const monthlyData = (() => {
@@ -52,10 +60,10 @@ export default function ClientReports() {
       d.setMonth(d.getMonth() - i);
       const label = d.toLocaleString("default", { month: "short", year: "2-digit" });
       const monthCases = cases.filter((c) => {
-        const cd = new Date(c.created_date);
+        const cd = new Date(c.createdAt);
         return cd.getMonth() === d.getMonth() && cd.getFullYear() === d.getFullYear();
       });
-      const approved = monthCases.filter((c) => c.status === "Approved").length;
+      const approved = monthCases.filter((c) => c.displayStatus === "Approved").length;
       months.push({
         month: label,
         total: monthCases.length,
@@ -69,9 +77,9 @@ export default function ClientReports() {
   // Denial reasons
   const denialReasons = {};
   cases
-    .filter((c) => c.status === "Denied" && c.denial_reason)
+    .filter((c) => c.displayStatus === "Denied" && c.denialReason)
     .forEach((c) => {
-      const r = c.denial_reason.length > 30 ? c.denial_reason.slice(0, 30) + "…" : c.denial_reason;
+      const r = c.denialReason.length > 30 ? c.denialReason.slice(0, 30) + "…" : c.denialReason;
       denialReasons[r] = (denialReasons[r] || 0) + 1;
     });
   const denialData = Object.entries(denialReasons)
@@ -81,7 +89,7 @@ export default function ClientReports() {
   // Cases by procedure
   const procedureCounts = {};
   cases.forEach((c) => {
-    const p = c.procedure_name || "Unknown";
+    const p = c.procedureLabel || "Unknown";
     procedureCounts[p] = (procedureCounts[p] || 0) + 1;
   });
   const procedureData = Object.entries(procedureCounts)
@@ -92,14 +100,14 @@ export default function ClientReports() {
   // Avg turnaround by payer (submitted → decision)
   const payerTurnaround = {};
   cases
-    .filter((c) => c.submission_timestamp && (c.status === "Approved" || c.status === "Denied"))
+    .filter((c) => c.submittedAt && (c.displayStatus === "Approved" || c.displayStatus === "Denied"))
     .forEach((c) => {
       const days = Math.round(
-        (new Date(c.updated_date).getTime() - new Date(c.submission_timestamp).getTime()) / 86400000
+        (new Date(c.updatedAt).getTime() - new Date(c.submittedAt).getTime()) / 86400000
       );
-      if (!payerTurnaround[c.payer_name]) payerTurnaround[c.payer_name] = { total: 0, count: 0 };
-      payerTurnaround[c.payer_name].total += days;
-      payerTurnaround[c.payer_name].count += 1;
+      if (!payerTurnaround[c.payerName]) payerTurnaround[c.payerName] = { total: 0, count: 0 };
+      payerTurnaround[c.payerName].total += days;
+      payerTurnaround[c.payerName].count += 1;
     });
   const turnaroundData = Object.entries(payerTurnaround)
     .map(([payer, d]) => ({
@@ -111,26 +119,76 @@ export default function ClientReports() {
 
   const handleExportPDF = async () => {
     setGenerating(true);
-    const approved = cases.filter((c) => c.status === "Approved").length;
-    const denied = cases.filter((c) => c.status === "Denied").length;
+    const approved = cases.filter((c) => c.displayStatus === "Approved").length;
+    const denied = cases.filter((c) => c.displayStatus === "Denied").length;
     const total = cases.length;
     const rate = total > 0 ? Math.round((approved / total) * 100) : 0;
-
-    const content = await api.integrations.Core.InvokeLLM({
-      prompt: `Generate a clean professional prior authorization performance report for ${practiceName}.
-
-Data:
-- Total cases: ${total}
-- Approved: ${approved} (${rate}% approval rate)
-- Denied: ${denied}
-- In Progress: ${total - approved - denied}
-- Monthly data (last 6 months): ${JSON.stringify(monthlyData)}
-- Top denial reasons: ${JSON.stringify(denialData)}
-- Cases by procedure: ${JSON.stringify(procedureData)}
-- Avg turnaround by payer: ${JSON.stringify(turnaroundData)}
-
-Format: HTML with clean professional styling using tables and headers. Include practice name "${practiceName}", "Powered by Staffingly.AI" in footer, and current date ${new Date().toLocaleDateString()}. Keep it concise and executive-level.`,
-    });
+    const content = `
+      <h1>${practiceName} Prior Authorization Report</h1>
+      <p>Generated on ${new Date().toLocaleDateString()}</p>
+      <table>
+        <thead>
+          <tr><th>Metric</th><th>Value</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>Total cases</td><td>${total}</td></tr>
+          <tr><td>Approved</td><td>${approved}</td></tr>
+          <tr><td>Denied</td><td>${denied}</td></tr>
+          <tr><td>Approval rate</td><td>${rate}%</td></tr>
+          <tr><td>In progress</td><td>${total - approved - denied}</td></tr>
+        </tbody>
+      </table>
+      <h2>Monthly Approval Trends</h2>
+      <table>
+        <thead>
+          <tr><th>Month</th><th>Total</th><th>Approved</th><th>Approval Rate</th></tr>
+        </thead>
+        <tbody>
+          ${monthlyData
+            .map(
+              (row) =>
+                `<tr><td>${row.month}</td><td>${row.total}</td><td>${row.approved}</td><td>${row.rate}%</td></tr>`
+            )
+            .join("")}
+        </tbody>
+      </table>
+      <h2>Top Denial Reasons</h2>
+      <table>
+        <thead>
+          <tr><th>Reason</th><th>Count</th></tr>
+        </thead>
+        <tbody>
+          ${
+            denialData.length > 0
+              ? denialData.map((row) => `<tr><td>${row.name}</td><td>${row.value}</td></tr>`).join("")
+              : '<tr><td colspan="2">No denials recorded</td></tr>'
+          }
+        </tbody>
+      </table>
+      <h2>Procedure Mix</h2>
+      <table>
+        <thead>
+          <tr><th>Procedure</th><th>Count</th></tr>
+        </thead>
+        <tbody>
+          ${procedureData.map((row) => `<tr><td>${row.name}</td><td>${row.value}</td></tr>`).join("")}
+        </tbody>
+      </table>
+      <h2>Average Turnaround by Payer</h2>
+      <table>
+        <thead>
+          <tr><th>Payer</th><th>Days</th></tr>
+        </thead>
+        <tbody>
+          ${
+            turnaroundData.length > 0
+              ? turnaroundData.map((row) => `<tr><td>${row.payer}</td><td>${row.days}</td></tr>`).join("")
+              : '<tr><td colspan="2">Not enough decision data yet</td></tr>'
+          }
+        </tbody>
+      </table>
+      <footer>Powered by Staffingly.AI</footer>
+    `;
 
     const blob = new Blob(
       [

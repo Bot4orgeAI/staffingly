@@ -86,6 +86,19 @@ interface CreateMessageBody {
   [key: string]: unknown;
 }
 
+async function ensureClientCaseAccess(req: AuthenticatedRequest, caseId: string): Promise<boolean> {
+  if (req.user?.role !== "CLIENT_USER" || !req.user.clientId) {
+    return true;
+  }
+
+  const priorAuthCase = await prisma.priorAuthCase.findUnique({
+    where: { id: caseId },
+    select: { clientId: true },
+  });
+
+  return Boolean(priorAuthCase && priorAuthCase.clientId === req.user.clientId);
+}
+
 export const getCases = async (req: AuthenticatedRequest, res: Response): Promise<void> => {
   const {
     page = "1",
@@ -326,6 +339,11 @@ export const uploadDocument = async (req: AuthenticatedRequest, res: Response): 
   const { id } = req.params as { id: string };
   const { documentType, fileName, fileUrl, checklistItemKey } = req.body as UploadDocumentBody;
 
+  if (!(await ensureClientCaseAccess(req, id))) {
+    res.status(403).json({ success: false, message: "Access denied" });
+    return;
+  }
+
   const document = await prisma.priorAuthDocument.create({
     data: {
       caseId: id,
@@ -346,6 +364,11 @@ export const uploadDocument = async (req: AuthenticatedRequest, res: Response): 
 
 export const getDocuments = async (req: AuthenticatedRequest, res: Response): Promise<void> => {
   const { id } = req.params as { id: string };
+
+  if (!(await ensureClientCaseAccess(req, id))) {
+    res.status(403).json({ success: false, message: "Access denied" });
+    return;
+  }
 
   const documents = await prisma.priorAuthDocument.findMany({
     where: { caseId: id },
@@ -376,8 +399,15 @@ export const listDocuments = async (req: AuthenticatedRequest, res: Response): P
 
   const where: Prisma.PriorAuthDocumentWhereInput = {};
   if (caseId) where.caseId = caseId;
-  if (clientId) {
+  if (req.user?.role === "CLIENT_USER" && req.user.clientId) {
+    where.case = { clientId: req.user.clientId };
+  } else if (clientId) {
     where.case = { clientId };
+  }
+
+  if (caseId && !(await ensureClientCaseAccess(req, caseId))) {
+    res.status(403).json({ success: false, message: "Access denied" });
+    return;
   }
 
   const [documents, total] = await Promise.all([
@@ -415,8 +445,17 @@ export const listMessages = async (req: AuthenticatedRequest, res: Response): Pr
 
   const where: Prisma.CaseMessageWhereInput = {};
   if (caseId) where.caseId = caseId;
-  if (clientId) where.clientId = clientId;
+  if (req.user?.role === "CLIENT_USER" && req.user.clientId) {
+    where.clientId = req.user.clientId;
+  } else if (clientId) {
+    where.clientId = clientId;
+  }
   if (readByClient !== undefined) where.readByClient = readByClient === "true";
+
+  if (caseId && !(await ensureClientCaseAccess(req, caseId))) {
+    res.status(403).json({ success: false, message: "Access denied" });
+    return;
+  }
 
   const [messages, total] = await Promise.all([
     prisma.caseMessage.findMany({
@@ -434,9 +473,15 @@ export const listMessages = async (req: AuthenticatedRequest, res: Response): Pr
 export const createMessage = async (req: AuthenticatedRequest, res: Response): Promise<void> => {
   const body = req.body as CreateMessageBody;
 
+  if (!(await ensureClientCaseAccess(req, body.caseId))) {
+    res.status(403).json({ success: false, message: "Access denied" });
+    return;
+  }
+
   const message = await prisma.caseMessage.create({
     data: {
       ...body,
+      clientId: req.user?.role === "CLIENT_USER" ? req.user.clientId || undefined : body.clientId,
       senderId: req.user?.userId || "",
     },
   });

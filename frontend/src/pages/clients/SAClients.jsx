@@ -121,6 +121,19 @@ export default function SAClients() {
     api.auth.redirectToLogin();
   }, [authError]);
 
+  useEffect(() => {
+    const hasOpenForm = drawer !== null || clientPendingDelete !== null;
+    const previousOverflow = document.body.style.overflow;
+
+    if (hasOpenForm) {
+      document.body.style.overflow = "hidden";
+    }
+
+    return () => {
+      document.body.style.overflow = previousOverflow;
+    };
+  }, [clientPendingDelete, drawer]);
+
   return (
     <StaffinglyLayout
       user={user}

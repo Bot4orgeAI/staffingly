@@ -2,6 +2,11 @@ import { useState, useEffect } from "react";
 import { api } from "@/lib/api";
 import ClientPortalLayout from "@/components/portal/ClientPortalLayout";
 import {
+  getClientId,
+  normalizeBranding,
+  normalizeNotification,
+} from "@/lib/utils/clientPortal";
+import {
   Bell,
   CheckCircle,
   Loader2,
@@ -32,13 +37,14 @@ export default function ClientNotifications() {
       .me()
       .then(async (u) => {
         setUser(u);
+        const clientId = getClientId(u);
         const [bData, nData] = await Promise.all([
-          api.entities.ClientBranding.filter({ client_id: u.id }).catch(() => []),
-          api.entities.ClientNotification.filter({ client_id: u.id }),
+          clientId ? api.entities.ClientBranding.filter({ clientId }).catch(() => []) : [],
+          api.entities.ClientNotification.filter(clientId ? { clientId } : {}),
         ]);
-        setBranding(bData[0] || null);
-        const sorted = nData.sort(
-          (a, b) => new Date(b.created_date).getTime() - new Date(a.created_date).getTime()
+        setBranding(normalizeBranding(bData[0] || null));
+        const sorted = nData.map(normalizeNotification).sort(
+          (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
         );
         setNotifications(sorted);
         // Mark all as read
@@ -88,7 +94,7 @@ export default function ClientNotifications() {
             <button
               onClick={markAllRead}
               className="text-sm font-semibold"
-              style={{ color: branding?.accent_color || "#293682" }}
+              style={{ color: branding?.accentColor || "#293682" }}
             >
               Mark all read
             </button>
@@ -125,7 +131,7 @@ export default function ClientNotifications() {
                     </div>
                     {n.body && <p className="text-xs text-slate-600 mt-0.5">{n.body}</p>}
                     <p className="text-[10px] text-slate-400 mt-1">
-                      {n.created_date ? new Date(n.created_date).toLocaleString() : ""}
+                      {n.createdAt ? new Date(n.createdAt).toLocaleString() : ""}
                     </p>
                   </div>
                   <span

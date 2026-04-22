@@ -44,6 +44,9 @@ interface CreateClientBody {
   emrSystem?: string;
   cloudStorageType?: string;
   subdomain?: string;
+  verificationTriggers?: string;
+  escalationRules?: string;
+  reportingPreferences?: string;
   status?: ClientStatus;
 }
 
@@ -59,6 +62,9 @@ interface UpdateClientBody {
   emrSystem?: string;
   cloudStorageType?: string;
   subdomain?: string;
+  verificationTriggers?: string;
+  escalationRules?: string;
+  reportingPreferences?: string;
   status?: ClientStatus;
 }
 
@@ -183,6 +189,9 @@ export const createClient = async (req: AuthenticatedRequest, res: Response): Pr
       emrSystem: data.emrSystem,
       cloudStorageType: data.cloudStorageType,
       subdomain: data.subdomain,
+      verificationTriggers: data.verificationTriggers,
+      escalationRules: data.escalationRules,
+      reportingPreferences: data.reportingPreferences,
       status: data.status || ClientStatus.ONBOARDING,
     },
     include: {
@@ -215,6 +224,9 @@ export const updateClient = async (req: AuthenticatedRequest, res: Response): Pr
       emrSystem: data.emrSystem,
       cloudStorageType: data.cloudStorageType,
       subdomain: data.subdomain,
+      verificationTriggers: data.verificationTriggers,
+      escalationRules: data.escalationRules,
+      reportingPreferences: data.reportingPreferences,
       status: data.status,
     },
     include: {
@@ -345,7 +357,11 @@ export const listBranding = async (req: AuthenticatedRequest, res: Response): Pr
   const { clientId, limit = "100", offset = "0" } = req.query as ListBrandingQuery;
 
   const where: { clientId?: string } = {};
-  if (clientId) where.clientId = clientId;
+  if (req.user?.role === "CLIENT_USER" && req.user.clientId) {
+    where.clientId = req.user.clientId;
+  } else if (clientId) {
+    where.clientId = clientId;
+  }
 
   const [items, total] = await Promise.all([
     prisma.clientBranding.findMany({
@@ -400,7 +416,11 @@ export const listNotifications = async (
   const { clientId, read, limit = "100", offset = "0" } = req.query as ListNotificationsQuery;
 
   const where: { clientId?: string; read?: boolean } = {};
-  if (clientId) where.clientId = clientId;
+  if (req.user?.role === "CLIENT_USER" && req.user.clientId) {
+    where.clientId = req.user.clientId;
+  } else if (clientId) {
+    where.clientId = clientId;
+  }
   if (read !== undefined) where.read = read === "true";
 
   const [items, total] = await Promise.all([

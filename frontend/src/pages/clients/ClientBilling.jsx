@@ -1,14 +1,23 @@
 import { useState, useEffect } from "react";
 import { api } from "@/lib/api";
 import ClientPortalLayout from "@/components/portal/ClientPortalLayout";
+import {
+  canDisputeInvoice,
+  getAccentColor,
+  getClientId,
+  getInvoiceDisputeHoursRemaining,
+  normalizeBranding,
+  normalizeInvoice,
+} from "@/lib/utils/clientPortal";
 import { CreditCard, Download, AlertTriangle, CheckCircle, Clock, Loader2 } from "lucide-react";
 
 const STATUS_STYLES = {
-  paid: { bg: "#f0fdf4", text: "#15803d", icon: CheckCircle },
-  sent: { bg: "#eff6ff", text: "#1d4ed8", icon: Clock },
-  overdue: { bg: "#fef2f2", text: "#b91c1c", icon: AlertTriangle },
-  disputed: { bg: "#fffbeb", text: "#92400e", icon: AlertTriangle },
-  draft: { bg: "#f8fafc", text: "#64748b", icon: Clock },
+  PAID: { bg: "#f0fdf4", text: "#15803d", icon: CheckCircle },
+  DISPUTE_WINDOW: { bg: "#eff6ff", text: "#1d4ed8", icon: Clock },
+  PENDING: { bg: "#e0f2fe", text: "#0369a1", icon: Clock },
+  PAYMENT_FAILED: { bg: "#fef2f2", text: "#b91c1c", icon: AlertTriangle },
+  DISPUTED: { bg: "#fffbeb", text: "#92400e", icon: AlertTriangle },
+  VOIDED: { bg: "#f8fafc", text: "#64748b", icon: Clock },
 };
 
 export default function ClientBilling() {
@@ -24,14 +33,15 @@ export default function ClientBilling() {
       .me()
       .then(async (u) => {
         setUser(u);
+        const clientId = getClientId(u);
         const [bData, iData] = await Promise.all([
-          api.entities.ClientBranding.filter({ client_id: u.id }).catch(() => []),
-          api.entities.ClientInvoice.filter({ client_id: u.id }),
+          clientId ? api.entities.ClientBranding.filter({ clientId }).catch(() => []) : [],
+          api.entities.ClientInvoice.filter(clientId ? { clientId } : {}),
         ]);
-        setBranding(bData[0] || null);
+        setBranding(normalizeBranding(bData[0] || null));
         setInvoices(
-          iData.sort(
-            (a, b) => new Date(b.created_date).getTime() - new Date(a.created_date).getTime()
+          iData.map(normalizeInvoice).sort(
+            (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
           )
         );
         setLoading(false);
@@ -39,24 +49,25 @@ export default function ClientBilling() {
       .catch(() => api.auth.redirectToLogin());
   }, []);
 
-  const canDispute = (inv) => {
-    if (!["sent", "overdue"].includes(inv.status)) return false;
-    const hours = (Date.now() - new Date(inv.created_date).getTime()) / 3600000;
-    return hours <= 24;
-  };
-
   const submitDispute = async (inv) => {
     if (!disputeReason.trim()) return;
     await api.entities.ClientInvoice.update(inv.id, {
-      status: "disputed",
-      dispute_reason: disputeReason,
-      dispute_status: "open",
-      dispute_opened_at: new Date().toISOString(),
+      status: "DISPUTED",
+      disputeReason,
+      disputeStatus: "open",
+      disputeOpenedAt: new Date().toISOString(),
     });
     setInvoices((prev) =>
       prev.map((i) =>
         i.id === inv.id
-          ? { ...i, status: "disputed", dispute_reason: disputeReason, dispute_status: "open" }
+          ? {
+              ...i,
+              statusCode: "DISPUTED",
+              displayStatus: "Disputed",
+              disputeReason,
+              disputeStatus: "open",
+              disputeOpenedAt: new Date().toISOString(),
+            }
           : i
       )
     );
@@ -64,13 +75,13 @@ export default function ClientBilling() {
     setDisputeReason("");
   };
 
-  const accent = branding?.accent_color || "#293682";
+  const accent = getAccentColor(branding);
   const totalPaid = invoices
-    .filter((i) => i.status === "paid")
-    .reduce((s, i) => s + (i.total_amount || 0), 0);
+    .filter((i) => i.statusCode === "PAID")
+    .reduce((s, i) => s + (i.totalAmount || 0), 0);
   const totalOpen = invoices
-    .filter((i) => ["sent", "overdue"].includes(i.status))
-    .reduce((s, i) => s + (i.total_amount || 0), 0);
+    .filter((i) => ["DISPUTE_WINDOW", "PENDING"].includes(i.statusCode))
+    .reduce((s, i) => s + (i.totalAmount || 0), 0);
 
   if (loading)
     return (
@@ -126,56 +137,56 @@ export default function ClientBilling() {
           ) : (
             <div className="divide-y divide-slate-50">
               {invoices.map((inv) => {
-                const stStyle = STATUS_STYLES[inv.status] || STATUS_STYLES.sent;
+                const stStyle = STATUS_STYLES[inv.statusCode] || STATUS_STYLES.PENDING;
                 const StatusIcon = stStyle.icon;
-                const hoursOld = (Date.now() - new Date(inv.created_date).getTime()) / 3600000;
-                const disputeWindow = canDispute(inv);
+                const disputeWindow = canDisputeInvoice(inv);
+                const hoursRemaining = getInvoiceDisputeHoursRemaining(inv);
 
                 return (
                   <div key={inv.id} className="px-5 py-4">
                     <div className="flex items-start justify-between gap-4 flex-wrap">
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2 mb-1">
-                          <p className="font-bold text-slate-800">{inv.invoice_number}</p>
+                          <p className="font-bold text-slate-800">{inv.invoiceNumber}</p>
                           <span
                             className="flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-bold"
                             style={{ backgroundColor: stStyle.bg, color: stStyle.text }}
                           >
                             <StatusIcon className="w-3 h-3" />
-                            {inv.status.charAt(0).toUpperCase() + inv.status.slice(1)}
+                            {inv.displayStatus}
                           </span>
                         </div>
                         <p className="text-xs text-slate-500">
-                          {inv.billing_period_start && inv.billing_period_end
-                            ? `${new Date(inv.billing_period_start).toLocaleDateString()} — ${new Date(inv.billing_period_end).toLocaleDateString()}`
-                            : inv.created_date
-                              ? new Date(inv.created_date).toLocaleDateString()
+                          {inv.billingPeriodStart && inv.billingPeriodEnd
+                            ? `${new Date(inv.billingPeriodStart).toLocaleDateString()} — ${new Date(inv.billingPeriodEnd).toLocaleDateString()}`
+                            : inv.createdAt
+                              ? new Date(inv.createdAt).toLocaleDateString()
                               : "—"}
                         </p>
-                        {inv.line_items_summary && (
-                          <p className="text-xs text-slate-400 mt-0.5">{inv.line_items_summary}</p>
+                        {inv.lineItemsSummary && (
+                          <p className="text-xs text-slate-400 mt-0.5">{inv.lineItemsSummary}</p>
                         )}
-                        {inv.dispute_reason && (
+                        {inv.disputeReason && (
                           <p className="text-xs mt-1 text-amber-700 font-medium">
-                            Dispute: {inv.dispute_reason} · {inv.dispute_status}
+                            Dispute: {inv.disputeReason} · {inv.disputeStatus || "open"}
                           </p>
                         )}
                         {disputeWindow && (
                           <p className="text-[10px] text-slate-400 mt-0.5">
-                            ⏱ Dispute window closes in {Math.round(24 - hoursOld)}h
+                            Dispute window closes in {hoursRemaining}h
                           </p>
                         )}
                       </div>
                       <div className="flex items-center gap-3 flex-shrink-0">
                         <p className="text-lg font-bold text-slate-800">
                           $
-                          {(inv.total_amount || 0).toLocaleString("en-US", {
+                          {(inv.totalAmount || 0).toLocaleString("en-US", {
                             minimumFractionDigits: 2,
                           })}
                         </p>
-                        {inv.pdf_url && (
+                        {inv.pdfUrl && (
                           <a
-                            href={inv.pdf_url}
+                            href={inv.pdfUrl}
                             target="_blank"
                             rel="noopener noreferrer"
                             className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-slate-200 text-xs font-semibold text-slate-600 hover:bg-slate-50"
@@ -183,7 +194,7 @@ export default function ClientBilling() {
                             <Download className="w-3.5 h-3.5" /> PDF
                           </a>
                         )}
-                        {disputeWindow && inv.status !== "disputed" && (
+                        {disputeWindow && inv.statusCode !== "DISPUTED" && (
                           <button
                             onClick={() => setDisputingId(inv.id)}
                             className="px-3 py-1.5 rounded-lg border border-amber-300 text-xs font-semibold text-amber-700 hover:bg-amber-50"

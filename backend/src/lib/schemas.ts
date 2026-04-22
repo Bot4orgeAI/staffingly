@@ -22,6 +22,15 @@ export const chargeInvoiceSchema = Joi.object({
   invoiceId: Joi.string().required(),
 });
 
+export const updateInvoiceSchema = Joi.object({
+  status: Joi.string()
+    .valid("DISPUTE_WINDOW", "PENDING", "PAID", "PAYMENT_FAILED", "DISPUTED", "VOIDED")
+    .required(),
+  disputeReason: Joi.string().allow("", null),
+  disputeStatus: Joi.string().allow("", null),
+  disputeOpenedAt: Joi.string().allow("", null),
+});
+
 export const cardInfoSchema = Joi.object({
   stripeCustomerId: Joi.string().required(),
   clientId: Joi.string().allow("", null),
@@ -110,6 +119,9 @@ export const createClientSchema = Joi.object({
   emrSystem: Joi.string().allow("", null),
   cloudStorageType: Joi.string().allow("", null),
   subdomain: Joi.string().allow("", null),
+  verificationTriggers: Joi.string().allow("", null),
+  escalationRules: Joi.string().allow("", null),
+  reportingPreferences: Joi.string().allow("", null),
   status: Joi.string().valid("ACTIVE", "INACTIVE", "SUSPENDED", "ONBOARDING").default("ONBOARDING"),
 });
 
@@ -125,6 +137,9 @@ export const updateClientSchema = Joi.object({
   emrSystem: Joi.string().allow("", null),
   cloudStorageType: Joi.string().allow("", null),
   subdomain: Joi.string().allow("", null),
+  verificationTriggers: Joi.string().allow("", null),
+  escalationRules: Joi.string().allow("", null),
+  reportingPreferences: Joi.string().allow("", null),
   status: Joi.string().valid("ACTIVE", "INACTIVE", "SUSPENDED", "ONBOARDING"),
 });
 

@@ -3,18 +3,28 @@ import { api } from "@/lib/api";
 import { Link } from "react-router-dom";
 import { createPageUrl } from "@/lib/utils/page";
 import ClientPortalLayout from "@/components/portal/ClientPortalLayout";
+import {
+  getAccentColor,
+  getClientId,
+  normalizeBranding,
+  normalizeCase,
+  normalizeMessage,
+  normalizeNotification,
+} from "@/lib/utils/clientPortal";
 import { CheckCircle, XCircle, Clock, Loader2, ChevronRight, Bell, Upload } from "lucide-react";
 
 const STATUS_STYLES = {
   New: { bg: "#f1f5f9", text: "#475569" },
   "In Progress": { bg: "#eff6ff", text: "#1d4ed8" },
   "Awaiting Documents": { bg: "#fffbeb", text: "#92400e" },
+  "Ready for Submission": { bg: "#e0f2fe", text: "#0369a1" },
   "Awaiting AI Review": { bg: "#f5f3ff", text: "#6d28d9" },
   "Pending Supervisor Approval": { bg: "#fff7ed", text: "#c2410c" },
   Submitted: { bg: "#f0fdfa", text: "#0f766e" },
   Approved: { bg: "#f0fdf4", text: "#15803d" },
   Denied: { bg: "#fef2f2", text: "#b91c1c" },
   "Appeal In Progress": { bg: "#fff7ed", text: "#9a3412" },
+  "Peer To Peer Requested": { bg: "#fdf4ff", text: "#a21caf" },
   Closed: { bg: "#f8fafc", text: "#64748b" },
 };
 
@@ -86,30 +96,31 @@ export default function ClientPortal() {
       .me()
       .then(async (u) => {
         setUser(u);
+        const clientId = getClientId(u);
         const [bData, cData, mData, nData] = await Promise.all([
-          api.entities.ClientBranding.filter({ client_id: u.id }).catch(() => []),
-          api.entities.PriorAuthCase.filter({ client_id: u.id }),
-          api.entities.CaseMessage.filter({ client_id: u.id, read_by_client: false }),
-          api.entities.ClientNotification.filter({ client_id: u.id, read: false }),
+          clientId ? api.entities.ClientBranding.filter({ clientId }).catch(() => []) : [],
+          api.entities.PriorAuthCase.filter(clientId ? { clientId } : {}),
+          api.entities.CaseMessage.filter(clientId ? { clientId, readByClient: false } : {}),
+          api.entities.ClientNotification.filter(clientId ? { clientId, read: false } : {}),
         ]);
-        setBranding(bData[0] || null);
-        setCases(cData);
-        setMessages(mData);
-        setNotifications(nData);
+        setBranding(normalizeBranding(bData[0] || null));
+        setCases(cData.map(normalizeCase));
+        setMessages(mData.map(normalizeMessage));
+        setNotifications(nData.map(normalizeNotification));
         setLoading(false);
       })
       .catch(() => api.auth.redirectToLogin());
   }, []);
 
-  const accent = branding?.accent_color || "#293682";
+  const accent = getAccentColor(branding);
 
   const now = new Date();
   const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
-  const thisMonthCases = cases.filter((c) => new Date(c.created_date) >= monthStart);
-  const approved = cases.filter((c) => c.status === "Approved");
-  const denied = cases.filter((c) => c.status === "Denied");
-  const inProgress = cases.filter((c) => !["Approved", "Denied", "Closed"].includes(c.status));
-  const awaitingDocs = cases.filter((c) => c.status === "Awaiting Documents");
+  const thisMonthCases = cases.filter((c) => c.createdAt && new Date(c.createdAt) >= monthStart);
+  const approved = cases.filter((c) => c.displayStatus === "Approved");
+  const denied = cases.filter((c) => c.displayStatus === "Denied");
+  const inProgress = cases.filter((c) => !["Approved", "Denied", "Closed"].includes(c.displayStatus));
+  const awaitingDocs = cases.filter((c) => c.displayStatus === "Awaiting Documents");
 
   const unreadNotifs = notifications.length;
 
@@ -164,7 +175,7 @@ export default function ClientPortal() {
             value={denied.length}
             accent="#b91c1c"
             icon={XCircle}
-            sub={denied.filter((c) => c.appeal_submitted_at).length + " appeals filed"}
+            sub={denied.filter((c) => c.appealSubmittedAt).length + " appeals filed"}
           />
           <StatCard
             label="In Progress"
@@ -256,29 +267,33 @@ export default function ClientPortal() {
                 </thead>
                 <tbody>
                   {cases.slice(0, 8).map((c) => {
-                    const st = STATUS_STYLES[c.status] || STATUS_STYLES["New"];
+                    const st = STATUS_STYLES[c.displayStatus] || STATUS_STYLES["New"];
                     return (
-                      <Link key={c.id} to={createPageUrl(`ClientCaseDetail?id=${c.id}`)}>
-                        <tr className="border-b border-slate-50 hover:bg-slate-50 cursor-pointer transition-colors">
-                          <td className="px-4 py-3 font-bold text-sm" style={{ color: accent }}>
-                            {c.case_id || c.id?.slice(-6)}
-                          </td>
-                          <td className="px-4 py-3 text-slate-700">{c.patient_initials}</td>
-                          <td className="px-4 py-3 text-slate-600 text-xs">{c.procedure_name}</td>
-                          <td className="px-4 py-3 text-slate-600 text-xs">{c.payer_name}</td>
-                          <td className="px-4 py-3">
-                            <span
-                              className="px-2 py-0.5 rounded-full text-[11px] font-bold"
-                              style={{ backgroundColor: st.bg, color: st.text }}
-                            >
-                              {c.status}
-                            </span>
-                          </td>
-                          <td className="px-4 py-3 text-xs text-slate-400">
-                            {c.updated_date ? new Date(c.updated_date).toLocaleDateString() : "—"}
-                          </td>
-                        </tr>
-                      </Link>
+                      <tr
+                        key={c.id}
+                        className="border-b border-slate-50 hover:bg-slate-50 cursor-pointer transition-colors"
+                        onClick={() =>
+                          (window.location.href = createPageUrl(`client-case-detail?id=${c.id}`))
+                        }
+                      >
+                        <td className="px-4 py-3 font-bold text-sm" style={{ color: accent }}>
+                          {c.caseNumber || c.id?.slice(-6)}
+                        </td>
+                        <td className="px-4 py-3 text-slate-700">{c.patientInitials}</td>
+                        <td className="px-4 py-3 text-slate-600 text-xs">{c.procedureLabel}</td>
+                        <td className="px-4 py-3 text-slate-600 text-xs">{c.payerName}</td>
+                        <td className="px-4 py-3">
+                          <span
+                            className="px-2 py-0.5 rounded-full text-[11px] font-bold"
+                            style={{ backgroundColor: st.bg, color: st.text }}
+                          >
+                            {c.displayStatus}
+                          </span>
+                        </td>
+                        <td className="px-4 py-3 text-xs text-slate-400">
+                          {c.updatedAt ? new Date(c.updatedAt).toLocaleDateString() : "—"}
+                        </td>
+                      </tr>
                     );
                   })}
                 </tbody>
