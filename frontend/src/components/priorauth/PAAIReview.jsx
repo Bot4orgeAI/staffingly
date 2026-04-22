@@ -2,6 +2,17 @@ import { useState } from "react";
 import { api } from "@/lib/api";
 import { Cpu, CheckCircle, XCircle, AlertTriangle, Loader2, Send, Edit3 } from "lucide-react";
 
+function normalizeAiReviewResponse(response) {
+  const payload = response?.data?.gatewayResponse || response?.gatewayResponse || response || {};
+  return {
+    checklist_items: payload.checklist_items || payload.checklistItems || null,
+    missing_items: payload.missing_items || payload.missingItems || null,
+    confidence_score: payload.confidence_score || payload.confidenceScore || null,
+    medical_necessity_summary:
+      payload.medical_necessity_summary || payload.medicalNecessitySummary || null,
+  };
+}
+
 export default function PAAIReview({ paCase, onUpdate }) {
   const [running, setRunning] = useState(false);
   const [result, setResult] = useState(
@@ -13,7 +24,22 @@ export default function PAAIReview({ paCase, onUpdate }) {
 
   const handleRunAI = async () => {
     setRunning(true);
-    const prompt = `You are a prior authorization specialist AI. Review this prior authorization case and provide a detailed analysis.
+    try {
+      const gatewayResponse = await api.priorAuth.runAction(paCase.id, "run_ai_review", {
+        gatewayPatientId: paCase.gateway_patient_id || paCase.gatewayPatientId,
+        procedureName: paCase.procedure_name,
+        icd10: paCase.diagnosis_codes?.[0] || "",
+        extractedDocumentText: paCase.intake_notes || "",
+      });
+      const gatewayResult = normalizeAiReviewResponse(gatewayResponse);
+      let aiResult = gatewayResult;
+
+      if (
+        !aiResult.checklist_items ||
+        aiResult.confidence_score == null ||
+        !aiResult.medical_necessity_summary
+      ) {
+        const prompt = `You are a prior authorization specialist AI. Review this prior authorization case and provide a detailed analysis.
 
 CASE DETAILS:
 - Patient Initials: ${paCase.patient_initials}
@@ -37,38 +63,41 @@ Return a JSON with:
 
 The medical necessity summary should be in formal clinical language suitable for submission to a payer.`;
 
-    const aiResult = await api.integrations.Core.InvokeLLM({
-      prompt,
-      response_json_schema: {
-        type: "object",
-        properties: {
-          checklist_items: {
-            type: "array",
-            items: {
-              type: "object",
-              properties: {
-                item: { type: "string" },
-                status: { type: "string" },
-                note: { type: "string" },
+        aiResult = await api.integrations.Core.InvokeLLM({
+          prompt,
+          response_json_schema: {
+            type: "object",
+            properties: {
+              checklist_items: {
+                type: "array",
+                items: {
+                  type: "object",
+                  properties: {
+                    item: { type: "string" },
+                    status: { type: "string" },
+                    note: { type: "string" },
+                  },
+                },
               },
+              missing_items: { type: "array", items: { type: "string" } },
+              confidence_score: { type: "number" },
+              medical_necessity_summary: { type: "string" },
             },
           },
-          missing_items: { type: "array", items: { type: "string" } },
-          confidence_score: { type: "number" },
-          medical_necessity_summary: { type: "string" },
-        },
-      },
-    });
+        });
+      }
 
-    setResult(aiResult);
-    setSummary(aiResult.medical_necessity_summary || "");
-    await onUpdate({
-      ai_review_result_json: JSON.stringify(aiResult),
-      ai_confidence_score: aiResult.confidence_score,
-      medical_necessity_summary: aiResult.medical_necessity_summary,
-      status: "Awaiting AI Review",
-    });
-    setRunning(false);
+      setResult(aiResult);
+      setSummary(aiResult.medical_necessity_summary || "");
+      await onUpdate({
+        ai_review_result_json: JSON.stringify(aiResult),
+        ai_confidence_score: aiResult.confidence_score,
+        medical_necessity_summary: aiResult.medical_necessity_summary,
+        status: "Awaiting AI Review",
+      });
+    } finally {
+      setRunning(false);
+    }
   };
 
   const handleSubmitForApproval = async () => {

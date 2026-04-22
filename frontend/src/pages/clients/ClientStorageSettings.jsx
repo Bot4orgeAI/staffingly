@@ -65,7 +65,7 @@ export default function ClientStorageSettings() {
     sync_enabled: true,
   });
 
-  const { data: config = null, isLoading: _loadingConfig } = useEntityFilterQuery(
+  const { data: rawConfig = null, isLoading: _loadingConfig } = useEntityFilterQuery(
     "ClientStorageConfig",
     clientId ? { client_id: clientId } : {},
     {
@@ -73,6 +73,9 @@ export default function ClientStorageSettings() {
       select: (data) => data[0] || null,
     }
   );
+  
+  /** @type {any} */
+  const config = rawConfig;
 
   useEffect(() => {
     if (!config) return;

@@ -204,7 +204,7 @@ export default function EmrTab({ onSubmit }) {
                   </div>
                 ) : (
                   <button
-                    className="w-full py-1.5 rounded-lg text-xs font-bold text-white border border-slate-300 text-slate-600"
+                    className="w-full py-1.5 rounded-lg text-xs font-bold text-white border border-slate-300"
                     style={{ backgroundColor: "white", color: "#64748b" }}
                     onClick={(e) => {
                       e.stopPropagation();

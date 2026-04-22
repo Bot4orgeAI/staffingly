@@ -21,6 +21,25 @@ const STATUS_COLORS = {
   Unknown: { bg: "#d97706", icon: AlertTriangle },
 };
 
+function normalizeEligibilityResult(data) {
+  return {
+    coverage_status: data.coverage_status || data.coverageStatus || "Unknown",
+    plan_name: data.plan_name || data.planName || "",
+    plan_type: data.plan_type || data.planType || "",
+    group_number: data.group_number || data.groupNumber || "",
+    member_id: data.member_id || data.memberId || "",
+    network_status: data.network_status || data.networkStatus || "",
+    effective_date: data.effective_date || data.effectiveDate || "",
+    termination_date: data.termination_date || data.terminationDate || "",
+    prior_auth_required: data.prior_auth_required ?? true,
+    confidence_score: data.confidence_score || data.confidenceScore || 0,
+    channel: data.channel_used || data.channelUsed || "n8n Master Gateway",
+    response_time: data.response_time_seconds || data.responseTimeSeconds || "",
+    check_id: data.check_id || data.checkId || "",
+    gateway_patient_id: data.gateway_patient_id || data.gatewayPatientId || "",
+  };
+}
+
 export default function PAEligibilityCheck({ user, onCaseCreated }) {
   const [form, setForm] = useState({
     patient_initials: "",
@@ -58,25 +77,20 @@ export default function PAEligibilityCheck({ user, onCaseCreated }) {
   const handleCheck = async () => {
     setLoading(true);
     setEligResult(null);
-    // Simulate eligibility check (same as Stack 3 logic)
-    await new Promise((r) => setTimeout(r, 2200));
-    const payer = form.payer_name.toLowerCase();
-    const isMedicaid = payer.includes("medicaid");
-    setEligResult({
-      coverage_status: isMedicaid ? "Unknown" : "Active",
-      plan_name: isMedicaid ? "Medicaid Managed Care" : `${form.payer_name} PPO`,
-      plan_type: isMedicaid ? "Medicaid" : "PPO",
-      group_number: isMedicaid ? "N/A" : "GRP-44821",
-      member_id: form.insurance_id,
-      network_status: isMedicaid ? "Unknown" : "In-Network",
-      effective_date: "01/01/2025",
-      termination_date: "12/31/2025",
-      prior_auth_required: true,
-      confidence_score: isMedicaid ? 58 : 94,
-      channel: "EDI 270/271 via Availity",
-      response_time: "3.2s",
-    });
-    setLoading(false);
+    try {
+      const res = await api.functions.invoke("availityEligibility", {
+        patient_name: form.patient_initials,
+        dob: form.dob,
+        member_id: form.insurance_id,
+        payer_name: form.payer_name,
+        service_type_code: "30",
+        service_date: new Date().toISOString().slice(0, 10),
+        submission_type: "manual",
+      });
+      setEligResult(normalizeEligibilityResult(res.data || {}));
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleContinue = async () => {
@@ -85,6 +99,8 @@ export default function PAEligibilityCheck({ user, onCaseCreated }) {
     const caseId = `${prefix}-${Date.now().toString().slice(-6)}`;
     const newCase = await api.entities.PriorAuthCase.create({
       case_id: caseId,
+      eligibility_check_id: eligResult.check_id,
+      gateway_patient_id: eligResult.gateway_patient_id,
       patient_initials: form.patient_initials,
       patient_dob: form.dob,
       insurance_id: form.insurance_id,

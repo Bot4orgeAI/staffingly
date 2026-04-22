@@ -5,6 +5,7 @@ import { validateBody, validateQuery } from "../middleware/validate.js";
 import { asyncHandler } from "../middleware/errorHandler.js";
 import {
   createPriorAuthSchema,
+  priorAuthGatewayActionSchema,
   updatePriorAuthSchema,
   uploadDocumentSchema,
   paginationSchema,
@@ -47,6 +48,13 @@ router.put(
   requireRoles(...WORKER_ROLES),
   validateBody(updatePriorAuthSchema),
   asyncHandler(priorAuthController.updateCase)
+);
+
+router.post(
+  "/cases/:id/actions",
+  requireRoles(...WORKER_ROLES),
+  validateBody(priorAuthGatewayActionSchema),
+  asyncHandler(priorAuthController.triggerGatewayAction)
 );
 
 router.delete(

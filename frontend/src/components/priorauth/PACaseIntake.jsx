@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { api } from "@/lib/api";
 import { Save, Plus, X, Loader2 } from "lucide-react";
 
 const URGENCY_OPTIONS = ["Routine", "Urgent"];
@@ -42,10 +43,19 @@ export default function PACaseIntake({ paCase, onUpdate }) {
 
   const handleSave = async () => {
     setSaving(true);
-    await onUpdate({ ...form, status: paCase.status === "New" ? "In Progress" : paCase.status });
-    setSaving(false);
-    setSaved(true);
-    setTimeout(() => setSaved(false), 2000);
+    try {
+      await onUpdate({ ...form, status: paCase.status === "New" ? "In Progress" : paCase.status });
+      await api.priorAuth.runAction(paCase.id, "save_intake", {
+        gatewayPatientId: paCase.gateway_patient_id || paCase.gatewayPatientId,
+        procedureName: form.procedure_name,
+        icd10: form.diagnosis_codes[0] || "",
+        extractedDocumentText: form.intake_notes || "",
+      });
+      setSaved(true);
+      setTimeout(() => setSaved(false), 2000);
+    } finally {
+      setSaving(false);
+    }
   };
 
   const Field = ({ label, children, className = "" }) => (

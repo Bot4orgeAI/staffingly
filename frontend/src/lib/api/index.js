@@ -44,6 +44,14 @@ const patients = {
     apiClient.delete(`/api/patients/${patientId}/insurance/${policyId}`),
 };
 
+const priorAuth = {
+  runAction: (caseId, action, data = {}) =>
+    apiClient.post(`/api/prior-auth/cases/${caseId}/actions`, {
+      action,
+      ...data,
+    }),
+};
+
 // Upload API (insurance cards)
 const upload = {
   // Upload insurance card image
@@ -65,6 +73,7 @@ export const api = {
   integrations,
   client: apiClient,
   patients,
+  priorAuth,
   upload,
 };
 

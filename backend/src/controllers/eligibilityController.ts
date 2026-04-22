@@ -2,7 +2,11 @@ import type { Response } from "express";
 import type { AuthenticatedRequest } from "../types/index.js";
 import prisma from "../lib/prisma.js";
 import { CoverageStatus } from "@prisma/client";
-import availityService from "../services/availityService.js";
+import {
+  buildGatewayPatientId,
+  normalizeEligibilityGatewayResponse,
+  sendEligibilityVerification,
+} from "../services/masterGatewayService.js";
 
 interface CheckEligibilityBody {
   patientName?: string;
@@ -14,6 +18,9 @@ interface CheckEligibilityBody {
   serviceTypeCode?: string;
   serviceDate?: string;
   clientId?: string;
+  patientId?: string;
+  submissionType?: "manual" | "ocr" | "emr" | "bulk";
+  emrType?: string;
 }
 
 interface EligibilityResult {
@@ -62,21 +69,37 @@ export async function checkEligibility(req: AuthenticatedRequest, res: Response)
     serviceTypeCode,
     serviceDate,
     clientId,
+    patientId,
+    submissionType,
+    emrType,
   } = req.body as CheckEligibilityBody;
 
-  const result: EligibilityResult = await availityService.checkEligibility({
+  const gatewayPatientId = buildGatewayPatientId({
+    gatewayPatientId: patientId,
+    patientName,
+    dob,
+    memberId,
+  });
+  const gatewayResponse = await sendEligibilityVerification({
+    gatewayPatientId,
     patientName: patientName || "",
     dob: dob || "",
-    memberId,
     payerId,
+    memberId,
     providerNpi: providerNpi || "",
-    serviceTypeCode: serviceTypeCode || "",
     serviceDate: serviceDate || "",
+    serviceTypeCode: serviceTypeCode || "30",
+    submissionType,
+    emrType,
   });
+  const result = normalizeEligibilityGatewayResponse(gatewayResponse) as unknown as EligibilityResult & {
+    rawResponse?: unknown;
+  };
 
   const checkRecord = await prisma.eligibilityCheck.create({
     data: {
       clientId: clientId || req.user?.clientId || "",
+      gatewayPatientId,
       patientName: patientName || "",
       patientDob: dob
         ? new Date(dob.includes("/") ? dob.split("/").reverse().join("-") : dob)
@@ -87,7 +110,7 @@ export async function checkEligibility(req: AuthenticatedRequest, res: Response)
       providerNpi,
       serviceTypeCode,
       serviceDate: serviceDate ? new Date(serviceDate) : null,
-      coverageStatus: result.success
+      coverageStatus: result.success && result.coverageStatus
         ? (result.coverageStatus?.toUpperCase() as CoverageStatus)
         : null,
       planName: result.planName,
@@ -108,7 +131,13 @@ export async function checkEligibility(req: AuthenticatedRequest, res: Response)
     },
   });
 
-  res.json({ ...result, checkId: checkRecord.id });
+  res.json({
+    ...result,
+    checkId: checkRecord.id,
+    check_id: checkRecord.id,
+    gatewayPatientId,
+    gateway_patient_id: gatewayPatientId,
+  });
 }
 
 export async function getHistory(req: AuthenticatedRequest, res: Response): Promise<void> {

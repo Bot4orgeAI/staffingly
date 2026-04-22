@@ -10,6 +10,9 @@ export const eligibilityCheckSchema = Joi.object({
   serviceTypeCode: Joi.string().allow("", null),
   serviceDate: Joi.string().allow("", null),
   clientId: Joi.string().allow("", null),
+  patientId: Joi.string().allow("", null),
+  submissionType: Joi.string().valid("manual", "ocr", "emr", "bulk").default("manual"),
+  emrType: Joi.string().allow("", null),
 });
 
 export const createCustomerSchema = Joi.object({
@@ -145,6 +148,8 @@ export const updateClientSchema = Joi.object({
 
 export const createPriorAuthSchema = Joi.object({
   clientId: Joi.string().allow("", null),
+  gatewayPatientId: Joi.string().allow("", null),
+  eligibilityCheckId: Joi.string().allow("", null),
   patientName: Joi.string().allow("", null),
   patientInitials: Joi.string().allow("", null),
   patientDob: Joi.string().allow("", null),
@@ -162,6 +167,7 @@ export const createPriorAuthSchema = Joi.object({
 });
 
 export const updatePriorAuthSchema = Joi.object({
+  gatewayPatientId: Joi.string().allow("", null),
   patientName: Joi.string().allow("", null),
   patientInitials: Joi.string().allow("", null),
   patientDob: Joi.string().allow("", null),
@@ -185,6 +191,17 @@ export const updatePriorAuthSchema = Joi.object({
   approvedAt: Joi.string().allow("", null),
   deniedAt: Joi.string().allow("", null),
   appealSubmittedAt: Joi.string().allow("", null),
+});
+
+export const priorAuthGatewayActionSchema = Joi.object({
+  action: Joi.string()
+    .valid("save_intake", "run_ai_review", "submit_to_cmm", "save_denial", "draft_appeal")
+    .required(),
+  gatewayPatientId: Joi.string().allow("", null),
+  procedureName: Joi.string().allow("", null),
+  icd10: Joi.string().allow("", null),
+  extractedDocumentText: Joi.string().allow("", null),
+  denialReason: Joi.string().allow("", null),
 });
 
 export const uploadDocumentSchema = Joi.object({

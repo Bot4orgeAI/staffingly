@@ -72,15 +72,25 @@ Case data:
 
   const handleLogSubmission = async () => {
     setSubmitting(true);
-    await onUpdate({
-      submission_method: method,
-      submission_timestamp: new Date().toISOString(),
-      confirmation_number: confirmNumber,
-      covermymeds_reference: cmReference,
-      status: "Submitted",
-    });
-    setDone(true);
-    setSubmitting(false);
+    try {
+      await api.priorAuth.runAction(paCase.id, "submit_to_cmm", {
+        gatewayPatientId: paCase.gateway_patient_id || paCase.gatewayPatientId,
+        procedureName: paCase.procedure_name,
+        icd10: paCase.diagnosis_codes?.[0] || "",
+        extractedDocumentText:
+          cmData?.clinical_rationale || paCase.medical_necessity_summary || paCase.intake_notes || "",
+      });
+      await onUpdate({
+        submission_method: method,
+        submission_timestamp: new Date().toISOString(),
+        confirmation_number: confirmNumber,
+        covermymeds_reference: cmReference,
+        status: "Submitted",
+      });
+      setDone(true);
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   if (!canSubmit && paCase.status !== "Submitted") {

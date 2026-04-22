@@ -38,18 +38,41 @@ export default function PADenialAppeal({ paCase, onUpdate }) {
           .toISOString()
           .split("T")[0]
       : "";
-    await onUpdate({
-      ...denialForm,
-      appeal_deadline: deadline,
-      status: "Denied",
-    });
-    setSavingDenial(false);
+    try {
+      await api.priorAuth.runAction(paCase.id, "save_denial", {
+        gatewayPatientId: paCase.gateway_patient_id || paCase.gatewayPatientId,
+        procedureName: paCase.procedure_name,
+        icd10: paCase.diagnosis_codes?.[0] || "",
+        denialReason: denialForm.denial_reason,
+      });
+      await onUpdate({
+        ...denialForm,
+        appeal_deadline: deadline,
+        status: "Denied",
+      });
+    } finally {
+      setSavingDenial(false);
+    }
   };
 
   const handleGenerateAppeal = async () => {
     setGeneratingAppeal(true);
-    const letter = await api.integrations.Core.InvokeLLM({
-      prompt: `You are a senior prior authorization appeal specialist. Draft a formal, persuasive appeal letter for the following denied prior authorization case. The letter should be 4-6 paragraphs, use formal clinical and insurance language, cite medical necessity clearly, and request reconsideration.
+    try {
+      const gatewayResponse = await api.priorAuth.runAction(paCase.id, "draft_appeal", {
+        gatewayPatientId: paCase.gateway_patient_id || paCase.gatewayPatientId,
+        procedureName: paCase.procedure_name,
+        icd10: paCase.diagnosis_codes?.[0] || "",
+        extractedDocumentText: paCase.medical_necessity_summary || paCase.intake_notes || "",
+        denialReason: denialForm.denial_reason || paCase.denial_reason,
+      });
+      let letter =
+        gatewayResponse?.data?.gatewayResponse?.appeal_letter ||
+        gatewayResponse?.data?.gatewayResponse?.appealLetter ||
+        "";
+
+      if (!letter) {
+        letter = await api.integrations.Core.InvokeLLM({
+          prompt: `You are a senior prior authorization appeal specialist. Draft a formal, persuasive appeal letter for the following denied prior authorization case. The letter should be 4-6 paragraphs, use formal clinical and insurance language, cite medical necessity clearly, and request reconsideration.
 
 Case Details:
 - Patient Initials: ${paCase.patient_initials}
@@ -63,10 +86,13 @@ Case Details:
 - Original Medical Necessity Summary: ${paCase.medical_necessity_summary?.substring(0, 800) || "Not available"}
 
 Write the full appeal letter text only, starting with "Dear Medical Director," — no preamble or explanation.`,
-    });
-    setAppealLetter(letter);
-    await onUpdate({ appeal_letter: letter, status: "Appeal In Progress" });
-    setGeneratingAppeal(false);
+        });
+      }
+      setAppealLetter(letter);
+      await onUpdate({ appeal_letter: letter, status: "Appeal In Progress" });
+    } finally {
+      setGeneratingAppeal(false);
+    }
   };
 
   const handleSaveP2P = async () => {

@@ -11,8 +11,10 @@ const FUNCTION_MAPPINGS = {
   availityEligibility: {
     endpoint: "/api/eligibility/check",
     transform: (params) => ({
-      patientName: params.patient_name,
-      dob: params.dob,
+      patientName:
+        params.patient_name ||
+        [params.patient_first_name, params.patient_last_name].filter(Boolean).join(" "),
+      dob: params.dob || params.patient_dob,
       memberId: params.member_id,
       payerId: params.payer_id,
       payerName: params.payer_name,
@@ -20,6 +22,9 @@ const FUNCTION_MAPPINGS = {
       serviceTypeCode: params.service_type_code,
       serviceDate: params.service_date,
       clientId: params.client_id,
+      patientId: params.patient_id,
+      submissionType: params.submission_type,
+      emrType: params.emr_type,
     }),
   },
 

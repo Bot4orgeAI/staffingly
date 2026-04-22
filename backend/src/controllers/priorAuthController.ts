@@ -2,6 +2,11 @@ import type { Response } from "express";
 import { CaseUrgency, PriorAuthStatus, Prisma } from "@prisma/client";
 import prisma from "../lib/prisma.js";
 import type { AuthenticatedRequest } from "../types/index.js";
+import {
+  buildGatewayPatientId,
+  sendPriorAuthAction,
+  type PriorAuthGatewayAction,
+} from "../services/masterGatewayService.js";
 
 interface GetCasesQuery {
   page?: string;
@@ -30,6 +35,8 @@ interface ListMessagesQuery {
 
 interface CreateCaseBody {
   clientId?: string;
+  gatewayPatientId?: string;
+  eligibilityCheckId?: string;
   patientName: string;
   patientInitials?: string;
   patientDob?: string;
@@ -47,6 +54,7 @@ interface CreateCaseBody {
 }
 
 interface UpdateCaseBody {
+  gatewayPatientId?: string;
   patientName?: string;
   patientInitials?: string;
   patientDob?: string;
@@ -84,6 +92,15 @@ interface CreateMessageBody {
   clientId?: string;
   message: string;
   [key: string]: unknown;
+}
+
+interface PriorAuthGatewayActionBody {
+  action: PriorAuthGatewayAction;
+  gatewayPatientId?: string;
+  procedureName?: string;
+  icd10?: string;
+  extractedDocumentText?: string;
+  denialReason?: string;
 }
 
 async function ensureClientCaseAccess(req: AuthenticatedRequest, caseId: string): Promise<boolean> {
@@ -247,10 +264,28 @@ export const createCase = async (req: AuthenticatedRequest, res: Response): Prom
   const status =
     data.status && VALID_STATUSES.includes(data.status) ? data.status : PriorAuthStatus.INTAKE;
 
+  let gatewayPatientId = data.gatewayPatientId;
+  if (!gatewayPatientId && data.eligibilityCheckId) {
+    const eligibilityCheck = await prisma.eligibilityCheck.findUnique({
+      where: { id: data.eligibilityCheckId },
+      select: { gatewayPatientId: true },
+    });
+    gatewayPatientId = eligibilityCheck?.gatewayPatientId || undefined;
+  }
+
+  if (!gatewayPatientId) {
+    gatewayPatientId = buildGatewayPatientId({
+      patientName: data.patientName,
+      dob: data.patientDob,
+      memberId: data.insuranceId,
+    });
+  }
+
   const priorAuthCase = await prisma.priorAuthCase.create({
     data: {
       caseNumber,
       clientId,
+      gatewayPatientId,
       patientName: data.patientName,
       patientInitials: data.patientInitials,
       patientDob: data.patientDob ? new Date(data.patientDob) : null,
@@ -265,6 +300,7 @@ export const createCase = async (req: AuthenticatedRequest, res: Response): Prom
       urgency: data.urgency || "ROUTINE",
       status,
       assignedSpecialistId: data.assignedSpecialistId,
+      eligibilityCheckId: data.eligibilityCheckId,
     },
     include: {
       client: true,
@@ -285,6 +321,7 @@ export const updateCase = async (req: AuthenticatedRequest, res: Response): Prom
   const priorAuthCase = await prisma.priorAuthCase.update({
     where: { id },
     data: {
+      gatewayPatientId: data.gatewayPatientId,
       patientName: data.patientName,
       patientInitials: data.patientInitials,
       patientDob: data.patientDob ? new Date(data.patientDob) : undefined,
@@ -319,6 +356,74 @@ export const updateCase = async (req: AuthenticatedRequest, res: Response): Prom
   res.json({
     success: true,
     data: priorAuthCase,
+  });
+};
+
+export const triggerGatewayAction = async (
+  req: AuthenticatedRequest,
+  res: Response
+): Promise<void> => {
+  const { id } = req.params as { id: string };
+  const body = req.body as PriorAuthGatewayActionBody;
+
+  const priorAuthCase = await prisma.priorAuthCase.findUnique({
+    where: { id },
+    include: {
+      documents: {
+        orderBy: { createdAt: "desc" },
+      },
+    },
+  });
+
+  if (!priorAuthCase) {
+    res.status(404).json({ success: false, message: "Prior auth case not found" });
+    return;
+  }
+
+  if (!(await ensureClientCaseAccess(req, id))) {
+    res.status(403).json({ success: false, message: "Access denied" });
+    return;
+  }
+
+  const gatewayPatientId =
+    body.gatewayPatientId ||
+    priorAuthCase.gatewayPatientId ||
+    buildGatewayPatientId({
+      patientName: priorAuthCase.patientName,
+      dob: priorAuthCase.patientDob?.toISOString().slice(0, 10),
+      memberId: priorAuthCase.insuranceId,
+    });
+
+  if (!priorAuthCase.gatewayPatientId) {
+    await prisma.priorAuthCase.update({
+      where: { id },
+      data: { gatewayPatientId },
+    });
+  }
+
+  const extractedDocumentText =
+    body.extractedDocumentText ||
+    priorAuthCase.documents
+      .map((document) => `${document.documentType}: ${document.fileName}`)
+      .join("\n");
+
+  const gatewayResponse = await sendPriorAuthAction({
+    gatewayPatientId,
+    caseId: priorAuthCase.caseNumber || priorAuthCase.id,
+    action: body.action,
+    procedureName: body.procedureName || priorAuthCase.serviceType || "",
+    icd10: body.icd10 || priorAuthCase.diagnosisCodes?.[0] || "",
+    extractedDocumentText,
+    denialReason: body.denialReason || priorAuthCase.denialReason || "",
+  });
+
+  res.json({
+    success: true,
+    data: {
+      action: body.action,
+      gatewayPatientId,
+      gatewayResponse,
+    },
   });
 };
 
