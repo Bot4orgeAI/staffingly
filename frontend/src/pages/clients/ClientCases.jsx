@@ -9,6 +9,7 @@ import {
   normalizeCase,
 } from "@/lib/utils/clientPortal";
 import { Search, Loader2, ChevronRight } from "lucide-react";
+import AppSelect from "@/components/ui/app-select";
 
 const STATUS_STYLES = {
   New: { bg: "#f1f5f9", text: "#475569" },
@@ -109,16 +110,12 @@ export default function ClientCases() {
               className="w-full pl-9 pr-3 py-2 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#293682]/20"
             />
           </div>
-          <select
+          <AppSelect
             value={filterStatus}
-            onChange={(e) => setFilterStatus(e.target.value)}
-            className="px-3 py-2 border border-slate-200 rounded-xl text-sm text-slate-700 focus:outline-none"
-          >
-            <option value="All">All Statuses</option>
-            {Object.keys(STATUS_STYLES).map((s) => (
-              <option key={s}>{s}</option>
-            ))}
-          </select>
+            onValueChange={setFilterStatus}
+            options={["All", ...Object.keys(STATUS_STYLES)]}
+            triggerClassName="w-[180px]"
+          />
           <input
             type="date"
             value={dateFrom}

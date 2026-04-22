@@ -4,6 +4,7 @@ import { api } from "@/lib/api";
 import { useAuthUserQuery, useEntityListQuery, useEntityFilterQuery } from "@/lib/query";
 import StaffinglyLayout from "@/components/staffingly/StaffinglyLayout";
 import { Save, Loader2, Upload, CheckCircle, Palette, Globe, Image } from "lucide-react";
+import AppSelect from "@/components/ui/app-select";
 
 const ALLOWED_ROLES = ["super_admin"];
 
@@ -147,18 +148,12 @@ export default function ClientBrandingAdmin() {
         {/* Client Selector */}
         <div className="bg-white rounded-2xl border border-slate-200 p-5">
           <h3 className="font-bold text-slate-800 mb-3">Select Client</h3>
-          <select
+          <AppSelect
             value={selectedClientId}
-            onChange={(e) => setSelectedClientId(e.target.value)}
-            className="w-full px-3 py-2.5 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#293682]/30"
-          >
-            <option value="">— Select a client —</option>
-            {clients.map((c) => (
-              <option key={c.id} value={c.id}>
-                {c.practice_name}
-              </option>
-            ))}
-          </select>
+            onValueChange={setSelectedClientId}
+            options={clients.map((c) => ({ label: c.practice_name, value: c.id }))}
+            placeholder="— Select a client —"
+          />
         </div>
 
         {selectedClientId && (

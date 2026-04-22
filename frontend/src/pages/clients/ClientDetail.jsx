@@ -28,6 +28,7 @@ import {
   Upload,
   TableProperties,
 } from "lucide-react";
+import AppSelect from "@/components/ui/app-select";
 import EligibilityVerifyPanel from "@/components/insuverif/EligibilityVerifyPanel";
 import BulkAddProviders from "@/components/insuverif/BulkAddProviders";
 import ImportProviders from "@/components/insuverif/ImportProviders";
@@ -84,15 +85,11 @@ function ProviderModal({ provider, clientId, onClose, onSave }) {
         {label}
       </label>
       {options ? (
-        <select
+        <AppSelect
           value={form[field] || ""}
-          onChange={(e) => setForm({ ...form, [field]: e.target.value })}
-          className="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none"
-        >
-          {options.map((o) => (
-            <option key={o}>{o}</option>
-          ))}
-        </select>
+          onValueChange={(v) => setForm({ ...form, [field]: v })}
+          options={options}
+        />
       ) : (
         <input
           value={form[field] || ""}
@@ -212,21 +209,11 @@ function SubscriberModal({ subscriber, clientId, providers, onClose, onSave }) {
         {label}
       </label>
       {options ? (
-        <select
+        <AppSelect
           value={form[field] || ""}
-          onChange={(e) => setForm({ ...form, [field]: e.target.value })}
-          className="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none"
-        >
-          {options.map((o) =>
-            typeof o === "string" ? (
-              <option key={o}>{o}</option>
-            ) : (
-              <option key={o.value} value={o.value}>
-                {o.label}
-              </option>
-            )
-          )}
-        </select>
+          onValueChange={(v) => setForm({ ...form, [field]: v })}
+          options={options}
+        />
       ) : (
         <input
           value={form[field] || ""}

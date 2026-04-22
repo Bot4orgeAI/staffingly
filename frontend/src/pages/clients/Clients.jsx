@@ -16,6 +16,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { Plus, Search, Building2, User, ChevronRight, Edit2, Trash2, X } from "lucide-react";
+import AppSelect from "@/components/ui/app-select";
 
 const STATUS_COLORS = {
   Active: { bg: "#f0fdf4", text: "#15803d", dot: "#16a34a" },
@@ -82,15 +83,11 @@ function ClientModal({ client, onClose, onSave }) {
               <label className="text-xs font-semibold text-slate-500 uppercase tracking-wider block mb-1">
                 Type
               </label>
-              <select
+              <AppSelect
                 value={form.type || "Business"}
-                onChange={(e) => setForm((current) => ({ ...current, type: e.target.value }))}
-                className="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-200"
-              >
-                {["Business", "Individual"].map((option) => (
-                  <option key={option}>{option}</option>
-                ))}
-              </select>
+                onValueChange={(v) => setForm((current) => ({ ...current, type: v }))}
+                options={["Business", "Individual"]}
+              />
             </div>
             <div>
               <label className="text-xs font-semibold text-slate-500 uppercase tracking-wider block mb-1">
@@ -184,15 +181,11 @@ function ClientModal({ client, onClose, onSave }) {
               <label className="text-xs font-semibold text-slate-500 uppercase tracking-wider block mb-1">
                 Status
               </label>
-              <select
+              <AppSelect
                 value={form.status || "Active"}
-                onChange={(e) => setForm((current) => ({ ...current, status: e.target.value }))}
-                className="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-200"
-              >
-                {["Active", "Inactive", "Pending"].map((option) => (
-                  <option key={option}>{option}</option>
-                ))}
-              </select>
+                onValueChange={(v) => setForm((current) => ({ ...current, status: v }))}
+                options={["Active", "Inactive", "Pending"]}
+              />
             </div>
           </div>
           <div>

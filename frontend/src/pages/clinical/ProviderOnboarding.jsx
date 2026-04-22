@@ -14,6 +14,7 @@ import {
   Building2,
   Landmark,
 } from "lucide-react";
+import AppSelect from "@/components/ui/app-select";
 
 const STEPS = [
   { id: 1, label: "Basic Info", icon: User, description: "Name, specialty & contact" },
@@ -102,27 +103,19 @@ function Step1({ data, onChange, errors }) {
         />
       </Field>
       <Field label="Provider Type" required error={errors.provider_type}>
-        <select
+        <AppSelect
           value={data.provider_type}
-          onChange={f("provider_type")}
-          className={`${inputCls} ${errors.provider_type ? errCls : ""}`}
-        >
-          {["MD", "DO", "NP", "PA", "LCSW", "PT", "OT", "DDS", "Other"].map((v) => (
-            <option key={v}>{v}</option>
-          ))}
-        </select>
+          onValueChange={(v) => onChange({ ...data, provider_type: v })}
+          options={["MD", "DO", "NP", "PA", "LCSW", "PT", "OT", "DDS", "Other"]}
+        />
       </Field>
       <Field label="Specialty" required error={errors.specialty}>
-        <select
+        <AppSelect
           value={data.specialty}
-          onChange={f("specialty")}
-          className={`${inputCls} ${errors.specialty ? errCls : ""}`}
-        >
-          <option value="">Select specialty…</option>
-          {SPECIALTY_LIST.map((s) => (
-            <option key={s}>{s}</option>
-          ))}
-        </select>
+          onValueChange={(v) => onChange({ ...data, specialty: v })}
+          options={SPECIALTY_LIST}
+          placeholder="Select specialty…"
+        />
       </Field>
       <Field label="Email" required error={errors.email}>
         <input
@@ -268,15 +261,11 @@ function Step3({ data, onChange, errors }) {
       </div>
       <div>
         <Field label="Enrollment Status">
-          <select
+          <AppSelect
             value={data.enrollment_status || "In Progress"}
-            onChange={(e) => onChange({ ...data, enrollment_status: e.target.value })}
-            className={inputCls}
-          >
-            {["In Progress", "Pending Approval", "Active", "Not Started"].map((s) => (
-              <option key={s}>{s}</option>
-            ))}
-          </select>
+            onValueChange={(v) => onChange({ ...data, enrollment_status: v })}
+            options={["In Progress", "Pending Approval", "Active", "Not Started"]}
+          />
         </Field>
       </div>
       <Field label="Additional Payers / Notes" error={undefined}>
@@ -322,15 +311,12 @@ function Step4({ data, onChange, errors }) {
           />
         </Field>
         <Field label="Account Type" required error={errors.account_type}>
-          <select
+          <AppSelect
             value={data.account_type || ""}
-            onChange={f("account_type")}
-            className={`${inputCls} ${errors.account_type ? errCls : ""}`}
-          >
-            <option value="">Select type…</option>
-            <option>Checking</option>
-            <option>Savings</option>
-          </select>
+            onValueChange={(v) => onChange({ ...data, account_type: v })}
+            options={["Checking", "Savings"]}
+            placeholder="Select type…"
+          />
         </Field>
         <Field label="Routing Number" required error={errors.routing_number}>
           <input

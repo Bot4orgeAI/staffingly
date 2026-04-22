@@ -1,9 +1,10 @@
 import { useState } from "react";
 import { createPageUrl } from "@/lib/utils/page";
-import { useAuthUserQuery } from "@/lib/query";
+import { useAuthUserQuery, useEntityListQuery } from "@/lib/query";
 import AppHeader from "@/components/insuverif/AppHeader";
 import { Search, Edit2, Trash2, X, Wifi, WifiOff } from "lucide-react";
 import AvailityApiSection from "@/components/insuverif/AvailityApiSection";
+import AppSelect from "@/components/ui/app-select";
 
 const EMR_LIST = [
   { name: "Epic", protocol: "FHIR R4", is_connected: true, last_sync: "2 min ago" },
@@ -16,121 +17,13 @@ const EMR_LIST = [
   { name: "AdvancedMD", protocol: "FHIR STU3", is_connected: false },
 ];
 
-const PAYERS = [
-  {
-    payer_name: "UnitedHealthcare",
-    edi_payer_id: "87726",
-    clearinghouse: "Availity",
-    portal_url: "uhcprovider.com",
-    contact_phone: "1-800-842-3585",
-  },
-  {
-    payer_name: "Aetna",
-    edi_payer_id: "60054",
-    clearinghouse: "Availity",
-    portal_url: "aetna.com/health-care-professionals",
-    contact_phone: "1-800-624-0756",
-  },
-  {
-    payer_name: "Cigna",
-    edi_payer_id: "62308",
-    clearinghouse: "Change Healthcare",
-    portal_url: "cigna.com/providers",
-    contact_phone: "1-800-88-cigna",
-  },
-  {
-    payer_name: "Humana",
-    edi_payer_id: "61101",
-    clearinghouse: "Availity",
-    portal_url: "humana.com/provider",
-    contact_phone: "1-800-448-6262",
-  },
-  {
-    payer_name: "Blue Cross Blue Shield",
-    edi_payer_id: "00630",
-    clearinghouse: "Availity",
-    portal_url: "bcbs.com",
-    contact_phone: "1-800-676-2583",
-  },
-  {
-    payer_name: "Medicare",
-    edi_payer_id: "CMS",
-    clearinghouse: "Palmetto GBA",
-    portal_url: "medicare.gov",
-    contact_phone: "1-800-633-4227",
-  },
-  {
-    payer_name: "Medicaid",
-    edi_payer_id: "77799",
-    clearinghouse: "State-based",
-    portal_url: "medicaid.gov",
-    contact_phone: "1-877-267-2323",
-  },
-  {
-    payer_name: "Tricare",
-    edi_payer_id: "TRIC",
-    clearinghouse: "WPS Government Health Admin",
-    portal_url: "tricare.mil",
-    contact_phone: "1-800-874-2273",
-  },
-  {
-    payer_name: "Molina Healthcare",
-    edi_payer_id: "MHIL",
-    clearinghouse: "Availity",
-    portal_url: "molinahealthcare.com",
-    contact_phone: "1-888-275-8750",
-  },
-  {
-    payer_name: "Oscar Health",
-    edi_payer_id: "OSCR",
-    clearinghouse: "Change Healthcare",
-    portal_url: "hioscar.com/providers",
-    contact_phone: "1-855-672-2755",
-  },
-];
-
-const USERS_DEMO = [
-  {
-    id: "u1",
-    full_name: "Dr. Amanda Chen",
-    email: "achen@hospital.org",
-    role: "admin",
-    last_login: "Today, 8:42 AM",
-  },
-  {
-    id: "u2",
-    full_name: "Maria S. Rodriguez",
-    email: "mrodriguez@hospital.org",
-    role: "verification_staff",
-    last_login: "Today, 9:15 AM",
-  },
-  {
-    id: "u3",
-    full_name: "James T. Lee",
-    email: "jlee@hospital.org",
-    role: "verification_staff",
-    last_login: "Yesterday, 4:30 PM",
-  },
-  {
-    id: "u4",
-    full_name: "Summit Medical Group",
-    email: "admin@summitmedical.com",
-    role: "provider",
-    last_login: "Today, 10:00 AM",
-  },
-  {
-    id: "u5",
-    full_name: "Valley Health Partners",
-    email: "billing@valleyhealth.com",
-    role: "provider",
-    last_login: "3 days ago",
-  },
-];
-
 const ROLE_LABELS = {
-  admin: "Admin",
-  verification_staff: "Verification Staff",
-  provider: "Provider",
+  SUPER_ADMIN: "Super Admin",
+  STAFFINGLY_ADMIN: "Staffingly Admin",
+  STAFFINGLY_SUPERVISOR: "Supervisor",
+  STAFFINGLY_SPECIALIST: "Specialist",
+  CLIENT_USER: "Client User",
+  FINANCE_ADMIN: "Finance Admin",
 };
 
 function ConnectModal({ emr, onClose }) {
@@ -167,11 +60,11 @@ function ConnectModal({ emr, onClose }) {
             <label className="text-xs font-semibold text-slate-500 uppercase tracking-wider block mb-1">
               FHIR Version
             </label>
-            <select className="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none">
-              {["R4", "DSTU2", "STU3"].map((v) => (
-                <option key={v}>{v}</option>
-              ))}
-            </select>
+            <AppSelect
+              value="R4"
+              onValueChange={() => {}}
+              options={["R4", "DSTU2", "STU3"]}
+            />
           </div>
         </div>
         <div className="flex gap-3 mt-5">
@@ -197,18 +90,20 @@ function ConnectModal({ emr, onClose }) {
 export default function Settings() {
   const { data: user } = useAuthUserQuery({
     select: (u) => {
-      if (u.role !== "admin") {
+      if (!["super_admin", "staffingly_admin", "admin"].includes((u.role || "").toLowerCase())) {
         window.location.href = createPageUrl("dashboard");
       }
       return u;
     },
   });
+  const { data: payerRules = [] } = useEntityListQuery("PayerRule", { limit: 100 }, null);
+  const { data: users = [] } = useEntityListQuery("User", { limit: 100 }, null);
   const [activeSection, setActiveSection] = useState("emr");
   const [payerSearch, setPayerSearch] = useState("");
   const [connectModal, setConnectModal] = useState(null);
 
-  const filteredPayers = PAYERS.filter((p) =>
-    p.payer_name.toLowerCase().includes(payerSearch.toLowerCase())
+  const filteredPayers = payerRules.filter((p) =>
+    (p.payerName || "").toLowerCase().includes(payerSearch.toLowerCase())
   );
 
   return (
@@ -345,12 +240,12 @@ export default function Settings() {
                 </thead>
                 <tbody className="divide-y divide-slate-100">
                   {filteredPayers.map((p) => (
-                    <tr key={p.payer_name} className="hover:bg-slate-50/50">
-                      <td className="px-4 py-3 font-semibold text-slate-800">{p.payer_name}</td>
-                      <td className="px-4 py-3 font-mono text-slate-600">{p.edi_payer_id}</td>
-                      <td className="px-4 py-3 text-slate-600">{p.clearinghouse}</td>
-                      <td className="px-4 py-3 text-blue-600">{p.portal_url}</td>
-                      <td className="px-4 py-3 text-slate-600">{p.contact_phone}</td>
+                    <tr key={p.id} className="hover:bg-slate-50/50">
+                      <td className="px-4 py-3 font-semibold text-slate-800">{p.payerName}</td>
+                      <td className="px-4 py-3 font-mono text-slate-600">{p.payerId || "—"}</td>
+                      <td className="px-4 py-3 text-slate-600">{p.submissionMethod || "—"}</td>
+                      <td className="px-4 py-3 text-blue-600">{p.portalUrl || "—"}</td>
+                      <td className="px-4 py-3 text-slate-600">{p.phoneNumber || "—"}</td>
                     </tr>
                   ))}
                 </tbody>
@@ -377,24 +272,24 @@ export default function Settings() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
-                  {USERS_DEMO.map((u) => (
+                  {users.map((u) => (
                     <tr key={u.id} className="hover:bg-slate-50/50">
-                      <td className="px-4 py-3 font-semibold text-slate-800">{u.full_name}</td>
+                      <td className="px-4 py-3 font-semibold text-slate-800">{u.name || "—"}</td>
                       <td className="px-4 py-3 text-slate-500">{u.email}</td>
                       <td className="px-4 py-3">
                         <span
                           className="px-2.5 py-1 rounded-full text-[10px] font-bold"
                           style={{
                             backgroundColor:
-                              u.role === "admin"
+                              u.role === "SUPER_ADMIN"
                                 ? "#fef9c3"
-                                : u.role === "verification_staff"
+                                : u.role === "STAFFINGLY_SPECIALIST"
                                   ? "#f0fdfa"
                                   : "#eef3ff",
                             color:
-                              u.role === "admin"
+                              u.role === "SUPER_ADMIN"
                                 ? "#a16207"
-                                : u.role === "verification_staff"
+                                : u.role === "STAFFINGLY_SPECIALIST"
                                   ? "#0f766e"
                                   : "#293682",
                           }}
@@ -402,7 +297,9 @@ export default function Settings() {
                           {ROLE_LABELS[u.role] || u.role}
                         </span>
                       </td>
-                      <td className="px-4 py-3 text-slate-400">{u.last_login}</td>
+                      <td className="px-4 py-3 text-slate-400">
+                        {u.lastLoginAt ? new Date(u.lastLoginAt).toLocaleString() : "Never"}
+                      </td>
                       <td className="px-4 py-3">
                         <div className="flex gap-2">
                           <button className="px-3 py-1.5 rounded-lg border border-slate-200 text-xs text-slate-600 hover:bg-slate-50 flex items-center gap-1">

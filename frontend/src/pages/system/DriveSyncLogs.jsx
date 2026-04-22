@@ -4,6 +4,7 @@ import { api } from "@/lib/api";
 import { useAuthUserQuery, useEntityListQuery } from "@/lib/query";
 import StaffinglyLayout from "@/components/staffingly/StaffinglyLayout";
 import { RefreshCw, CheckCircle, XCircle, Loader2, Activity, Clock } from "lucide-react";
+import AppSelect from "@/components/ui/app-select";
 
 const STORAGE_LABELS = {
   google_drive: "Google Drive",
@@ -110,16 +111,12 @@ export default function DriveSyncLogs() {
 
         {/* Controls */}
         <div className="bg-white rounded-2xl border border-slate-200 p-4 flex flex-wrap gap-3 items-center">
-          <select
+          <AppSelect
             value={filterStatus}
-            onChange={(e) => setFilterStatus(e.target.value)}
-            className="px-3 py-2 border border-slate-200 rounded-xl text-sm text-slate-700 focus:outline-none"
-          >
-            <option>All</option>
-            <option>Completed</option>
-            <option>Running</option>
-            <option>Failed</option>
-          </select>
+            onValueChange={setFilterStatus}
+            options={["All", "Completed", "Running", "Failed"]}
+            triggerClassName="w-[180px]"
+          />
           <div className="flex-1" />
           <button
             onClick={refreshLogs}

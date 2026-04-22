@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { api } from "@/lib/api";
 import { Save, Plus, X, Loader2 } from "lucide-react";
+import AppSelect from "@/components/ui/app-select";
 
 const URGENCY_OPTIONS = ["Routine", "Urgent"];
 
@@ -124,17 +125,11 @@ export default function PACaseIntake({ paCase, onUpdate }) {
               className={inputCls}
             />
           </Field>
-          <Field label="Urgency">
-            <select
+            <AppSelect
               value={form.urgency}
-              onChange={(e) => setForm((f) => ({ ...f, urgency: e.target.value }))}
-              className={inputCls}
-            >
-              {URGENCY_OPTIONS.map((u) => (
-                <option key={u}>{u}</option>
-              ))}
-            </select>
-          </Field>
+              onValueChange={(v) => setForm((f) => ({ ...f, urgency: v }))}
+              options={URGENCY_OPTIONS}
+            />
 
           {/* Diagnosis Codes */}
           <div className="sm:col-span-2">

@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { api } from "@/lib/api";
 import { X, Plus, Trash2, AlertCircle, Check } from "lucide-react";
+import AppSelect from "@/components/ui/app-select";
 
 const EMPTY_ROW = () => ({
   first_name: "",
@@ -129,15 +130,12 @@ export default function BulkAddProviders({ clientId, onClose, onSaved }) {
                     />
                   </td>
                   <td className="px-1 py-1.5">
-                    <select
+                    <AppSelect
                       value={row.provider_type}
-                      onChange={(e) => update(i, "provider_type", e.target.value)}
-                      className={inputCls}
-                    >
-                      {TYPES.map((t) => (
-                        <option key={t}>{t}</option>
-                      ))}
-                    </select>
+                      onValueChange={(v) => update(i, "provider_type", v)}
+                      options={TYPES}
+                      triggerClassName="h-8 py-0 px-2 text-[11px]"
+                    />
                   </td>
                   <td className="px-1 py-1.5">
                     <input
@@ -191,15 +189,12 @@ export default function BulkAddProviders({ clientId, onClose, onSaved }) {
                     />
                   </td>
                   <td className="px-1 py-1.5">
-                    <select
+                    <AppSelect
                       value={row.status}
-                      onChange={(e) => update(i, "status", e.target.value)}
-                      className={inputCls}
-                    >
-                      {["Active", "Inactive", "Credentialing"].map((s) => (
-                        <option key={s}>{s}</option>
-                      ))}
-                    </select>
+                      onValueChange={(v) => update(i, "status", v)}
+                      options={["Active", "Inactive", "Credentialing"]}
+                      triggerClassName="h-8 py-0 px-2 text-[11px]"
+                    />
                   </td>
                   <td className="px-1 py-1.5">
                     <div className="flex items-center gap-1">

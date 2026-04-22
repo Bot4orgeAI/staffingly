@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { api } from "@/lib/api";
 import { FileText, Loader2, Save, Users, Clock, CheckCircle, XCircle } from "lucide-react";
+import AppSelect from "@/components/ui/app-select";
 
 function daysUntil(dateStr) {
   if (!dateStr) return null;
@@ -267,16 +268,12 @@ Write the full appeal letter text only, starting with "Dear Medical Director," �
           ))}
           <div>
             <label className="block text-xs font-semibold text-slate-600 mb-1">P2P Outcome</label>
-            <select
+            <AppSelect
               value={p2pForm.p2p_outcome}
-              onChange={(e) => setP2pForm((f) => ({ ...f, p2p_outcome: e.target.value }))}
-              className="w-full px-3 py-2.5 border border-slate-200 rounded-xl text-sm focus:outline-none"
-            >
-              <option value="">— Not yet completed —</option>
-              <option>Approved</option>
-              <option>Denied</option>
-              <option>Pending Further Review</option>
-            </select>
+              onValueChange={(v) => setP2pForm((f) => ({ ...f, p2p_outcome: v }))}
+              options={["Approved", "Denied", "Pending Further Review"]}
+              placeholder="— Not yet completed —"
+            />
           </div>
         </div>
         <button

@@ -19,6 +19,7 @@ import {
   AlertTriangle,
   X,
 } from "lucide-react";
+import AppSelect from "@/components/ui/app-select";
 
 export default function ClientBillingProfile() {
   const queryClient = useQueryClient();
@@ -298,20 +299,13 @@ export default function ClientBillingProfile() {
                 </div>
                 <div className="flex justify-between items-center text-sm">
                   <span className="text-slate-500">Pricing Package</span>
-                  <select
+                  <AppSelect
                     value={profile.pricing_package_id || ""}
-                    onChange={(e) => handlePackageChange(e.target.value)}
-                    className="border border-slate-200 rounded-lg px-2 py-1 text-xs text-slate-700"
-                  >
-                    <option value="">— Select Package —</option>
-                    {packages
-                      .filter((p) => p.is_active)
-                      .map((p) => (
-                        <option key={p.id} value={p.id}>
-                          {p.name}
-                        </option>
-                      ))}
-                  </select>
+                    onValueChange={handlePackageChange}
+                    options={packages.filter((p) => p.is_active).map((p) => ({ label: p.name, value: p.id }))}
+                    placeholder="— Select Package —"
+                    triggerClassName="h-7 text-xs"
+                  />
                 </div>
                 <div className="flex justify-between text-sm">
                   <span className="text-slate-500">Status</span>
@@ -520,22 +514,12 @@ export default function ClientBillingProfile() {
               ))}
               <div>
                 <label className="block text-xs text-slate-500 mb-1">Pricing Package</label>
-                <select
+                <AppSelect
                   value={setupForm.pricing_package_id}
-                  onChange={(e) =>
-                    setSetupForm((f) => ({ ...f, pricing_package_id: e.target.value }))
-                  }
-                  className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm"
-                >
-                  <option value="">— Select —</option>
-                  {packages
-                    .filter((p) => p.is_active)
-                    .map((p) => (
-                      <option key={p.id} value={p.id}>
-                        {p.name}
-                      </option>
-                    ))}
-                </select>
+                  onValueChange={(v) => setSetupForm((f) => ({ ...f, pricing_package_id: v }))}
+                  options={packages.filter((p) => p.is_active).map((p) => ({ label: p.name, value: p.id }))}
+                  placeholder="— Select —"
+                />
               </div>
               <div className="flex gap-2 pt-2">
                 <button

@@ -26,6 +26,7 @@ import {
   Save,
   AlertTriangle,
 } from "lucide-react";
+import AppSelect from "@/components/ui/app-select";
 
 const CATEGORIES = [
   {
@@ -168,28 +169,22 @@ function EntryModal({ entry, clientId, clientName, user, onSave, onClose }) {
           <div className="grid grid-cols-2 gap-3">
             <div>
               <label className="block text-xs font-semibold text-slate-600 mb-1">Category *</label>
-              <select
+              <AppSelect
                 value={form.category}
-                onChange={(e) => setForm((f) => ({ ...f, category: e.target.value }))}
-                className="w-full px-3 py-2 border border-slate-200 rounded-xl text-sm focus:outline-none"
-              >
-                {categories.map((c) => (
-                  <option key={c.key} value={c.key}>
-                    {c.key}
-                  </option>
-                ))}
-              </select>
+                onValueChange={(v) => setForm((f) => ({ ...f, category: v }))}
+                options={categories.map((c) => ({ label: c.key, value: c.key }))}
+              />
             </div>
             <div>
               <label className="block text-xs font-semibold text-slate-600 mb-1">Visibility</label>
-              <select
+              <AppSelect
                 value={form.visibility}
-                onChange={(e) => setForm((f) => ({ ...f, visibility: e.target.value }))}
-                className="w-full px-3 py-2 border border-slate-200 rounded-xl text-sm focus:outline-none"
-              >
-                <option value="internal_only">Internal Only</option>
-                <option value="shared_with_client">Shared with Client</option>
-              </select>
+                onValueChange={(v) => setForm((f) => ({ ...f, visibility: v }))}
+                options={[
+                  { label: "Internal Only", value: "internal_only" },
+                  { label: "Shared with Client", value: "shared_with_client" },
+                ]}
+              />
             </div>
           </div>
           <div>

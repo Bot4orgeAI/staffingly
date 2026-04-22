@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { api } from "@/lib/api";
 import { Upload, CheckCircle, XCircle, AlertTriangle, Loader2, FileText, Plus } from "lucide-react";
+import AppSelect from "@/components/ui/app-select";
 
 const MAX_FILE_SIZE_MB = 25;
 const ALLOWED_EXT = [".pdf", ".jpg", ".jpeg", ".png", ".docx", ".xlsx"];
@@ -448,16 +449,17 @@ Return JSON with:
                         </span>
                       </td>
                       <td className="px-4 py-3">
-                        <select
+                        <AppSelect
                           value={subStatus}
-                          onChange={(e) => setSubmissionStatus(doc, e.target.value)}
-                          className="px-2 py-1 rounded-lg border border-slate-200 text-xs focus:outline-none"
+                          onValueChange={(v) => setSubmissionStatus(doc, v)}
+                          options={[
+                            { label: "Included", value: "included" },
+                            { label: "Not Needed", value: "not_needed" },
+                            { label: "Needs Follow-up", value: "needs_followup" },
+                          ]}
+                          triggerClassName="h-7 py-0 px-2 text-[11px] border-slate-200"
                           style={{ backgroundColor: subStyle.bg, color: subStyle.text }}
-                        >
-                          <option value="included">Included</option>
-                          <option value="not_needed">Not Needed</option>
-                          <option value="needs_followup">Needs Follow-up</option>
-                        </select>
+                        />
                       </td>
                     </tr>
                   );

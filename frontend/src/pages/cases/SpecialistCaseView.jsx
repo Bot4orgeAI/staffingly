@@ -15,6 +15,7 @@ import {
   AlertTriangle,
   Activity,
 } from "lucide-react";
+import AppSelect from "@/components/ui/app-select";
 
 const STATUS_STYLES = {
   New: { bg: "#f1f5f9", text: "#475569" },
@@ -211,16 +212,12 @@ export default function SpecialistCaseView() {
                   className="w-full pl-9 pr-3 py-2 border border-slate-200 rounded-xl text-sm focus:outline-none"
                 />
               </div>
-              <select
+              <AppSelect
                 value={filterStatus}
-                onChange={(e) => setFilterStatus(e.target.value)}
-                className="px-3 py-2 border border-slate-200 rounded-xl text-sm focus:outline-none"
-              >
-                <option value="All">All Statuses</option>
-                {Object.keys(STATUS_STYLES).map((s) => (
-                  <option key={s}>{s}</option>
-                ))}
-              </select>
+                onValueChange={setFilterStatus}
+                options={["All", ...Object.keys(STATUS_STYLES)]}
+                triggerClassName="w-[180px]"
+              />
               {canReassign && selectedCases.length > 0 && (
                 <button
                   onClick={() => setReassignModal(true)}
@@ -412,18 +409,12 @@ export default function SpecialistCaseView() {
                 <label className="block text-xs font-semibold text-slate-600 mb-1">
                   Assign To *
                 </label>
-                <select
+                <AppSelect
                   value={reassignTo}
-                  onChange={(e) => setReassignTo(e.target.value)}
-                  className="w-full px-3 py-2.5 border border-slate-200 rounded-xl text-sm focus:outline-none"
-                >
-                  <option value="">— Select specialist —</option>
-                  {specialists.map((s) => (
-                    <option key={s.id} value={s.id}>
-                      {s.full_name || s.email}
-                    </option>
-                  ))}
-                </select>
+                  onValueChange={setReassignTo}
+                  options={specialists.map((s) => ({ label: s.full_name || s.email, value: s.id }))}
+                  placeholder="— Select specialist —"
+                />
               </div>
               <div>
                 <label className="block text-xs font-semibold text-slate-600 mb-1">

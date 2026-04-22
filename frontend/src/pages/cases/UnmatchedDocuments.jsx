@@ -4,6 +4,7 @@ import { api } from "@/lib/api";
 import { useAuthUserQuery, useEntityFilterQuery, useEntityListQuery } from "@/lib/query";
 import StaffinglyLayout from "@/components/staffingly/StaffinglyLayout";
 import { Search, AlertTriangle, CheckCircle, Clock, FileText, Loader2, X } from "lucide-react";
+import AppSelect from "@/components/ui/app-select";
 
 const STORAGE_LABELS = {
   google_drive: { label: "Google Drive", color: "#4285F4", bg: "#EBF2FF" },
@@ -244,16 +245,12 @@ export default function UnmatchedDocuments() {
               className="w-full pl-9 pr-3 py-2 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#293682]/30"
             />
           </div>
-          <select
+          <AppSelect
             value={filterStatus}
-            onChange={(e) => setFilterStatus(e.target.value)}
-            className="px-3 py-2 border border-slate-200 rounded-xl text-sm text-slate-700 focus:outline-none"
-          >
-            <option>All</option>
-            <option>Unmatched</option>
-            <option>Matched</option>
-            <option>Dismissed</option>
-          </select>
+            onValueChange={setFilterStatus}
+            options={["All", "Unmatched", "Matched", "Dismissed"]}
+            triggerClassName="w-[140px]"
+          />
           <div className="flex items-center gap-2 px-3 py-2 rounded-xl bg-slate-50 text-sm text-slate-600">
             <FileText className="w-4 h-4" />
             <span className="font-semibold">

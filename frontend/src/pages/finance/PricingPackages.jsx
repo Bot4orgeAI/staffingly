@@ -9,6 +9,7 @@ import {
   canAccessBilling,
 } from "@/components/billing/BillingAccessGuard";
 import { Plus, Edit2, Check, X, Zap, Star, Building2, CreditCard, Settings } from "lucide-react";
+import AppSelect from "@/components/ui/app-select";
 
 const PKG_ICONS = {
   starter: Zap,
@@ -225,17 +226,11 @@ function PackageForm({ initial, onSave, onCancel, userEmail }) {
             <Field label="Package Name" k="name" type="text" />
             <div>
               <label className="block text-xs text-slate-500 mb-1">Package Type</label>
-              <select
+              <AppSelect
                 value={form.package_type}
-                onChange={(e) => set("package_type", e.target.value)}
-                className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm text-slate-800"
-              >
-                <option value="starter">Starter</option>
-                <option value="growth">Growth</option>
-                <option value="enterprise">Enterprise</option>
-                <option value="pay_as_you_go">Pay As You Go</option>
-                <option value="custom">Custom</option>
-              </select>
+                onValueChange={(v) => set("package_type", v)}
+                options={["starter", "growth", "enterprise", "pay_as_you_go", "custom"]}
+              />
             </div>
           </div>
           <Field label="Monthly Base Fee ($)" k="monthly_base_fee" />

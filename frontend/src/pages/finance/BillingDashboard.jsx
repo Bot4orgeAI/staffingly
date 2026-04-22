@@ -24,6 +24,7 @@ import {
 } from "lucide-react";
 import { createPageUrl } from "@/lib/utils/page";
 import { Link } from "react-router-dom";
+import AppSelect from "@/components/ui/app-select";
 
 export default function BillingDashboard() {
   const [statusFilter, setStatusFilter] = useState("all");
@@ -166,18 +167,19 @@ export default function BillingDashboard() {
           <div className="flex items-center justify-between p-4 border-b border-slate-100">
             <h2 className="font-bold text-slate-800">Client Billing</h2>
             <div className="flex items-center gap-2">
-              <select
+              <AppSelect
                 value={statusFilter}
-                onChange={(e) => setStatusFilter(e.target.value)}
-                className="border border-slate-200 rounded-lg text-sm px-3 py-1.5 text-slate-700 bg-white"
-              >
-                <option value="all">All Statuses</option>
-                <option value="dispute_window">Dispute Window</option>
-                <option value="disputed">Disputed</option>
-                <option value="paid">Paid</option>
-                <option value="payment_failed">Payment Failed</option>
-                <option value="draft">Draft</option>
-              </select>
+                onValueChange={setStatusFilter}
+                options={[
+                  { label: "All Statuses", value: "all" },
+                  { label: "Dispute Window", value: "dispute_window" },
+                  { label: "Disputed", value: "disputed" },
+                  { label: "Paid", value: "paid" },
+                  { label: "Payment Failed", value: "payment_failed" },
+                  { label: "Draft", value: "draft" },
+                ]}
+                triggerClassName="w-[180px]"
+              />
               <button
                 onClick={exportCSV}
                 className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-slate-200 text-sm text-slate-600 hover:bg-slate-50"

@@ -5,6 +5,7 @@ import { createPageUrl } from "@/lib/utils/page";
 import { api } from "@/lib/api";
 import { queryKeys } from "@/lib/query";
 import { Search, Filter, Plus, AlertTriangle, ChevronRight } from "lucide-react";
+import AppSelect from "@/components/ui/app-select";
 
 const STATUS_STYLES = {
   New: { bg: "#f1f5f9", text: "#475569", dot: "#94a3b8" },
@@ -90,25 +91,18 @@ export default function PACaseTracker({ user: _user, onStartNew }) {
             className="w-full pl-9 pr-3 py-2 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#293682]/30"
           />
         </div>
-        <select
+        <AppSelect
           value={filterStatus}
-          onChange={(e) => setFilterStatus(e.target.value)}
-          className="px-3 py-2 border border-slate-200 rounded-xl text-sm text-slate-700 focus:outline-none"
-        >
-          <option>All</option>
-          {Object.keys(STATUS_STYLES).map((s) => (
-            <option key={s}>{s}</option>
-          ))}
-        </select>
-        <select
+          onValueChange={setFilterStatus}
+          options={["All", ...Object.keys(STATUS_STYLES)]}
+          triggerClassName="w-[180px]"
+        />
+        <AppSelect
           value={filterUrgency}
-          onChange={(e) => setFilterUrgency(e.target.value)}
-          className="px-3 py-2 border border-slate-200 rounded-xl text-sm text-slate-700 focus:outline-none"
-        >
-          <option>All</option>
-          <option>Routine</option>
-          <option>Urgent</option>
-        </select>
+          onValueChange={setFilterUrgency}
+          options={["All", "Routine", "Urgent"]}
+          triggerClassName="w-[120px]"
+        />
         <button
           onClick={onStartNew}
           className="flex items-center gap-2 px-4 py-2 rounded-xl text-white text-sm font-bold transition-opacity hover:opacity-90"
