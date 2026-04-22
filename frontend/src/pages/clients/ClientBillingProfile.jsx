@@ -195,11 +195,17 @@ export default function ClientBillingProfile() {
       title="Client Billing Profile"
       breadcrumbs={["Billing", "Client Profile"]}
     >
-      <div className="max-w-[1100px] mx-auto space-y-6">
-        <BillingHeader
-          title="Client Billing Profile"
-          subtitle={profile?.client_name || `Client ${clientId}`}
-        />
+      <div className="mx-auto flex flex-col space-y-5 max-w-[1400px]">
+        <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+          <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+            <div>
+              <h1 className="text-2xl font-bold text-slate-900">Client Billing Profile</h1>
+              <p className="mt-2 text-sm text-slate-500">
+                {profile?.client_name || `Client ${clientId}`} — Manage billing contact, packages, and invoice history.
+              </p>
+            </div>
+          </div>
+        </div>
 
         {actionMsg && (
           <div className="flex items-center gap-2 bg-green-50 border border-green-200 rounded-xl px-4 py-3 text-green-700 text-sm">

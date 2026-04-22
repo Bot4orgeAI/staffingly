@@ -107,27 +107,28 @@ export default function Settings() {
   );
 
   return (
-    <div
-      className="min-h-screen"
-      style={{ backgroundColor: "#eef3ff", fontFamily: "'DM Sans', sans-serif" }}
+    <StaffinglyLayout
+      user={user}
+      currentPage="settings"
+      title="System Settings"
+      breadcrumbs={["System", "Settings"]}
     >
-      <AppHeader
-        user={user}
-        breadcrumbs={[
-          { label: "Dashboard", href: createPageUrl("dashboard") },
-          { label: "Settings" },
-        ]}
-      />
-
       {connectModal && <ConnectModal emr={connectModal} onClose={() => setConnectModal(null)} />}
 
-      <main className="p-6 max-w-[1400px] mx-auto">
-        <h1 className="text-xl font-bold text-slate-800 mb-6">
-          Settings <span className="text-xs font-medium text-slate-400 ml-2">Admin Only</span>
-        </h1>
+      <div className="max-w-[1400px] mx-auto space-y-5">
+        <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+          <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+            <div>
+              <h1 className="text-2xl font-bold text-slate-900">System Settings</h1>
+              <p className="mt-2 text-sm text-slate-500">
+                Manage EMR integrations, API credentials, and global system configurations.
+              </p>
+            </div>
+          </div>
+        </div>
 
         {/* Section Tabs */}
-        <div className="flex gap-1 bg-white rounded-xl border border-slate-200 p-1 mb-6 w-fit">
+        <div className="flex gap-1 bg-white rounded-xl border border-slate-200 p-1 w-fit">
           {[
             { key: "emr", label: "EMR Connections" },
             { key: "availity", label: "Availity API" },
@@ -317,7 +318,7 @@ export default function Settings() {
             </div>
           </div>
         )}
-      </main>
-    </div>
+      </div>
+    </StaffinglyLayout>
   );
 }

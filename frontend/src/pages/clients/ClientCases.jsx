@@ -91,44 +91,52 @@ export default function ClientCases() {
 
   return (
     <ClientPortalLayout user={user} branding={branding} currentPage="client-cases">
-      <div className="max-w-[1200px] mx-auto space-y-5">
-        <div>
-          <h1 className="text-2xl font-bold text-slate-800">My Cases</h1>
-          <p className="text-sm text-slate-500 mt-0.5">
-            {cases.length} total prior authorization cases
-          </p>
+      <div className="max-w-[1400px] mx-auto space-y-5">
+        <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+          <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+            <div>
+              <h1 className="text-2xl font-bold text-slate-900">My Cases</h1>
+              <p className="mt-2 text-sm text-slate-500">
+                Monitor the status of your submitted prior authorization cases.
+              </p>
+            </div>
+          </div>
         </div>
 
         {/* Filters */}
-        <div className="bg-white rounded-2xl border border-slate-200 p-4 flex flex-wrap gap-3 items-center">
-          <div className="relative flex-1 min-w-[200px]">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-            <input
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              placeholder="Search by Case ID, patient, or payer…"
-              className="w-full pl-9 pr-3 py-2 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#293682]/20"
+        <div className="bg-white rounded-2xl border border-slate-200 px-5 py-4 flex flex-col sm:flex-row gap-3 items-start sm:items-center justify-between">
+          <div className="flex flex-wrap gap-3 flex-1">
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400" />
+              <input
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                placeholder="Search by Case ID, patient, or payer…"
+                className="w-full sm:w-72 pl-9 pr-3 py-2 border border-slate-200 rounded-xl text-xs focus:outline-none focus:ring-1 focus:ring-[#0a7e87]"
+              />
+            </div>
+            <AppSelect
+              value={filterStatus}
+              onValueChange={setFilterStatus}
+              options={["All", ...Object.keys(STATUS_STYLES)]}
+              triggerClassName="h-9 w-[180px] rounded-xl px-3 py-2 text-xs"
             />
+            <div className="flex items-center gap-2">
+              <input
+                type="date"
+                value={dateFrom}
+                onChange={(e) => setDateFrom(e.target.value)}
+                className="h-9 px-3 py-2 border border-slate-200 rounded-xl text-xs text-slate-600 focus:outline-none focus:ring-1 focus:ring-[#0a7e87]"
+              />
+              <span className="text-slate-400 text-xs">—</span>
+              <input
+                type="date"
+                value={dateTo}
+                onChange={(e) => setDateTo(e.target.value)}
+                className="h-9 px-3 py-2 border border-slate-200 rounded-xl text-xs text-slate-600 focus:outline-none focus:ring-1 focus:ring-[#0a7e87]"
+              />
+            </div>
           </div>
-          <AppSelect
-            value={filterStatus}
-            onValueChange={setFilterStatus}
-            options={["All", ...Object.keys(STATUS_STYLES)]}
-            triggerClassName="w-[180px]"
-          />
-          <input
-            type="date"
-            value={dateFrom}
-            onChange={(e) => setDateFrom(e.target.value)}
-            className="px-3 py-2 border border-slate-200 rounded-xl text-sm text-slate-600 focus:outline-none"
-          />
-          <span className="text-slate-400 text-sm">—</span>
-          <input
-            type="date"
-            value={dateTo}
-            onChange={(e) => setDateTo(e.target.value)}
-            className="px-3 py-2 border border-slate-200 rounded-xl text-sm text-slate-600 focus:outline-none"
-          />
         </div>
 
         {/* Table */}
