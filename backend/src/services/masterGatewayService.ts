@@ -157,10 +157,8 @@ export function normalizeEligibilityGatewayResponse(raw: unknown): Record<string
     channelUsed: payload.channelUsed || payload.channel_used || "n8n Master Gateway",
     channel_used: payload.channelUsed || payload.channel_used || "n8n Master Gateway",
     flags: Array.isArray(payload.flags) ? payload.flags : [],
-    requiresHumanReview:
-      payload.requiresHumanReview || payload.requires_human_review || false,
-    requires_human_review:
-      payload.requiresHumanReview || payload.requires_human_review || false,
+    requiresHumanReview: payload.requiresHumanReview || payload.requires_human_review || false,
+    requires_human_review: payload.requiresHumanReview || payload.requires_human_review || false,
     rawResponse: raw,
     raw_response: raw,
     error: payload.error || payload.errorMessage || payload.message || null,

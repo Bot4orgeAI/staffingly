@@ -92,7 +92,9 @@ export async function checkEligibility(req: AuthenticatedRequest, res: Response)
     submissionType,
     emrType,
   });
-  const result = normalizeEligibilityGatewayResponse(gatewayResponse) as unknown as EligibilityResult & {
+  const result = normalizeEligibilityGatewayResponse(
+    gatewayResponse
+  ) as unknown as EligibilityResult & {
     rawResponse?: unknown;
   };
 
@@ -110,9 +112,10 @@ export async function checkEligibility(req: AuthenticatedRequest, res: Response)
       providerNpi,
       serviceTypeCode,
       serviceDate: serviceDate ? new Date(serviceDate) : null,
-      coverageStatus: result.success && result.coverageStatus
-        ? (result.coverageStatus?.toUpperCase() as CoverageStatus)
-        : null,
+      coverageStatus:
+        result.success && result.coverageStatus
+          ? (result.coverageStatus?.toUpperCase() as CoverageStatus)
+          : null,
       planName: result.planName,
       planType: result.planType,
       networkStatus: result.networkStatus,

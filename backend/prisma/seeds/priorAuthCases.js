@@ -175,7 +175,9 @@ export async function seedPriorAuthCases(prisma) {
   const users = await prisma.user.findMany({
     where: {
       email: {
-        in: [...new Set(PRIOR_AUTH_CASES.map((item) => item.assignedSpecialistEmail).filter(Boolean))],
+        in: [
+          ...new Set(PRIOR_AUTH_CASES.map((item) => item.assignedSpecialistEmail).filter(Boolean)),
+        ],
       },
     },
     select: { id: true, email: true },

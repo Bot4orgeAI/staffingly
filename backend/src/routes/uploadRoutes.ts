@@ -14,13 +14,7 @@ const upload = multer({
   },
   fileFilter: (_req, file, cb) => {
     // Allow common image types for insurance cards
-    const allowedTypes = [
-      "image/jpeg",
-      "image/png",
-      "image/heic",
-      "image/heif",
-      "application/pdf",
-    ];
+    const allowedTypes = ["image/jpeg", "image/png", "image/heic", "image/heif", "application/pdf"];
     if (allowedTypes.includes(file.mimetype)) {
       cb(null, true);
     } else {
@@ -56,9 +50,6 @@ router.post(
 );
 
 // Get URL for uploaded insurance card
-router.get(
-  "/insurance-card/:id/url",
-  asyncHandler(uploadController.getInsuranceCardUrl)
-);
+router.get("/insurance-card/:id/url", asyncHandler(uploadController.getInsuranceCardUrl));
 
 export default router;

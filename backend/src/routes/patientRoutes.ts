@@ -34,7 +34,11 @@ router.post("/", requireRoles(...ALLOWED_ROLES), asyncHandler(patientController.
 router.put("/:id", requireRoles(...ALLOWED_ROLES), asyncHandler(patientController.updatePatient));
 
 // Delete patient (soft delete)
-router.delete("/:id", requireRoles(...ALLOWED_ROLES), asyncHandler(patientController.deletePatient));
+router.delete(
+  "/:id",
+  requireRoles(...ALLOWED_ROLES),
+  asyncHandler(patientController.deletePatient)
+);
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Insurance Policy Routes

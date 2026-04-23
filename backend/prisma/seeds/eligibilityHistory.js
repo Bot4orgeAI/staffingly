@@ -1,6 +1,6 @@
 const ELIGIBILITY_HISTORY = [
   {
-    id: "elig-history-03891",
+    id: "EL-03891",
     subscriberId: "seed-sub-sarah-mitchell",
     clientId: "client-sunrise-family-clinic",
     providerId: "seed-provider-sunrise-001",
@@ -31,7 +31,7 @@ const ELIGIBILITY_HISTORY = [
     createdAt: new Date("2026-03-01T09:14:00Z"),
   },
   {
-    id: "elig-history-03890",
+    id: "EL-03890",
     subscriberId: "seed-sub-james-holloway",
     clientId: "client-lakeview-orthopedics",
     providerId: "seed-provider-lakeview-001",
@@ -62,7 +62,7 @@ const ELIGIBILITY_HISTORY = [
     createdAt: new Date("2026-03-01T08:55:00Z"),
   },
   {
-    id: "elig-history-03889",
+    id: "EL-03889",
     subscriberId: "seed-sub-robert-sanchez",
     clientId: "client-metro-mental-health-associates",
     providerId: "seed-provider-metro-001",
@@ -93,7 +93,7 @@ const ELIGIBILITY_HISTORY = [
     createdAt: new Date("2026-03-01T08:30:00Z"),
   },
   {
-    id: "elig-history-03888",
+    id: "EL-03888",
     subscriberId: "seed-sub-linda-patel",
     clientId: "client-sunrise-family-clinic",
     providerId: "seed-provider-sunrise-002",
@@ -124,7 +124,7 @@ const ELIGIBILITY_HISTORY = [
     createdAt: new Date("2026-03-01T08:10:00Z"),
   },
   {
-    id: "elig-history-03887",
+    id: "EL-03887",
     subscriberId: "seed-sub-marcus-thompson",
     clientId: "client-lakeview-orthopedics",
     providerId: "seed-provider-lakeview-002",
@@ -155,7 +155,7 @@ const ELIGIBILITY_HISTORY = [
     createdAt: new Date("2026-02-28T17:45:00Z"),
   },
   {
-    id: "elig-history-03886",
+    id: "EL-03886",
     subscriberId: "seed-sub-emily-carson",
     clientId: "client-metro-mental-health-associates",
     providerId: "seed-provider-metro-002",

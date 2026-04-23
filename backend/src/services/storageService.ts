@@ -21,20 +21,14 @@ interface UploadResult {
 }
 
 interface S3Client {
-  send: (command: unknown) => Promise<unknown>;
+  send: (_command: unknown) => Promise<unknown>;
 }
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
 let s3Client: S3Client | null = null;
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
 let S3ClientClass: any = null;
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
 let PutObjectCommand: any = null;
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
 let GetObjectCommand: any = null;
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
 let DeleteObjectCommand: any = null;
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
 let getSignedUrl: any = null;
 
 /**
@@ -228,7 +222,7 @@ export async function cleanupExpiredLocalCards(): Promise<number> {
   let deletedCount = 0;
 
   try {
-    const thirtyDaysAgo = Date.now() - (30 * 24 * 60 * 60 * 1000);
+    const thirtyDaysAgo = Date.now() - 30 * 24 * 60 * 60 * 1000;
 
     async function cleanDir(dir: string): Promise<void> {
       const entries = await fs.readdir(dir, { withFileTypes: true });

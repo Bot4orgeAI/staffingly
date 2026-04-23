@@ -103,6 +103,91 @@ interface PriorAuthGatewayActionBody {
   denialReason?: string;
 }
 
+async function attachPriorAuthScores<
+  T extends { eligibilityCheckId: string | null; insuranceId?: string | null },
+>(
+  records: T[]
+): Promise<Array<T & { ai_confidence_score: number | null; aiConfidenceScore: number | null }>> {
+  const eligibilityCheckIds = [
+    ...new Set(
+      records
+        .map((record) => record.eligibilityCheckId)
+        .filter((eligibilityCheckId): eligibilityCheckId is string => Boolean(eligibilityCheckId))
+    ),
+  ];
+
+  const eligibilityChecks = eligibilityCheckIds.length
+    ? await prisma.eligibilityCheck.findMany({
+        where: {
+          id: {
+            in: eligibilityCheckIds,
+          },
+        },
+        select: {
+          id: true,
+          confidenceScore: true,
+        },
+      })
+    : [];
+
+  const scoreByEligibilityId = new Map(
+    eligibilityChecks.map((eligibilityCheck) => [
+      eligibilityCheck.id,
+      eligibilityCheck.confidenceScore ?? null,
+    ])
+  );
+
+  const memberIds = [
+    ...new Set(
+      records
+        .map((record) => record.insuranceId ?? null)
+        .filter((insuranceId): insuranceId is string => Boolean(insuranceId))
+    ),
+  ];
+
+  const eligibilityHistory = memberIds.length
+    ? await prisma.eligibilityHistory.findMany({
+        where: {
+          memberId: {
+            in: memberIds,
+          },
+        },
+        select: {
+          memberId: true,
+          confidenceScore: true,
+          createdAt: true,
+        },
+        orderBy: {
+          createdAt: "desc",
+        },
+      })
+    : [];
+
+  const scoreByMemberId = new Map<string, number | null>();
+  for (const historyRecord of eligibilityHistory) {
+    if (!historyRecord.memberId || scoreByMemberId.has(historyRecord.memberId)) {
+      continue;
+    }
+    scoreByMemberId.set(historyRecord.memberId, historyRecord.confidenceScore ?? null);
+  }
+
+  return records.map((record) => {
+    const eligibilityScore = record.eligibilityCheckId
+      ? (scoreByEligibilityId.get(record.eligibilityCheckId) ?? null)
+      : null;
+    const historyScore = record.insuranceId
+      ? (scoreByMemberId.get(record.insuranceId) ?? null)
+      : null;
+    const score = eligibilityScore ?? historyScore ?? null;
+
+    return {
+      ...record,
+      ai_confidence_score: score,
+      aiConfidenceScore: score,
+    };
+  });
+}
+
 async function ensureClientCaseAccess(req: AuthenticatedRequest, caseId: string): Promise<boolean> {
   if (req.user?.role !== "CLIENT_USER" || !req.user.clientId) {
     return true;
@@ -189,9 +274,11 @@ export const getCases = async (req: AuthenticatedRequest, res: Response): Promis
     prisma.priorAuthCase.count({ where }),
   ]);
 
+  const casesWithScores = await attachPriorAuthScores(cases);
+
   res.json({
     success: true,
-    data: cases,
+    data: casesWithScores,
     pagination: {
       page: pageNum,
       limit: limitNum,
@@ -238,9 +325,11 @@ export const getCaseById = async (req: AuthenticatedRequest, res: Response): Pro
     return;
   }
 
+  const [priorAuthCaseWithScore] = await attachPriorAuthScores([priorAuthCase]);
+
   res.json({
     success: true,
-    data: priorAuthCase,
+    data: priorAuthCaseWithScore,
   });
 };
 
@@ -310,7 +399,11 @@ export const createCase = async (req: AuthenticatedRequest, res: Response): Prom
 
   res.status(201).json({
     success: true,
-    data: priorAuthCase,
+    data: {
+      ...priorAuthCase,
+      ai_confidence_score: null,
+      aiConfidenceScore: null,
+    },
   });
 };
 
@@ -353,9 +446,11 @@ export const updateCase = async (req: AuthenticatedRequest, res: Response): Prom
     },
   });
 
+  const [priorAuthCaseWithScore] = await attachPriorAuthScores([priorAuthCase]);
+
   res.json({
     success: true,
-    data: priorAuthCase,
+    data: priorAuthCaseWithScore,
   });
 };
 

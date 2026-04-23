@@ -44,13 +44,6 @@ export interface ExtractionResult {
 // Azure Client Initialization
 // ─────────────────────────────────────────────────────────────────────────────
 
-interface AnalyzeResult {
-  documents?: Array<{
-    fields?: Record<string, { value?: string; content?: string; confidence?: number }>;
-  }>;
-}
-
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
 let azureClient: any = null;
 
 /**
@@ -157,19 +150,19 @@ function generateMockExtraction(): InsuranceCardExtraction {
     },
     subscriberDob: {
       value: generateMockDob(),
-      confidence: randomConfidence(0.70, 0.92),
+      confidence: randomConfidence(0.7, 0.92),
     },
     planName: {
       value: `${randomElement(MOCK_PAYERS)} ${randomElement(MOCK_PLAN_TYPES)} Plan`,
-      confidence: randomConfidence(0.65, 0.90),
+      confidence: randomConfidence(0.65, 0.9),
     },
     planType: {
       value: randomElement(MOCK_PLAN_TYPES),
-      confidence: randomConfidence(0.80, 0.95),
+      confidence: randomConfidence(0.8, 0.95),
     },
     rxBin: {
       value: String(Math.floor(Math.random() * 900000) + 100000),
-      confidence: randomConfidence(0.60, 0.88),
+      confidence: randomConfidence(0.6, 0.88),
     },
     rxPcn: {
       value: randomElement(["MCAID", "ADV", "SYRX", "CAREMARK", null]),
@@ -181,11 +174,11 @@ function generateMockExtraction(): InsuranceCardExtraction {
     },
     copay: {
       value: randomElement(["$20", "$25", "$30", "$35", "$40", null]),
-      confidence: randomConfidence(0.50, 0.78),
+      confidence: randomConfidence(0.5, 0.78),
     },
     effectiveDate: {
       value: `2024-01-01`,
-      confidence: randomConfidence(0.72, 0.90),
+      confidence: randomConfidence(0.72, 0.9),
     },
   };
 }
@@ -197,7 +190,9 @@ function generateMockExtraction(): InsuranceCardExtraction {
 /**
  * Map Azure Document Intelligence fields to our schema
  */
-function mapAzureFields(azureFields: Record<string, { value?: string; content?: string; confidence?: number }>): InsuranceCardExtraction {
+function mapAzureFields(
+  azureFields: Record<string, { value?: string; content?: string; confidence?: number }>
+): InsuranceCardExtraction {
   const getField = (fieldName: string): ExtractedField => {
     const field = azureFields[fieldName];
     return {
@@ -257,7 +252,10 @@ async function extractWithAzure(imageBuffer: Buffer): Promise<ExtractionResult> 
     const fields = mapAzureFields(document.fields || {});
 
     // Calculate overall confidence and find low-confidence fields
-    const fieldEntries = Object.entries(fields) as [keyof InsuranceCardExtraction, ExtractedField][];
+    const fieldEntries = Object.entries(fields) as [
+      keyof InsuranceCardExtraction,
+      ExtractedField,
+    ][];
     const confidences = fieldEntries
       .filter(([, f]) => f.value !== null)
       .map(([, f]) => f.confidence);
@@ -309,9 +307,7 @@ async function extractWithMock(): Promise<ExtractionResult> {
 
   // Calculate overall confidence
   const fieldEntries = Object.entries(fields) as [keyof InsuranceCardExtraction, ExtractedField][];
-  const confidences = fieldEntries
-    .filter(([, f]) => f.value !== null)
-    .map(([, f]) => f.confidence);
+  const confidences = fieldEntries.filter(([, f]) => f.value !== null).map(([, f]) => f.confidence);
 
   const overallConfidence =
     confidences.length > 0
@@ -374,9 +370,7 @@ export function flattenExtraction(
 /**
  * Get confidence scores as a flat object
  */
-export function getConfidenceScores(
-  extraction: InsuranceCardExtraction
-): Record<string, number> {
+export function getConfidenceScores(extraction: InsuranceCardExtraction): Record<string, number> {
   const result: Record<string, number> = {};
 
   for (const [key, field] of Object.entries(extraction)) {

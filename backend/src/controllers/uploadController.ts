@@ -255,7 +255,9 @@ export const extractInsuranceCard = async (
       where: { id: cardUploadId },
       data: {
         extractedData: JSON.parse(JSON.stringify(extraction.fields)),
-        confidenceScores: JSON.parse(JSON.stringify(ocrService.getConfidenceScores(extraction.fields))),
+        confidenceScores: JSON.parse(
+          JSON.stringify(ocrService.getConfidenceScores(extraction.fields))
+        ),
         overallConfidence: extraction.overallConfidence,
         requiresReview: extraction.requiresReview,
       },
