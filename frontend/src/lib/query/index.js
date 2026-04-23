@@ -26,12 +26,16 @@ export const queryKeys = {
   custom: (...parts) => parts,
 };
 
-export function useAuthUserQuery({
-  enabled = true,
-  redirectOnError = true,
-  withDefaultRole = null,
-  ...options
-} = {}) {
+/**
+ * @param {Omit<import('@tanstack/react-query').UseQueryOptions, 'queryKey' | 'queryFn'> & { enabled?: boolean, redirectOnError?: boolean, withDefaultRole?: any }} [options]
+ */
+export function useAuthUserQuery(options = {}) {
+  const {
+    enabled = true,
+    redirectOnError = true,
+    withDefaultRole = null,
+    ...queryOptions
+  } = options;
   const token = getToken();
 
   const query = useQuery({
@@ -43,7 +47,7 @@ export function useAuthUserQuery({
     retry: false,
     staleTime: 5 * 60 * 1000,
     enabled: enabled && Boolean(token),
-    ...options,
+    ...queryOptions,
   });
 
   useEffect(() => {

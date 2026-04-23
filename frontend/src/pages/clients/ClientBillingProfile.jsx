@@ -3,11 +3,7 @@ import { useQueryClient, useMutation } from "@tanstack/react-query";
 import { api } from "@/lib/api";
 import { useAuthUserQuery, useEntityFilterQuery, useEntityListQuery } from "@/lib/query";
 import StaffinglyLayout from "@/components/staffingly/StaffinglyLayout";
-import {
-  BillingHeader,
-  BillingAccessDenied,
-  canAccessBilling,
-} from "@/components/billing/BillingAccessGuard";
+import { BillingAccessDenied, canAccessBilling } from "@/components/billing/BillingAccessGuard";
 import InvoiceStatusBadge from "@/components/billing/InvoiceStatusBadge";
 import DisputeTimer from "@/components/billing/DisputeTimer";
 import {
@@ -35,7 +31,7 @@ export default function ClientBillingProfile() {
     { client_id: clientId },
     { enabled: Boolean(isBillingAllowed && clientId) }
   );
-  
+
   const { data: invList = [], isLoading: loadingInv } = useEntityFilterQuery(
     "ClientInvoice",
     { client_id: clientId },
@@ -61,7 +57,7 @@ export default function ClientBillingProfile() {
   );
   const credits = creditList;
   const packages = pkgList;
-  
+
   const loading = loadingAuth || loadingProfile || loadingInv || loadingCredit || loadingPkg;
 
   const [showCreditForm, setShowCreditForm] = useState(false);
@@ -201,7 +197,8 @@ export default function ClientBillingProfile() {
             <div>
               <h1 className="text-2xl font-bold text-slate-900">Client Billing Profile</h1>
               <p className="mt-2 text-sm text-slate-500">
-                {profile?.client_name || `Client ${clientId}`} — Manage billing contact, packages, and invoice history.
+                {profile?.client_name || `Client ${clientId}`} — Manage billing contact, packages,
+                and invoice history.
               </p>
             </div>
           </div>
@@ -308,7 +305,9 @@ export default function ClientBillingProfile() {
                   <AppSelect
                     value={profile.pricing_package_id || ""}
                     onValueChange={handlePackageChange}
-                    options={packages.filter((p) => p.is_active).map((p) => ({ label: p.name, value: p.id }))}
+                    options={packages
+                      .filter((p) => p.is_active)
+                      .map((p) => ({ label: p.name, value: p.id }))}
                     placeholder="— Select Package —"
                     triggerClassName="h-7 text-xs"
                   />
@@ -523,7 +522,9 @@ export default function ClientBillingProfile() {
                 <AppSelect
                   value={setupForm.pricing_package_id}
                   onValueChange={(v) => setSetupForm((f) => ({ ...f, pricing_package_id: v }))}
-                  options={packages.filter((p) => p.is_active).map((p) => ({ label: p.name, value: p.id }))}
+                  options={packages
+                    .filter((p) => p.is_active)
+                    .map((p) => ({ label: p.name, value: p.id }))}
                   placeholder="— Select —"
                 />
               </div>

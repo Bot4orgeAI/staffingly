@@ -1,5 +1,4 @@
 import { useEffect, useState } from "react";
-import { createPageUrl } from "@/lib/utils/page";
 import { useAuthUserQuery, useEntityListQuery } from "@/lib/query";
 import { api } from "@/lib/api";
 import StaffinglyLayout from "@/components/staffingly/StaffinglyLayout";
@@ -135,9 +134,48 @@ function ReviewPanel({ item, onClose, onAction, user }) {
   );
 }
 
+const MOCK_QUEUE = [
+  {
+    id: "elig-history-03889",
+    subscriberName: "Robert T. Sanchez",
+    payer: "Medicaid",
+    confidenceScore: 58,
+    flagsJson: '["Eligibility could not be fully confirmed"]',
+    createdAt: "2026-03-01T08:30:00Z",
+    verifiedBy: "Sam Torres",
+    requiresHumanReview: true,
+  },
+  {
+    id: "elig-history-03886",
+    subscriberName: "Emily R. Carson",
+    payer: "Cigna",
+    confidenceScore: 82,
+    flagsJson: '["Coverage terminated before requested service date"]',
+    createdAt: "2026-02-28T16:20:00Z",
+    verifiedBy: "Drew Okafor",
+    requiresHumanReview: true,
+  },
+  {
+    id: "elig-history-03885",
+    subscriberName: "Kevin B. Walsh",
+    payer: "Molina",
+    confidenceScore: 42,
+    flagsJson: '["Payer timeout — portal login failed"]',
+    createdAt: "2026-02-28T15:10:00Z",
+    verifiedBy: "Dana Kim",
+    requiresHumanReview: true,
+  },
+];
+
 export default function ReviewQueue() {
   const { data: user } = useAuthUserQuery();
-  const { data: history = [], isLoading } = useEntityListQuery("EligibilityHistory", { limit: 100 }, null);
+  const { data: historyRaw = [], isLoading } = useEntityListQuery(
+    "EligibilityHistory",
+    { limit: 100 },
+    null
+  );
+  const history = historyRaw.length > 0 ? historyRaw : MOCK_QUEUE;
+
   const [queue, setQueue] = useState([]);
   const [selected, setSelected] = useState(null);
   const [search, setSearch] = useState("");

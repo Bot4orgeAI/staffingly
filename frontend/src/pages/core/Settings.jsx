@@ -1,7 +1,7 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { createPageUrl } from "@/lib/utils/page";
 import { useAuthUserQuery, useEntityListQuery } from "@/lib/query";
-import AppHeader from "@/components/insuverif/AppHeader";
+import StaffinglyLayout from "@/components/staffingly/StaffinglyLayout";
 import { Search, Edit2, Trash2, X, Wifi, WifiOff } from "lucide-react";
 import AvailityApiSection from "@/components/insuverif/AvailityApiSection";
 import AppSelect from "@/components/ui/app-select";
@@ -60,11 +60,7 @@ function ConnectModal({ emr, onClose }) {
             <label className="text-xs font-semibold text-slate-500 uppercase tracking-wider block mb-1">
               FHIR Version
             </label>
-            <AppSelect
-              value="R4"
-              onValueChange={() => {}}
-              options={["R4", "DSTU2", "STU3"]}
-            />
+            <AppSelect value="R4" onValueChange={() => {}} options={["R4", "DSTU2", "STU3"]} />
           </div>
         </div>
         <div className="flex gap-3 mt-5">
@@ -88,14 +84,14 @@ function ConnectModal({ emr, onClose }) {
 }
 
 export default function Settings() {
-  const { data: user } = useAuthUserQuery({
-    select: (u) => {
-      if (!["super_admin", "staffingly_admin", "admin"].includes((u.role || "").toLowerCase())) {
-        window.location.href = createPageUrl("dashboard");
-      }
-      return u;
-    },
-  });
+  const { data: user } = useAuthUserQuery();
+
+  useEffect(() => {
+    if (user && !["super_admin", "staffingly_admin", "admin"].includes((user.role || "").toLowerCase())) {
+      window.location.href = createPageUrl("dashboard");
+    }
+  }, [user]);
+
   const { data: payerRules = [] } = useEntityListQuery("PayerRule", { limit: 100 }, null);
   const { data: users = [] } = useEntityListQuery("User", { limit: 100 }, null);
   const [activeSection, setActiveSection] = useState("emr");
