@@ -61,7 +61,10 @@ function buildPriorAuthActivity(record) {
     INTAKE: { action: "Prior Auth In Review", status: "In Progress" },
   };
 
-  const derived = statusMap[record.status] || { action: "Prior Auth Updated", status: "In Progress" };
+  const derived = statusMap[record.status] || {
+    action: "Prior Auth Updated",
+    status: "In Progress",
+  };
 
   return {
     id: record.caseNumber || record.id,
@@ -102,14 +105,14 @@ export default function RecentActivity({ loading = false }) {
     clients.map((client) => [client.id, client.practiceName || client.name || client.id])
   );
 
-  const activities = [
+  const realActivities = [
     ...history.map((record) =>
       buildEligibilityActivity(record, clientNames[record.clientId] || record.clientId || "—")
     ),
     ...priorAuthCases.map((record) => buildPriorAuthActivity(record)),
-  ]
-    .sort((a, b) => new Date(b.sortDate).getTime() - new Date(a.sortDate).getTime())
-    .slice(0, 10);
+  ].sort((a, b) => new Date(b.sortDate).getTime() - new Date(a.sortDate).getTime());
+
+  const activities = realActivities.slice(0, 10);
 
   const isLoading = loading || loadingHistory || loadingCases;
 

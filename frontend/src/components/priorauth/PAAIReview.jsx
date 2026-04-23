@@ -15,9 +15,14 @@ function normalizeAiReviewResponse(response) {
 
 export default function PAAIReview({ paCase, onUpdate }) {
   const [running, setRunning] = useState(false);
-  const [result, setResult] = useState(
-    paCase.ai_review_result_json ? JSON.parse(paCase.ai_review_result_json) : null
-  );
+  const [result, setResult] = useState(() => {
+    if (!paCase.ai_review_result_json) return null;
+    try {
+      return JSON.parse(paCase.ai_review_result_json);
+    } catch {
+      return null;
+    }
+  });
   const [summary, setSummary] = useState(paCase.medical_necessity_summary || "");
   const [submitting, setSubmitting] = useState(false);
   const [saved, setSaved] = useState(false);

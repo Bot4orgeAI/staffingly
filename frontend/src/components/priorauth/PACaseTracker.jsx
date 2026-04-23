@@ -4,7 +4,7 @@ import { Link } from "react-router-dom";
 import { createPageUrl } from "@/lib/utils/page";
 import { api } from "@/lib/api";
 import { queryKeys } from "@/lib/query";
-import { Search, Filter, Plus, AlertTriangle, ChevronRight } from "lucide-react";
+import { Search, Filter, AlertTriangle, ChevronRight } from "lucide-react";
 import AppSelect from "@/components/ui/app-select";
 
 const STATUS_STYLES = {
@@ -26,6 +26,136 @@ const URGENCY_STYLES = {
   Routine: { bg: "#f0fdf4", text: "#166534" },
 };
 
+const STATUS_LABELS = {
+  INTAKE: "New",
+  PENDING_DOCUMENTS: "Awaiting Documents",
+  READY_FOR_SUBMISSION: "Pending Supervisor Approval",
+  SUBMITTED: "Submitted",
+  APPROVED: "Approved",
+  DENIED: "Denied",
+  APPEAL_IN_PROGRESS: "Appeal In Progress",
+  PEER_TO_PEER_REQUESTED: "Peer To Peer Requested",
+  CLOSED: "Closed",
+};
+
+const URGENCY_LABELS = {
+  ROUTINE: "Routine",
+  URGENT: "Urgent",
+  EXPEDITED: "Urgent",
+};
+
+function formatStatus(status) {
+  if (!status) return "New";
+  return STATUS_LABELS[status] || status;
+}
+
+function formatUrgency(urgency) {
+  if (!urgency) return "Routine";
+  return URGENCY_LABELS[urgency] || urgency;
+}
+
+function normalizeCase(caseRecord) {
+  const createdAt = caseRecord.createdAt || caseRecord.created_date || null;
+  const now = Date.now();
+  const normalizedStatus = formatStatus(caseRecord.status);
+  const normalizedUrgency = formatUrgency(caseRecord.urgency);
+  const patientLabel =
+    caseRecord.patientName ||
+    caseRecord.patient_name ||
+    caseRecord.patientInitials ||
+    caseRecord.patient_initials ||
+    "—";
+  const specialistName =
+    caseRecord.assignedSpecialistName ||
+    caseRecord.assigned_specialist_name ||
+    caseRecord.assignedSpecialist?.name ||
+    caseRecord.assignedSpecialist?.email ||
+    "—";
+
+  return {
+    ...caseRecord,
+    case_id: caseRecord.case_id || caseRecord.caseNumber || caseRecord.id?.slice(-6),
+    patient_initials: patientLabel,
+    payer_name: caseRecord.payer_name || caseRecord.payerName || "—",
+    procedure_name:
+      caseRecord.procedure_name ||
+      caseRecord.procedureName ||
+      caseRecord.serviceType ||
+      caseRecord.service_type ||
+      "—",
+    assigned_specialist_name: specialistName,
+    ai_confidence_score: caseRecord.ai_confidence_score ?? caseRecord.aiConfidenceScore ?? null,
+    status: normalizedStatus,
+    urgency: normalizedUrgency,
+    days_pending: createdAt
+      ? Math.max(0, Math.floor((now - new Date(createdAt).getTime()) / 86400000))
+      : caseRecord.days_pending || 0,
+  };
+}
+
+const MOCK_CASES = [
+  {
+    id: "pa-case-00412",
+    case_id: "PA-00412",
+    patient_initials: "SJM",
+    payer_name: "UnitedHealthcare",
+    procedure_name: "Specialist Visit",
+    status: "Submitted",
+    urgency: "Routine",
+    days_pending: 3,
+    ai_confidence_score: 88,
+    created_date: "2026-03-01T08:45:00Z",
+  },
+  {
+    id: "pa-case-00411",
+    case_id: "PA-00411",
+    patient_initials: "RTS",
+    payer_name: "Medicaid",
+    procedure_name: "Behavioral Health",
+    status: "Approved",
+    urgency: "Routine",
+    days_pending: 0,
+    ai_confidence_score: 92,
+    created_date: "2026-03-01T06:50:00Z",
+  },
+  {
+    id: "pa-case-00409",
+    case_id: "PA-00409",
+    patient_initials: "MAT",
+    payer_name: "Medicare",
+    procedure_name: "MRI Lumbar Spine",
+    status: "Denied",
+    urgency: "Urgent",
+    days_pending: 5,
+    ai_confidence_score: 45,
+    created_date: "2026-02-28T15:20:00Z",
+  },
+  {
+    id: "pa-case-00408",
+    case_id: "PA-00408",
+    patient_initials: "LKP",
+    payer_name: "BCBS",
+    procedure_name: "Physical Therapy",
+    status: "Awaiting Documents",
+    urgency: "Routine",
+    days_pending: 2,
+    ai_confidence_score: null,
+    created_date: "2026-02-28T13:05:00Z",
+  },
+  {
+    id: "pa-case-demo-002",
+    case_id: "PA-01002",
+    patient_initials: "JH",
+    payer_name: "Aetna",
+    procedure_name: "Orthopedic Consult",
+    status: "Awaiting AI Review",
+    urgency: "Urgent",
+    days_pending: 1,
+    ai_confidence_score: 76,
+    created_date: "2026-03-05T13:25:00Z",
+  },
+];
+
 export default function PACaseTracker({ user: _user, onStartNew }) {
   const [search, setSearch] = useState("");
   const [filterStatus, setFilterStatus] = useState("All");
@@ -33,33 +163,33 @@ export default function PACaseTracker({ user: _user, onStartNew }) {
   const [sortByDays, _setSortByDays] = useState(true);
 
   const { data: cases = [], isLoading: loading } = useQuery({
-    queryKey: queryKeys.entity.list("PriorAuthCase", { sortBy: "-created_date", limit: 100 }),
+    queryKey: queryKeys.entity.list("PriorAuthCase", { sortBy: "-createdAt", limit: 100 }),
     queryFn: async () => {
-      const data = await api.entities.PriorAuthCase.list("-created_date", 100);
-      const now = Date.now();
-      return data.map((c) => ({
-        ...c,
-        days_pending: c.created_date
-          ? Math.floor((now - new Date(c.created_date).getTime()) / 86400000)
-          : 0,
-      }));
+      const data = await api.entities.PriorAuthCase.list("-createdAt", 100);
+
+      // If no real data exists, use MOCK_CASES for demo purposes
+      const finalData = data.length > 0 ? data : MOCK_CASES;
+
+      return finalData.map(normalizeCase);
     },
   });
 
   const filtered = useMemo(
     () =>
       cases
-    .filter((c) => {
-      const q = search.toLowerCase();
-      const matchSearch =
-        !search ||
-        c.case_id?.toLowerCase().includes(q) ||
-        c.patient_initials?.toLowerCase().includes(q);
-      const matchStatus = filterStatus === "All" || c.status === filterStatus;
-      const matchUrgency = filterUrgency === "All" || c.urgency === filterUrgency;
-      return matchSearch && matchStatus && matchUrgency;
-    })
-    .sort((a, b) => (sortByDays ? b.days_pending - a.days_pending : 0)),
+        .filter((c) => {
+          const q = search.toLowerCase();
+          const matchSearch =
+            !search ||
+            c.case_id?.toLowerCase().includes(q) ||
+            c.patient_initials?.toLowerCase().includes(q) ||
+            c.patientName?.toLowerCase().includes(q) ||
+            c.payer_name?.toLowerCase().includes(q);
+          const matchStatus = filterStatus === "All" || c.status === filterStatus;
+          const matchUrgency = filterUrgency === "All" || c.urgency === filterUrgency;
+          return matchSearch && matchStatus && matchUrgency;
+        })
+        .sort((a, b) => (sortByDays ? b.days_pending - a.days_pending : 0)),
     [cases, filterStatus, filterUrgency, search, sortByDays]
   );
 
@@ -81,7 +211,7 @@ export default function PACaseTracker({ user: _user, onStartNew }) {
   return (
     <div className="space-y-4">
       {/* Controls */}
-      <div className="bg-white rounded-2xl border border-slate-200 px-5 py-4 flex flex-col sm:flex-row gap-3 items-start sm:items-center justify-between shadow-sm">
+      <div className="bg-white rounded-2xl border border-slate-200 px-5 py-4 flex flex-col gap-3 shadow-sm">
         <div className="flex flex-1 flex-wrap gap-3">
           <div className="relative">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400" />
@@ -105,13 +235,6 @@ export default function PACaseTracker({ user: _user, onStartNew }) {
             triggerClassName="h-9 w-[140px] rounded-xl px-3 py-2 text-xs"
           />
         </div>
-        <button
-          onClick={onStartNew}
-          className="flex items-center gap-2 px-5 py-2 rounded-xl text-white text-xs font-bold transition-opacity hover:opacity-90"
-          style={{ backgroundColor: "#293682" }}
-        >
-          <Plus className="w-4 h-4" /> Start New Case
-        </button>
       </div>
 
       {/* Table */}
@@ -172,7 +295,7 @@ export default function PACaseTracker({ user: _user, onStartNew }) {
                       className={`border-b border-slate-50 hover:bg-slate-50 transition-colors ${getRowBorder(c.days_pending)}`}
                     >
                       <td className="px-4 py-3 font-mono font-bold text-slate-700 text-xs">
-                        {c.case_id || c.id?.slice(-6)}
+                        <span className="whitespace-nowrap">{c.case_id || c.id?.slice(-6)}</span>
                       </td>
                       <td className="px-4 py-3 font-semibold text-slate-800">
                         {c.patient_initials}
@@ -186,7 +309,7 @@ export default function PACaseTracker({ user: _user, onStartNew }) {
                       </td>
                       <td className="px-4 py-3">
                         <span
-                          className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-semibold"
+                          className="inline-flex whitespace-nowrap items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-semibold"
                           style={{ backgroundColor: st.bg, color: st.text }}
                         >
                           <span

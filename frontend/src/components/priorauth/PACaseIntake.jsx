@@ -5,24 +5,51 @@ import AppSelect from "@/components/ui/app-select";
 
 const URGENCY_OPTIONS = ["Routine", "Urgent"];
 
+function readCaseValue(paCase, snakeKey, camelKey, fallback = "") {
+  return paCase?.[snakeKey] ?? paCase?.[camelKey] ?? fallback;
+}
+
 export default function PACaseIntake({ paCase, onUpdate }) {
   const [form, setForm] = useState({
-    procedure_name: paCase.procedure_name || "",
-    cpt_code: paCase.cpt_code || "",
-    ndc_code: paCase.ndc_code || "",
-    diagnosis_codes: paCase.diagnosis_codes || [],
-    urgency: paCase.urgency || "Routine",
-    ordering_physician_name: paCase.ordering_physician_name || "",
-    ordering_physician_npi: paCase.ordering_physician_npi || "",
-    facility_name: paCase.facility_name || "",
-    facility_npi: paCase.facility_npi || "",
-    intake_notes: paCase.intake_notes || "",
-    is_medication_pa: paCase.is_medication_pa || false,
-    medication_name: paCase.medication_name || "",
-    days_supply: paCase.days_supply || "",
-    quantity_requested: paCase.quantity_requested || "",
-    pharmacy_npi: paCase.pharmacy_npi || "",
-    step_therapy_confirmed: paCase.step_therapy_confirmed || false,
+    procedure_name: readCaseValue(
+      paCase,
+      "procedure_name",
+      "procedureName",
+      readCaseValue(paCase, "service_type", "serviceType", "")
+    ),
+    cpt_code: readCaseValue(paCase, "cpt_code", "cptCode", ""),
+    ndc_code: readCaseValue(paCase, "ndc_code", "ndcCode", ""),
+    diagnosis_codes: readCaseValue(paCase, "diagnosis_codes", "diagnosisCodes", []),
+    urgency:
+      paCase.urgency === "URGENT"
+        ? "Urgent"
+        : readCaseValue(paCase, "urgency", "urgency", "Routine"),
+    ordering_physician_name: readCaseValue(
+      paCase,
+      "ordering_physician_name",
+      "orderingPhysicianName",
+      readCaseValue(paCase, "requesting_provider", "requestingProvider", "")
+    ),
+    ordering_physician_npi: readCaseValue(
+      paCase,
+      "ordering_physician_npi",
+      "orderingPhysicianNpi",
+      readCaseValue(paCase, "requesting_provider_npi", "requestingProviderNpi", "")
+    ),
+    facility_name: readCaseValue(paCase, "facility_name", "facilityName", ""),
+    facility_npi: readCaseValue(paCase, "facility_npi", "facilityNpi", ""),
+    intake_notes: readCaseValue(paCase, "intake_notes", "intakeNotes", ""),
+    is_medication_pa: readCaseValue(paCase, "is_medication_pa", "isMedicationPa", false),
+    medication_name: readCaseValue(paCase, "medication_name", "medicationName", ""),
+    days_supply: readCaseValue(paCase, "days_supply", "daysSupply", ""),
+    quantity_requested: readCaseValue(paCase, "quantity_requested", "quantityRequested", ""),
+    pharmacy_npi: readCaseValue(paCase, "pharmacy_npi", "pharmacyNpi", ""),
+    step_therapy_confirmed: readCaseValue(
+      paCase,
+      "step_therapy_confirmed",
+      "stepTherapyConfirmed",
+      false
+    ),
   });
   const [diagInput, setDiagInput] = useState("");
   const [saving, setSaving] = useState(false);
@@ -67,7 +94,7 @@ export default function PACaseIntake({ paCase, onUpdate }) {
   );
 
   const inputCls =
-    "w-full px-3 py-2.5 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#293682]/30";
+    "h-11 w-full rounded-2xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm text-slate-700 focus:border-slate-300 focus:outline-none";
 
   return (
     <div className="space-y-4">
@@ -81,12 +108,20 @@ export default function PACaseIntake({ paCase, onUpdate }) {
         </p>
         <div className="grid grid-cols-2 sm:grid-cols-3 gap-4 text-sm">
           {[
-            ["Patient Initials", paCase.patient_initials],
-            ["Date of Birth", paCase.patient_dob],
-            ["Insurance ID", paCase.insurance_id],
-            ["Payer", paCase.payer_name],
-            ["Plan Type", paCase.plan_type],
-            ["Group Number", paCase.group_number],
+            [
+              "Patient",
+              readCaseValue(
+                paCase,
+                "patient_name",
+                "patientName",
+                readCaseValue(paCase, "patient_initials", "patientInitials", "")
+              ),
+            ],
+            ["Date of Birth", readCaseValue(paCase, "patient_dob", "patientDob", "")],
+            ["Insurance ID", readCaseValue(paCase, "insurance_id", "insuranceId", "")],
+            ["Payer", readCaseValue(paCase, "payer_name", "payerName", "")],
+            ["Plan Type", readCaseValue(paCase, "plan_type", "planType", "")],
+            ["Group Number", readCaseValue(paCase, "group_number", "groupNumber", "")],
           ].map(([label, val]) => (
             <div key={label}>
               <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider mb-0.5">
@@ -125,11 +160,14 @@ export default function PACaseIntake({ paCase, onUpdate }) {
               className={inputCls}
             />
           </Field>
+          <Field label="Urgency">
             <AppSelect
               value={form.urgency}
               onValueChange={(v) => setForm((f) => ({ ...f, urgency: v }))}
               options={URGENCY_OPTIONS}
+              triggerClassName="h-11 rounded-2xl border-slate-200 bg-slate-50 px-3 py-2.5 text-sm focus:ring-0 focus:border-slate-300"
             />
+          </Field>
 
           {/* Diagnosis Codes */}
           <div className="sm:col-span-2">
@@ -140,9 +178,14 @@ export default function PACaseIntake({ paCase, onUpdate }) {
               <input
                 value={diagInput}
                 onChange={(e) => setDiagInput(e.target.value)}
-                onKeyDown={(e) => e.key === "Enter" && addDiag()}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") {
+                    e.preventDefault();
+                    addDiag();
+                  }
+                }}
                 placeholder="e.g. M54.5 — press Enter"
-                className="flex-1 px-3 py-2.5 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#293682]/30"
+                className="h-11 flex-1 rounded-2xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm text-slate-700 focus:border-slate-300 focus:outline-none"
               />
               <button
                 onClick={addDiag}
@@ -286,7 +329,7 @@ export default function PACaseIntake({ paCase, onUpdate }) {
       <button
         onClick={handleSave}
         disabled={saving}
-        className="flex items-center gap-2 px-6 py-3 rounded-xl text-white font-bold text-sm transition-opacity hover:opacity-90 disabled:opacity-50"
+        className="flex items-center gap-2 rounded-2xl px-6 py-3 text-sm font-bold text-white transition-opacity hover:opacity-90 disabled:opacity-50"
         style={{ backgroundColor: saved ? "#16a34a" : "#293682" }}
       >
         {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}

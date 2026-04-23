@@ -28,12 +28,7 @@ function ConfidenceBadge({ score }) {
   );
 }
 
-export default function InsuranceCardCapture({
-  clientId,
-  patientId,
-  onExtracted,
-  onClose,
-}) {
+export default function InsuranceCardCapture({ clientId, patientId, onExtracted, onClose }) {
   const [cardSide, setCardSide] = useState("FRONT");
   const [file, setFile] = useState(null);
   const [preview, setPreview] = useState(null);
@@ -147,9 +142,7 @@ export default function InsuranceCardCapture({
         {/* Header */}
         <div className="flex items-center justify-between p-5 border-b border-slate-100">
           <div>
-            <h3 className="font-bold text-slate-800 text-sm">
-              Upload Insurance Card
-            </h3>
+            <h3 className="font-bold text-slate-800 text-sm">Upload Insurance Card</h3>
             <p className="text-xs text-slate-400 mt-0.5">
               Take a photo or upload an image for automatic data extraction
             </p>
@@ -205,9 +198,7 @@ export default function InsuranceCardCapture({
                   <p className="text-sm font-semibold text-slate-700">
                     Drop image here or click to upload
                   </p>
-                  <p className="text-xs text-slate-400 mt-1">
-                    JPEG, PNG, HEIC - Max 10MB
-                  </p>
+                  <p className="text-xs text-slate-400 mt-1">JPEG, PNG, HEIC - Max 10MB</p>
                 </div>
               </div>
 
@@ -225,9 +216,7 @@ export default function InsuranceCardCapture({
                   onChange={(e) => handleFile(e.target.files?.[0])}
                 />
                 <Camera className="w-5 h-5 text-slate-500" />
-                <span className="text-sm font-semibold text-slate-600">
-                  Take Photo with Camera
-                </span>
+                <span className="text-sm font-semibold text-slate-600">Take Photo with Camera</span>
               </button>
             </div>
           )}
@@ -264,9 +253,7 @@ export default function InsuranceCardCapture({
                   className="flex-1 flex items-center justify-center gap-2 py-3 rounded-xl border border-slate-200 hover:bg-slate-50"
                 >
                   <RotateCcw className="w-4 h-4" />
-                  <span className="text-sm font-semibold text-slate-600">
-                    Change Image
-                  </span>
+                  <span className="text-sm font-semibold text-slate-600">Change Image</span>
                 </button>
                 <button
                   onClick={handleExtract}

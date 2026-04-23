@@ -59,7 +59,12 @@ export default function ClientDrawer({ client, onClose, onSubmit, saveError, sav
   };
 
   return (
-    <motion.div className="fixed inset-0 z-50" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
+    <motion.div
+      className="fixed inset-0 z-50"
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+    >
       <motion.button
         type="button"
         aria-label="Close client drawer"
@@ -76,10 +81,15 @@ export default function ClientDrawer({ client, onClose, onSubmit, saveError, sav
         <div className="sticky top-0 z-10 border-b border-slate-100 bg-gradient-to-br from-[#f7fbfb] via-white to-[#eef7f8] px-6 py-6">
           <div className="flex items-start justify-between gap-4">
             <div>
-              <p className="text-[11px] font-semibold uppercase tracking-[0.24em] text-[#0a7e87]">Client Registry</p>
-              <h3 className="mt-2 text-2xl font-bold text-slate-800">{client ? "Edit Client" : "Onboard New Client"}</h3>
+              <p className="text-[11px] font-semibold uppercase tracking-[0.24em] text-[#0a7e87]">
+                Client Registry
+              </p>
+              <h3 className="mt-2 text-2xl font-bold text-slate-800">
+                {client ? "Edit Client" : "Onboard New Client"}
+              </h3>
               <p className="mt-2 max-w-md text-sm text-slate-500">
-                Capture the client&apos;s contact, practice, and platform setup details in one place.
+                Capture the client&apos;s contact, practice, and platform setup details in one
+                place.
               </p>
             </div>
             <button
@@ -101,15 +111,27 @@ export default function ClientDrawer({ client, onClose, onSubmit, saveError, sav
           <section className="rounded-[24px] border border-slate-200 bg-white p-5 shadow-sm">
             <div className="mb-4">
               <h4 className="text-sm font-bold text-slate-800">Practice Details</h4>
-              <p className="mt-1 text-xs text-slate-500">Core information used to identify the client account.</p>
+              <p className="mt-1 text-xs text-slate-500">
+                Core information used to identify the client account.
+              </p>
             </div>
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-              <TextField label="Practice Name *" value={form.practiceName} onChange={updateField("practiceName")} />
-              <TextField label="Subdomain" value={form.subdomain} onChange={updateField("subdomain")} />
+              <TextField
+                label="Practice Name *"
+                value={form.practiceName}
+                onChange={updateField("practiceName")}
+              />
+              <TextField
+                label="Subdomain"
+                value={form.subdomain}
+                onChange={updateField("subdomain")}
+              />
               <TextField label="NPI" value={form.npi} onChange={updateField("npi")} />
               <TextField label="Tax ID" value={form.taxId} onChange={updateField("taxId")} />
               <div className="sm:col-span-2">
-                <label className="mb-1.5 block text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">Address</label>
+                <label className="mb-1.5 block text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">
+                  Address
+                </label>
                 <textarea
                   value={form.address}
                   onChange={updateField("address")}
@@ -123,32 +145,55 @@ export default function ClientDrawer({ client, onClose, onSubmit, saveError, sav
           <section className="rounded-[24px] border border-slate-200 bg-white p-5 shadow-sm">
             <div className="mb-4">
               <h4 className="text-sm font-bold text-slate-800">Primary Contact</h4>
-              <p className="mt-1 text-xs text-slate-500">Main contact for onboarding and account communication.</p>
+              <p className="mt-1 text-xs text-slate-500">
+                Main contact for onboarding and account communication.
+              </p>
             </div>
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-              <TextField label="Contact Name" value={form.contactName} onChange={updateField("contactName")} />
-              <TextField label="Contact Email" value={form.contactEmail} onChange={updateField("contactEmail")} type="email" />
-              <TextField label="Contact Phone" value={form.contactPhone} onChange={updateField("contactPhone")} />
+              <TextField
+                label="Contact Name"
+                value={form.contactName}
+                onChange={updateField("contactName")}
+              />
+              <TextField
+                label="Contact Email"
+                value={form.contactEmail}
+                onChange={updateField("contactEmail")}
+                type="email"
+              />
+              <TextField
+                label="Contact Phone"
+                value={form.contactPhone}
+                onChange={updateField("contactPhone")}
+              />
             </div>
           </section>
 
           <section className="rounded-[24px] border border-slate-200 bg-white p-5 shadow-sm">
             <div className="mb-4">
               <h4 className="text-sm font-bold text-slate-800">Platform Setup</h4>
-              <p className="mt-1 text-xs text-slate-500">Configure integrations and storage defaults for this client.</p>
+              <p className="mt-1 text-xs text-slate-500">
+                Configure integrations and storage defaults for this client.
+              </p>
             </div>
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <div>
-                <label className="mb-1.5 block text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">EMR System</label>
+                <label className="mb-1.5 block text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">
+                  EMR System
+                </label>
                 <AppSelect
                   value={form.emrSystem}
-                  onValueChange={(value) => setForm((current) => ({ ...current, emrSystem: value }))}
+                  onValueChange={(value) =>
+                    setForm((current) => ({ ...current, emrSystem: value }))
+                  }
                   options={EMR_SYSTEM_OPTIONS}
                   triggerClassName="h-11 rounded-2xl border-slate-200 bg-slate-50 px-3 py-2.5 text-sm focus:ring-0 focus:border-slate-300"
                 />
               </div>
               <div>
-                <label className="mb-1.5 block text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">Cloud Storage</label>
+                <label className="mb-1.5 block text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">
+                  Cloud Storage
+                </label>
                 <AppSelect
                   value={form.cloudStorageType}
                   onValueChange={(value) =>
@@ -163,7 +208,9 @@ export default function ClientDrawer({ client, onClose, onSubmit, saveError, sav
             <div className="mt-5 flex items-center justify-between gap-4 rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3">
               <div>
                 <p className="text-sm font-semibold text-slate-700">Client Active</p>
-                <p className="text-xs text-slate-500">Active clients are available in the registry and operational workflows.</p>
+                <p className="text-xs text-slate-500">
+                  Active clients are available in the registry and operational workflows.
+                </p>
               </div>
               <button
                 type="button"
@@ -181,7 +228,8 @@ export default function ClientDrawer({ client, onClose, onSubmit, saveError, sav
             <div className="mb-4">
               <h4 className="text-sm font-bold text-slate-800">Workflow Preferences</h4>
               <p className="mt-1 text-xs text-slate-500">
-                Capture the client&apos;s verification triggers, escalation rules, and reporting expectations.
+                Capture the client&apos;s verification triggers, escalation rules, and reporting
+                expectations.
               </p>
             </div>
             <div className="space-y-4">

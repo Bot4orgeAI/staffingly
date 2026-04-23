@@ -78,7 +78,10 @@ Case data:
         procedureName: paCase.procedure_name,
         icd10: paCase.diagnosis_codes?.[0] || "",
         extractedDocumentText:
-          cmData?.clinical_rationale || paCase.medical_necessity_summary || paCase.intake_notes || "",
+          cmData?.clinical_rationale ||
+          paCase.medical_necessity_summary ||
+          paCase.intake_notes ||
+          "",
       });
       await onUpdate({
         submission_method: method,

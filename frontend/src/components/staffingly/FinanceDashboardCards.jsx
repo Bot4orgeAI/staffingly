@@ -19,10 +19,15 @@ export default function FinanceDashboardCards() {
     return invoice.status === "PAID" && paidAt && paidAt >= startOfMonth;
   });
 
-  const pendingTotal = pendingInvoices.reduce((sum, invoice) => sum + (invoice.totalAmount || 0), 0);
+  const pendingTotal = pendingInvoices.reduce(
+    (sum, invoice) => sum + (invoice.totalAmount || 0),
+    0
+  );
   const paidTotal = paidThisMonth.reduce((sum, invoice) => sum + (invoice.totalAmount || 0), 0);
   const nextBillingRun = pendingInvoices[0]?.billingPeriodEnd
-    ? new Date(new Date(pendingInvoices[0].billingPeriodEnd).getTime() + 86400000).toLocaleDateString()
+    ? new Date(
+        new Date(pendingInvoices[0].billingPeriodEnd).getTime() + 86400000
+      ).toLocaleDateString()
     : "TBD";
   const clientsToBill = new Set(pendingInvoices.map((invoice) => invoice.clientId)).size;
 
@@ -41,7 +46,8 @@ export default function FinanceDashboardCards() {
             <p className="text-amber-200 text-sm">This Week Pending Invoices</p>
             <p className="text-4xl font-bold mt-1">${pendingTotal.toLocaleString()}</p>
             <p className="text-amber-200 text-xs mt-1">
-              {pendingInvoices.length} invoice{pendingInvoices.length === 1 ? "" : "s"} awaiting approval
+              {pendingInvoices.length} invoice{pendingInvoices.length === 1 ? "" : "s"} awaiting
+              approval
             </p>
           </div>
         </div>

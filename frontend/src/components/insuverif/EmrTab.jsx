@@ -117,9 +117,9 @@ export default function EmrTab({ onSubmit }) {
           plan_type: subscriber.planType,
         }))
         .filter(
-        (p) =>
-          p.name.toLowerCase().includes(searchQuery.toLowerCase()) || p.mrn.includes(searchQuery)
-      )
+          (p) =>
+            p.name.toLowerCase().includes(searchQuery.toLowerCase()) || p.mrn.includes(searchQuery)
+        )
     : [];
 
   return (

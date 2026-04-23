@@ -75,7 +75,10 @@ export default function ManualEntryTab({ onSubmit, prefill = {} }) {
   const [showSecondary, setShowSecondary] = useState(false);
   const payerOptions = [
     ...new Set(
-      payerRules.map((rule) => rule.payerName).filter(Boolean).concat("Other")
+      payerRules
+        .map((rule) => rule.payerName)
+        .filter(Boolean)
+        .concat("Other")
     ),
   ].map((payer) => ({ label: payer, value: payer }));
 

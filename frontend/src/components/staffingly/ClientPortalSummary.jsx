@@ -24,7 +24,13 @@ export default function ClientPortalSummary({ user }) {
   )[0];
 
   const stats = [
-    { label: "Cases This Month", value: monthCases.length, icon: Briefcase, color: "#293682", bg: "#eef3ff" },
+    {
+      label: "Cases This Month",
+      value: monthCases.length,
+      icon: Briefcase,
+      color: "#293682",
+      bg: "#eef3ff",
+    },
     { label: "Approvals", value: approvals, icon: CheckCircle, color: "#15803d", bg: "#f0fdf4" },
     { label: "Denials", value: denials, icon: XCircle, color: "#dc2626", bg: "#fef2f2" },
   ];

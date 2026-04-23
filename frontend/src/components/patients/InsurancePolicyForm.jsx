@@ -70,13 +70,7 @@ function SelectField({ label, value, onValueChange, options, placeholder = "Sele
   );
 }
 
-export default function InsurancePolicyForm({
-  policy,
-  patientId,
-  clientId,
-  onClose,
-  onSave,
-}) {
+export default function InsurancePolicyForm({ policy, patientId, clientId, onClose, onSave }) {
   const { data: payerRules = [] } = useEntityListQuery("PayerRule", { limit: 100 }, null);
   const [form, setForm] = useState({
     policyType: policy?.policyType || "PRIMARY",
@@ -102,7 +96,10 @@ export default function InsurancePolicyForm({
   const [showCardCapture, setShowCardCapture] = useState(false);
   const payerOptions = [
     ...new Set(
-      payerRules.map((rule) => rule.payerName).filter(Boolean).concat("Other")
+      payerRules
+        .map((rule) => rule.payerName)
+        .filter(Boolean)
+        .concat("Other")
     ),
   ];
 
@@ -166,7 +163,12 @@ export default function InsurancePolicyForm({
   }
 
   return (
-    <motion.div className="fixed inset-0 z-50" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
+    <motion.div
+      className="fixed inset-0 z-50"
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+    >
       <motion.button
         type="button"
         aria-label="Close insurance drawer"
@@ -190,7 +192,8 @@ export default function InsurancePolicyForm({
                 {policy ? "Edit Insurance Policy" : "Add Insurance Policy"}
               </h3>
               <p className="mt-2 max-w-md text-sm text-slate-500">
-                Capture payer, subscriber, and benefit details for the selected patient in one place.
+                Capture payer, subscriber, and benefit details for the selected patient in one
+                place.
               </p>
             </div>
             <button
@@ -239,16 +242,16 @@ export default function InsurancePolicyForm({
                     <button
                       key={policyType.value}
                       type="button"
-                      onClick={() => setForm((current) => ({ ...current, policyType: policyType.value }))}
+                      onClick={() =>
+                        setForm((current) => ({ ...current, policyType: policyType.value }))
+                      }
                       className={`flex-1 rounded-2xl py-2.5 text-sm font-semibold transition-all ${
                         form.policyType === policyType.value
                           ? "text-white"
                           : "border border-slate-200 bg-slate-50 text-slate-600 hover:bg-slate-100"
                       }`}
                       style={
-                        form.policyType === policyType.value
-                          ? { backgroundColor: "#0a7e87" }
-                          : {}
+                        form.policyType === policyType.value ? { backgroundColor: "#0a7e87" } : {}
                       }
                     >
                       {policyType.label}
@@ -260,7 +263,9 @@ export default function InsurancePolicyForm({
                 <SelectField
                   label="Insurance Payer *"
                   value={form.payerName}
-                  onValueChange={(value) => setForm((current) => ({ ...current, payerName: value }))}
+                  onValueChange={(value) =>
+                    setForm((current) => ({ ...current, payerName: value }))
+                  }
                   options={payerOptions}
                   placeholder="Select payer..."
                 />

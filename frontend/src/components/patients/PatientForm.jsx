@@ -5,11 +5,56 @@ import AppSelect from "@/components/ui/app-select";
 
 const GENDERS = ["Male", "Female", "Non-binary", "Other", "Prefer not to say"];
 const US_STATES = [
-  "AL", "AK", "AZ", "AR", "CA", "CO", "CT", "DE", "FL", "GA",
-  "HI", "ID", "IL", "IN", "IA", "KS", "KY", "LA", "ME", "MD",
-  "MA", "MI", "MN", "MS", "MO", "MT", "NE", "NV", "NH", "NJ",
-  "NM", "NY", "NC", "ND", "OH", "OK", "OR", "PA", "RI", "SC",
-  "SD", "TN", "TX", "UT", "VT", "VA", "WA", "WV", "WI", "WY",
+  "AL",
+  "AK",
+  "AZ",
+  "AR",
+  "CA",
+  "CO",
+  "CT",
+  "DE",
+  "FL",
+  "GA",
+  "HI",
+  "ID",
+  "IL",
+  "IN",
+  "IA",
+  "KS",
+  "KY",
+  "LA",
+  "ME",
+  "MD",
+  "MA",
+  "MI",
+  "MN",
+  "MS",
+  "MO",
+  "MT",
+  "NE",
+  "NV",
+  "NH",
+  "NJ",
+  "NM",
+  "NY",
+  "NC",
+  "ND",
+  "OH",
+  "OK",
+  "OR",
+  "PA",
+  "RI",
+  "SC",
+  "SD",
+  "TN",
+  "TX",
+  "UT",
+  "VT",
+  "VA",
+  "WA",
+  "WV",
+  "WI",
+  "WY",
 ];
 
 function TextField({ label, value, onChange, type = "text", placeholder = "" }) {
@@ -99,7 +144,12 @@ export default function PatientForm({
   };
 
   return (
-    <motion.div className="fixed inset-0 z-50" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
+    <motion.div
+      className="fixed inset-0 z-50"
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+    >
       <motion.button
         type="button"
         aria-label="Close patient drawer"
@@ -123,7 +173,8 @@ export default function PatientForm({
                 {patient ? "Edit Patient" : "Register New Patient"}
               </h3>
               <p className="mt-2 max-w-md text-sm text-slate-500">
-                Capture patient demographics, contact details, and assignment information in one place.
+                Capture patient demographics, contact details, and assignment information in one
+                place.
               </p>
             </div>
             <button
@@ -154,9 +205,7 @@ export default function PatientForm({
                 <SelectField
                   label="Client"
                   value={form.clientId}
-                  onValueChange={(value) =>
-                    setForm((current) => ({ ...current, clientId: value }))
-                  }
+                  onValueChange={(value) => setForm((current) => ({ ...current, clientId: value }))}
                   options={clientOptions.map((client) => ({
                     value: client.id,
                     label: client.practiceName
@@ -219,7 +268,8 @@ export default function PatientForm({
             <div className="mb-4">
               <h4 className="text-sm font-bold text-slate-800">Contact Details</h4>
               <p className="mt-1 text-xs text-slate-500">
-                Capture the patient&apos;s direct contact information for communication and follow-up.
+                Capture the patient&apos;s direct contact information for communication and
+                follow-up.
               </p>
             </div>
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">

@@ -29,6 +29,8 @@ const ROLE_STATUS = {
 export default function WelcomeCard({ user }) {
   const RoleIcon = ROLE_ICONS[user?.role] || FileText;
   const today = format(new Date(), "EEEE, MMMM d, yyyy");
+  const displayName = user?.name || user?.full_name || user?.email || "there";
+  const firstName = displayName.split(" ")[0];
 
   return (
     <div
@@ -40,9 +42,7 @@ export default function WelcomeCard({ user }) {
       </div>
       <div className="flex-1 min-w-0">
         <p className="text-blue-200 text-sm mb-0.5">{today}</p>
-        <h2 className="text-white font-bold text-xl leading-tight">
-          Welcome back, {user?.full_name?.split(" ")[0] || "there"}
-        </h2>
+        <h2 className="text-white font-bold text-xl leading-tight">Welcome back, {firstName}</h2>
         <p className="text-blue-300 text-sm mt-1">{ROLE_STATUS[user?.role]}</p>
       </div>
       <div className="flex items-center gap-3 flex-shrink-0">
