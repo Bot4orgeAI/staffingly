@@ -2,12 +2,13 @@ import { useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { createPageUrl } from "@/lib/utils/page";
 import { useAuthUserQuery } from "@/lib/query";
+import { getWorkflowContext } from "@/lib/utils/workflow";
 import StaffinglyLayout from "@/components/staffingly/StaffinglyLayout";
 import ManualEntryTab from "@/components/insuverif/ManualEntryTab";
 import UploadTab from "@/components/insuverif/UploadTab";
 import EmrTab from "@/components/insuverif/EmrTab.jsx";
 import BulkVerifyTab from "@/components/insuverif/BulkVerifyTab";
-import { ClipboardCheck, FileUp, Layers3, MonitorSmartphone } from "lucide-react";
+import { ArrowRight, ClipboardCheck, FileUp, Layers3, MonitorSmartphone } from "lucide-react";
 
 const WORKFLOWS = [
   {
@@ -74,6 +75,7 @@ export default function NewVerification() {
   const { data: user } = useAuthUserQuery();
   const navigate = useNavigate();
   const params = useMemo(() => new URLSearchParams(window.location.search), []);
+  const workflowContext = useMemo(() => getWorkflowContext(window.location.search), []);
   const [activeWorkflow, setActiveWorkflow] = useState(() => getInitialWorkflow(params));
 
   const prefill = useMemo(() => {
@@ -109,9 +111,15 @@ export default function NewVerification() {
 
   const selectedWorkflow =
     WORKFLOWS.find((workflow) => workflow.id === activeWorkflow) || WORKFLOWS[0];
+  const isPriorAuthFlow = workflowContext.intent === "prior-auth";
 
   const handleRunVerification = (formData) => {
     const verificationParams = new URLSearchParams({
+      source: workflowContext.source || "",
+      intent: workflowContext.intent || "",
+      patientId: workflowContext.patientId || formData.patient_id || "",
+      first_name: formData.first_name || "",
+      last_name: formData.last_name || "",
       patient: formData.patient_name || `${formData.first_name} ${formData.last_name}`.trim(),
       payer: formData.payer || "",
       member_id: formData.member_id || "",
@@ -120,6 +128,13 @@ export default function NewVerification() {
       dob: formData.dob || "",
       service_date: formData.service_date || "",
       payer_id: formData.payer_id || "",
+      plan_name: formData.plan_name || "",
+      plan_type: formData.plan_type || "",
+      group_number: formData.group_number || "",
+      subscriber_name: formData.subscriber_name || "",
+      subscriber_dob: formData.subscriber_dob || "",
+      subscriber_relationship: formData.subscriber_relationship || "",
+      procedure_requested: formData.cpt_code || formData.service_type || "",
     });
 
     navigate(createPageUrl(`Processing?${verificationParams.toString()}`));
@@ -129,16 +144,47 @@ export default function NewVerification() {
     <StaffinglyLayout
       user={user}
       currentPage="new-verification"
-      title="New Eligibility Verification"
-      breadcrumbs={["Eligibility", "New Check"]}
+      title={
+        isPriorAuthFlow ? "Eligibility For Prior Authorization" : "New Eligibility Verification"
+      }
+      breadcrumbs={
+        isPriorAuthFlow ? ["Patients", "Eligibility", "Prior Auth"] : ["Eligibility", "New Check"]
+      }
     >
       <div className="max-w-[1400px] mx-auto space-y-5">
+        {isPriorAuthFlow ? (
+          <div className="rounded-2xl border border-[#f6b037]/30 bg-[#fff9ec] p-5 shadow-sm">
+            <p className="text-xs font-semibold uppercase tracking-[0.2em] text-[#b45309]">
+              Connected Workflow
+            </p>
+            <div className="mt-3 flex flex-wrap items-center gap-2 text-sm font-semibold text-slate-700">
+              <span className="rounded-full bg-white px-3 py-1">Patient record</span>
+              <ArrowRight className="h-4 w-4 text-slate-400" />
+              <span className="rounded-full bg-[#eef1ff] px-3 py-1 text-[#293682]">
+                Eligibility review
+              </span>
+              <ArrowRight className="h-4 w-4 text-slate-400" />
+              <span className="rounded-full bg-white px-3 py-1">Prior auth case</span>
+            </div>
+            <p className="mt-3 text-sm text-slate-600">
+              The PRD flow starts prior authorization with an eligibility check. We already pulled
+              the patient and payer details forward so the next handoff stays clean.
+            </p>
+          </div>
+        ) : null}
+
         <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
           <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
             <div>
-              <h1 className="text-2xl font-bold text-slate-900">Run eligibility verification</h1>
+              <h1 className="text-2xl font-bold text-slate-900">
+                {isPriorAuthFlow
+                  ? "Verify coverage before starting prior auth"
+                  : "Run eligibility verification"}
+              </h1>
               <p className="mt-2 text-sm text-slate-500">
-                Choose a verification method and continue.
+                {isPriorAuthFlow
+                  ? "Confirm active coverage and prior auth requirements before opening the case."
+                  : "Choose a verification method and continue."}
               </p>
             </div>
 

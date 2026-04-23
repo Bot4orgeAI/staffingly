@@ -40,6 +40,11 @@ export default function Processing() {
   const navigate = useNavigate();
 
   const params = new URLSearchParams(window.location.search);
+  const source = params.get("source") || "";
+  const intent = params.get("intent") || "";
+  const patientId = params.get("patientId") || "";
+  const firstName = params.get("first_name") || "";
+  const lastName = params.get("last_name") || "";
   const patient = params.get("patient") || "";
   const payer = params.get("payer") || "";
   const memberId = params.get("member_id") || "";
@@ -48,6 +53,13 @@ export default function Processing() {
   const serviceType = params.get("service_type") || "";
   const dob = params.get("dob") || "";
   const serviceDate = params.get("service_date") || new Date().toISOString().split("T")[0];
+  const planName = params.get("plan_name") || "";
+  const planType = params.get("plan_type") || "";
+  const groupNumber = params.get("group_number") || "";
+  const subscriberName = params.get("subscriber_name") || "";
+  const subscriberDob = params.get("subscriber_dob") || "";
+  const subscriberRelationship = params.get("subscriber_relationship") || "";
+  const procedureRequested = params.get("procedure_requested") || "";
 
   const verifyMutation = useMutation({
     mutationFn: (payload) => api.functions.invoke("availityEligibility", payload),
@@ -93,10 +105,24 @@ export default function Processing() {
               // Pass result as JSON in URL (base64 encoded to avoid URL issues)
               const encoded = btoa(JSON.stringify(result));
               const resultParams = new URLSearchParams({
+                source,
+                intent,
+                patientId,
+                first_name: firstName,
+                last_name: lastName,
                 patient,
                 payer,
                 member_id: memberId,
                 service_type: serviceType,
+                dob,
+                payer_id: payerId,
+                plan_name: planName,
+                plan_type: planType,
+                group_number: groupNumber,
+                subscriber_name: subscriberName,
+                subscriber_dob: subscriberDob,
+                subscriber_relationship: subscriberRelationship,
+                procedure_requested: procedureRequested,
                 result_data: encoded,
               });
               navigate(createPageUrl(`Results?${resultParams.toString()}`));
@@ -114,10 +140,24 @@ export default function Processing() {
             setDone(true);
             setTimeout(() => {
               const resultParams = new URLSearchParams({
+                source,
+                intent,
+                patientId,
+                first_name: firstName,
+                last_name: lastName,
                 patient,
                 payer,
                 member_id: memberId,
                 service_type: serviceType,
+                dob,
+                payer_id: payerId,
+                plan_name: planName,
+                plan_type: planType,
+                group_number: groupNumber,
+                subscriber_name: subscriberName,
+                subscriber_dob: subscriberDob,
+                subscriber_relationship: subscriberRelationship,
+                procedure_requested: procedureRequested,
               });
               navigate(createPageUrl(`Results?${resultParams.toString()}`));
             }, 1200);

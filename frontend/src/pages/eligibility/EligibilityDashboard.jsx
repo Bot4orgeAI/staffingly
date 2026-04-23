@@ -36,7 +36,9 @@ export default function EligibilityDashboard() {
         acc[method] = { count: 0, responseTotal: 0 };
       }
       acc[method].count += 1;
-      acc[method].responseTotal += record.responseTimeSeconds ? record.responseTimeSeconds * 1000 : 0;
+      acc[method].responseTotal += record.responseTimeSeconds
+        ? record.responseTimeSeconds * 1000
+        : 0;
       return acc;
     }, {})
   ).map(([label, stats]) => {
@@ -76,12 +78,15 @@ export default function EligibilityDashboard() {
   const avgResponse =
     history.length > 0
       ? (
-          history.reduce((sum, record) => sum + (record.responseTimeSeconds || 0), 0) / history.length
+          history.reduce((sum, record) => sum + (record.responseTimeSeconds || 0), 0) /
+          history.length
         ).toFixed(1)
       : "0.0";
   const convertedToPriorAuth = history.filter((record) => {
     try {
-      return Boolean(record.rawResponseJson ? JSON.parse(record.rawResponseJson)?.convertedToPa : false);
+      return Boolean(
+        record.rawResponseJson ? JSON.parse(record.rawResponseJson)?.convertedToPa : false
+      );
     } catch {
       return false;
     }
@@ -136,7 +141,9 @@ export default function EligibilityDashboard() {
         <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
           <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
             <div>
-              <h1 className="text-2xl font-bold text-slate-900">Eligibility Enterprise Dashboard</h1>
+              <h1 className="text-2xl font-bold text-slate-900">
+                Eligibility Enterprise Dashboard
+              </h1>
               <p className="mt-2 text-sm text-slate-500">
                 Monitor real-time verification performance, success rates, and connection methods.
               </p>

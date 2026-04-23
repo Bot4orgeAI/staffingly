@@ -7,12 +7,16 @@ import { BrowserRouter, Route, Routes, useLocation } from "react-router-dom";
 import PageNotFound from "./pages/core/PageNotFound";
 import { AuthProvider, useAuth } from "@/lib/contexts/AuthContext";
 import UserNotRegisteredError from "@/components/UserNotRegisteredError";
+import PriorAuthShell from "./pages/cases/PriorAuthShell";
 
 const { Pages, Layout, mainPage } = pagesConfig;
 const mainPageKey = mainPage ?? Object.keys(Pages)[0];
 const MainPage = mainPageKey ? Pages[mainPageKey] : <></>;
+const PriorAuthPage = Pages["prior-auth"];
+const PriorAuthCasePage = Pages["prior-auth-case"];
 
 const PUBLIC_PAGES = ["login", "forgot-password", "reset-password"];
+const PERSISTENT_PRIOR_AUTH_PAGES = new Set(["prior-auth", "prior-auth-case"]);
 
 const LayoutWrapper = ({ children, currentPageName }) =>
   Layout ? <Layout currentPageName={currentPageName}>{children}</Layout> : <>{children}</>;
@@ -73,21 +77,35 @@ const AuthenticatedApp = () => {
           </LayoutWrapper>
         }
       />
-      {Object.entries(Pages).map(([path, Page]) => (
+      {PriorAuthPage && PriorAuthCasePage ? (
         <Route
-          key={path}
-          path={`/${path}`}
           element={
-            PUBLIC_PAGES.includes(path) ? (
-              <Page />
-            ) : (
-              <LayoutWrapper currentPageName={path}>
-                <Page />
-              </LayoutWrapper>
-            )
+            <LayoutWrapper currentPageName="prior-auth">
+              <PriorAuthShell />
+            </LayoutWrapper>
           }
-        />
-      ))}
+        >
+          <Route path="/prior-auth" element={<PriorAuthPage embedded />} />
+          <Route path="/prior-auth-case" element={<PriorAuthCasePage embedded />} />
+        </Route>
+      ) : null}
+      {Object.entries(Pages).map(([path, Page]) =>
+        PERSISTENT_PRIOR_AUTH_PAGES.has(path) ? null : (
+          <Route
+            key={path}
+            path={`/${path}`}
+            element={
+              PUBLIC_PAGES.includes(path) ? (
+                <Page />
+              ) : (
+                <LayoutWrapper currentPageName={path}>
+                  <Page />
+                </LayoutWrapper>
+              )
+            }
+          />
+        )
+      )}
       <Route path="*" element={<PageNotFound />} />
     </Routes>
   );

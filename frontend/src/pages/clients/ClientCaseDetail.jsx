@@ -4,7 +4,12 @@ import { api } from "@/lib/api";
 import { Link } from "react-router-dom";
 import { createPageUrl } from "@/lib/utils/page";
 import ClientPortalLayout from "@/components/portal/ClientPortalLayout";
-import { queryKeys, useAuthUserQuery, useEntityDetailQuery, useEntityFilterQuery } from "@/lib/query";
+import {
+  queryKeys,
+  useAuthUserQuery,
+  useEntityDetailQuery,
+  useEntityFilterQuery,
+} from "@/lib/query";
 import {
   getAccentColor,
   getClientId,
@@ -39,13 +44,7 @@ const STATUS_STYLES = {
   Closed: { bg: "#f8fafc", text: "#64748b" },
 };
 
-const STATUS_ORDER = [
-  "New",
-  "Awaiting Documents",
-  "Ready for Submission",
-  "Submitted",
-  "Approved",
-];
+const STATUS_ORDER = ["New", "Awaiting Documents", "Ready for Submission", "Submitted", "Approved"];
 
 export default function ClientCaseDetail() {
   const params = new URLSearchParams(window.location.search);
@@ -87,7 +86,8 @@ export default function ClientCaseDetail() {
   );
 
   const sendMessageMutation = useMutation({
-    mutationFn: /** @param {Record<string, any>} message */ (message) => api.entities.CaseMessage.create(message),
+    mutationFn: /** @param {Record<string, any>} message */ (message) =>
+      api.entities.CaseMessage.create(message),
     onSuccess: async () => {
       await queryClient.invalidateQueries({
         queryKey: queryKeys.entity.filter("CaseMessage", { caseId }, { sortBy: null, limit: null }),
@@ -120,9 +120,15 @@ export default function ClientCaseDetail() {
     },
     onSuccess: async () => {
       await Promise.all([
-        queryClient.invalidateQueries({ queryKey: queryKeys.entity.detail("PriorAuthCase", caseId) }),
         queryClient.invalidateQueries({
-          queryKey: queryKeys.entity.filter("CaseMessage", { caseId }, { sortBy: null, limit: null }),
+          queryKey: queryKeys.entity.detail("PriorAuthCase", caseId),
+        }),
+        queryClient.invalidateQueries({
+          queryKey: queryKeys.entity.filter(
+            "CaseMessage",
+            { caseId },
+            { sortBy: null, limit: null }
+          ),
         }),
       ]);
     },
@@ -555,8 +561,8 @@ export default function ClientCaseDetail() {
                 <Clock className="w-10 h-10 mx-auto text-slate-300 mb-3" />
                 <p className="font-semibold text-slate-600">Outcome Pending</p>
                 <p className="text-sm text-slate-400 mt-1">
-                  Current status: <strong>{paCase.displayStatus}</strong>. We'll notify you when a decision
-                  is made.
+                  Current status: <strong>{paCase.displayStatus}</strong>. We'll notify you when a
+                  decision is made.
                 </p>
               </div>
             )}

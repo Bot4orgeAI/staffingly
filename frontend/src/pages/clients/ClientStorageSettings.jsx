@@ -73,7 +73,7 @@ export default function ClientStorageSettings() {
       select: (data) => data[0] || null,
     }
   );
-  
+
   /** @type {any} */
   const config = rawConfig;
 

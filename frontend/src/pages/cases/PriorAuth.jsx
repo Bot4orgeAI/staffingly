@@ -1,57 +1,104 @@
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { createPageUrl } from "@/lib/utils/page";
-import { useAuthUserQuery } from "@/lib/query";
-import StaffinglyLayout from "@/components/staffingly/StaffinglyLayout";
+import { getWorkflowContext } from "@/lib/utils/workflow";
 import PAEligibilityCheck from "@/components/priorauth/PAEligibilityCheck.jsx";
 import PACaseTracker from "@/components/priorauth/PACaseTracker.jsx";
-import { ClipboardList, Plus } from "lucide-react";
+import { ArrowLeft, ArrowRight, Plus } from "lucide-react";
 
-export default function PriorAuth() {
-  const [view, setView] = useState("tracker"); // "tracker" | "new"
+export default function PriorAuth({ embedded: _embedded = false }) {
+  const workflowContext = useMemo(() => getWorkflowContext(window.location.search), []);
+  const hasWorkflowPrefill = Boolean(
+    workflowContext.patientName || workflowContext.memberId || workflowContext.payer
+  );
+  const [view, setView] = useState(
+    workflowContext.intent === "prior-auth" || hasWorkflowPrefill ? "new" : "tracker"
+  );
   const navigate = useNavigate();
-  const { data: user } = useAuthUserQuery();
+
+  useEffect(() => {
+    const previousOverflow = document.body.style.overflow;
+
+    if (view === "new") {
+      document.body.style.overflow = "hidden";
+    }
+
+    return () => {
+      document.body.style.overflow = previousOverflow;
+    };
+  }, [view]);
 
   const handleCaseCreated = (caseId) => {
     navigate(createPageUrl(`PriorAuthCase?id=${caseId}`));
   };
 
-  return (
-    <StaffinglyLayout
-      user={user}
-      currentPage="prior-auth"
-      title="Prior Authorization"
-      breadcrumbs={["Prior Auth"]}
-    >
+  const content = (
+    <>
       <div className="max-w-[1400px] mx-auto space-y-5">
-        {/* Header Tabs */}
-        <div className="flex items-center justify-between">
-          <div className="flex gap-1 bg-white rounded-xl border border-slate-200 p-1">
-            <button
-              onClick={() => setView("tracker")}
-              className={`flex items-center gap-2 px-5 py-2 rounded-lg text-sm font-semibold transition-all ${
-                view === "tracker" ? "text-white shadow-sm" : "text-slate-500 hover:text-slate-700"
-              }`}
-              style={view === "tracker" ? { backgroundColor: "#293682" } : {}}
-            >
-              <ClipboardList className="w-4 h-4" /> Case Tracker
-            </button>
-            <button
-              onClick={() => setView("new")}
-              className={`flex items-center gap-2 px-5 py-2 rounded-lg text-sm font-semibold transition-all ${
-                view === "new" ? "text-white shadow-sm" : "text-slate-500 hover:text-slate-700"
-              }`}
-              style={view === "new" ? { backgroundColor: "#293682" } : {}}
-            >
-              <Plus className="w-4 h-4" /> Start Prior Auth
-            </button>
+        <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+          <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+            <div>
+              <h1 className="text-2xl font-bold text-slate-900">Prior Authorization</h1>
+              <p className="mt-2 text-sm text-slate-500">
+                Review existing cases or start a new prior auth with eligibility context carried
+                forward.
+              </p>
+            </div>
+            {view === "tracker" ? (
+              <button
+                type="button"
+                onClick={() => setView("new")}
+                className="flex items-center gap-2 rounded-2xl px-5 py-3 text-sm font-bold text-white"
+                style={{ backgroundColor: "#293682" }}
+              >
+                <Plus className="h-4 w-4" />
+                Start New Case
+              </button>
+            ) : (
+              <button
+                type="button"
+                onClick={() => setView("tracker")}
+                className="flex items-center gap-2 rounded-2xl border border-slate-200 px-5 py-3 text-sm font-semibold text-slate-700 hover:bg-slate-50"
+              >
+                <ArrowLeft className="h-4 w-4" />
+                Back to Cases
+              </button>
+            )}
           </div>
         </div>
 
-        {view === "tracker" && <PACaseTracker user={user} onStartNew={() => setView("new")} />}
+        {hasWorkflowPrefill ? (
+          <div className="rounded-2xl border border-[#f6b037]/30 bg-[#fff9ec] p-5 shadow-sm">
+            <p className="text-xs font-semibold uppercase tracking-[0.2em] text-[#b45309]">
+              Eligibility-To-PA Handoff
+            </p>
+            <div className="mt-3 flex flex-wrap items-center gap-2 text-sm font-semibold text-slate-700">
+              <span className="rounded-full bg-white px-3 py-1">Patients</span>
+              <ArrowRight className="h-4 w-4 text-slate-400" />
+              <span className="rounded-full bg-white px-3 py-1">Eligibility</span>
+              <ArrowRight className="h-4 w-4 text-slate-400" />
+              <span className="rounded-full bg-[#eef1ff] px-3 py-1 text-[#293682]">Prior Auth</span>
+            </div>
+            <p className="mt-3 text-sm text-slate-600">
+              Starting a prior auth with the same patient and coverage context keeps the workflow
+              aligned with the PRD and avoids duplicate data entry.
+            </p>
+          </div>
+        ) : null}
 
-        {view === "new" && <PAEligibilityCheck user={user} onCaseCreated={handleCaseCreated} />}
+        <PACaseTracker user={null} onStartNew={() => setView("new")} />
       </div>
-    </StaffinglyLayout>
+
+      {view === "new" && (
+        <PAEligibilityCheck
+          user={null}
+          onCaseCreated={handleCaseCreated}
+          workflowContext={workflowContext}
+          onClose={() => setView("tracker")}
+        />
+      )}
+    </>
   );
+
+  return content;
 }

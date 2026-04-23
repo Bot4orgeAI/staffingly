@@ -44,16 +44,26 @@ function countCaseType(cases, type, periodStart, periodEnd) {
 export default function FAPayroll() {
   const queryClient = useQueryClient();
   const { data: user, isLoading: loadingAuth } = useAuthUserQuery();
-  
+
   const period = getPayPeriod();
 
-  const { data: sData = [], isLoading: loadingS } = useEntityListQuery("StaffinglyUser", null, 1000, {
-    enabled: Boolean(user && ALLOWED_ROLES.includes(user.role)),
-  });
+  const { data: sData = [], isLoading: loadingS } = useEntityListQuery(
+    "StaffinglyUser",
+    null,
+    1000,
+    {
+      enabled: Boolean(user && ALLOWED_ROLES.includes(user.role)),
+    }
+  );
 
-  const { data: cData = [], isLoading: loadingC } = useEntityListQuery("PriorAuthCase", null, 2000, {
-    enabled: Boolean(user && ALLOWED_ROLES.includes(user.role)),
-  });
+  const { data: cData = [], isLoading: loadingC } = useEntityListQuery(
+    "PriorAuthCase",
+    null,
+    2000,
+    {
+      enabled: Boolean(user && ALLOWED_ROLES.includes(user.role)),
+    }
+  );
 
   const { data: rData = [], isLoading: loadingR } = useEntityListQuery("PayrollRate", null, 1000, {
     enabled: Boolean(user && ALLOWED_ROLES.includes(user.role)),

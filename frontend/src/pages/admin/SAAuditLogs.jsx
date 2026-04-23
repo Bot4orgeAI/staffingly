@@ -174,9 +174,7 @@ export default function SAAuditLogs() {
                       <td className="px-4 py-3 text-slate-600">{log.module}</td>
                       <td className="px-4 py-3 font-mono text-slate-500">{log.recordId || "—"}</td>
                       <td className="px-4 py-3 max-w-xs">
-                        {log.oldValue && (
-                          <p className="text-red-500 truncate">- {log.oldValue}</p>
-                        )}
+                        {log.oldValue && <p className="text-red-500 truncate">- {log.oldValue}</p>}
                         {log.newValue && (
                           <p className="text-emerald-600 truncate">+ {log.newValue}</p>
                         )}

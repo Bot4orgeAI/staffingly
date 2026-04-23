@@ -56,10 +56,34 @@ export default function SADashboard() {
   }).length;
 
   const stats = [
-    { label: "Total Clients", value: `${clients.length}`, icon: Building2, color: "#293682", bg: "#eef3ff" },
-    { label: "Active Users", value: `${activeUsers}`, icon: Users, color: "#0a7e87", bg: "#f0fdfa" },
-    { label: "Cases This Month", value: `${casesThisMonth}`, icon: Activity, color: "#f6b037", bg: "#fffbeb" },
-    { label: "Security Alerts", value: `${securityAlerts}`, icon: AlertTriangle, color: "#dc2626", bg: "#fef2f2" },
+    {
+      label: "Total Clients",
+      value: `${clients.length}`,
+      icon: Building2,
+      color: "#293682",
+      bg: "#eef3ff",
+    },
+    {
+      label: "Active Users",
+      value: `${activeUsers}`,
+      icon: Users,
+      color: "#0a7e87",
+      bg: "#f0fdfa",
+    },
+    {
+      label: "Cases This Month",
+      value: `${casesThisMonth}`,
+      icon: Activity,
+      color: "#f6b037",
+      bg: "#fffbeb",
+    },
+    {
+      label: "Security Alerts",
+      value: `${securityAlerts}`,
+      icon: AlertTriangle,
+      color: "#dc2626",
+      bg: "#fef2f2",
+    },
   ];
 
   const recentAudit = auditLogs

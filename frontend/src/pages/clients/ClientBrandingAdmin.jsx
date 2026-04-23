@@ -27,7 +27,7 @@ export default function ClientBrandingAdmin() {
   const preClient = params.get("client_id");
 
   const [selectedClientId, setSelectedClientId] = useState(preClient || "");
-  
+
   const { data: clients = [], isLoading: loadingClients } = useEntityListQuery(
     "StaffinglyClient",
     null,
@@ -54,8 +54,6 @@ export default function ClientBrandingAdmin() {
   const [saving, setSaving] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [saved, setSaved] = useState(false);
-
-
 
   useEffect(() => {
     if (!selectedClientId) return;
@@ -159,7 +157,9 @@ export default function ClientBrandingAdmin() {
         {/* Client Selector */}
         <div className="bg-white rounded-2xl border border-slate-200 px-5 py-4 flex flex-col sm:flex-row gap-3 items-start sm:items-center justify-between shadow-sm">
           <div className="flex flex-wrap gap-3 flex-1 items-center">
-            <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">Select Client</span>
+            <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">
+              Select Client
+            </span>
             <AppSelect
               value={selectedClientId}
               onValueChange={setSelectedClientId}

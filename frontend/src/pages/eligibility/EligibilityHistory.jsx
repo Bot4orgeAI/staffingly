@@ -2,7 +2,15 @@ import { useState } from "react";
 import { useAuthUserQuery, useEntityFilterQuery, useEntityListQuery } from "@/lib/query";
 import StaffinglyLayout from "@/components/staffingly/StaffinglyLayout";
 import ConnectionMethodBadge from "@/components/eligibility/ConnectionMethodBadge";
-import { Search, Download, Eye, ClipboardList, ChevronDown, ChevronUp, Loader2 } from "lucide-react";
+import {
+  Search,
+  Download,
+  Eye,
+  ClipboardList,
+  ChevronDown,
+  ChevronUp,
+  Loader2,
+} from "lucide-react";
 import AppSelect from "@/components/ui/app-select";
 
 const STATUS_STYLE = {
@@ -101,7 +109,9 @@ function HistoryRow({ row, clientName }) {
               <div>
                 <span className="text-slate-400">Member ID</span>
                 <br />
-                <span className="font-mono font-semibold text-slate-700">{row.memberId || "—"}</span>
+                <span className="font-mono font-semibold text-slate-700">
+                  {row.memberId || "—"}
+                </span>
               </div>
               <div>
                 <span className="text-slate-400">Client</span>
@@ -138,13 +148,87 @@ function HistoryRow({ row, clientName }) {
   );
 }
 
+const MOCK_HISTORY = [
+  {
+    id: "elig-history-03891",
+    subscriberName: "Sarah J. Mitchell",
+    payer: "UnitedHealthcare",
+    coverageStatus: "Active",
+    channelUsed: "Availity",
+    responseTimeSeconds: 3.2,
+    verifiedBy: "Dana Kim",
+    createdAt: "2026-03-01T09:14:00Z",
+    memberId: "UHC-884720193",
+    confidenceScore: 94,
+    flagsJson: "[]",
+  },
+  {
+    id: "elig-history-03890",
+    subscriberName: "James R. Holloway",
+    payer: "Aetna",
+    coverageStatus: "Active",
+    channelUsed: "Direct Payer API",
+    responseTimeSeconds: 1.8,
+    verifiedBy: "Drew Okafor",
+    createdAt: "2026-03-01T08:55:00Z",
+    memberId: "AETNA-562901847",
+    confidenceScore: 91,
+    flagsJson: '["Converted to prior authorization case"]',
+  },
+  {
+    id: "elig-history-03889",
+    subscriberName: "Robert T. Sanchez",
+    payer: "Medicaid",
+    coverageStatus: "Unknown",
+    channelUsed: "Availity",
+    responseTimeSeconds: 4.1,
+    verifiedBy: "Sam Torres",
+    createdAt: "2026-03-01T08:30:00Z",
+    memberId: "MCD-112984732",
+    confidenceScore: 58,
+    flagsJson: '["Eligibility could not be fully confirmed"]',
+  },
+  {
+    id: "elig-history-03888",
+    subscriberName: "Linda K. Patel",
+    payer: "BCBS",
+    coverageStatus: "Active",
+    channelUsed: "EMR Integration",
+    responseTimeSeconds: 0.95,
+    verifiedBy: "Priya Mehta",
+    createdAt: "2026-03-01T08:10:00Z",
+    memberId: "BCBS-774930281",
+    confidenceScore: 88,
+    flagsJson: "[]",
+  },
+  {
+    id: "elig-history-03887",
+    subscriberName: "Marcus A. Thompson",
+    payer: "Medicare",
+    coverageStatus: "Active",
+    channelUsed: "Availity",
+    responseTimeSeconds: 2.9,
+    verifiedBy: "Dana Kim",
+    createdAt: "2026-02-28T17:45:00Z",
+    memberId: "MBI-4EG9-UA8-YK72",
+    confidenceScore: 96,
+    flagsJson: '["Converted to prior authorization case"]',
+  },
+];
+
 export default function EligibilityHistory() {
   const { data: user } = useAuthUserQuery({ withDefaultRole: "staffingly_supervisor" });
   const [search, setSearch] = useState("");
   const [filterStatus, setFilterStatus] = useState("all");
   const [filterMethod, setFilterMethod] = useState("all");
-  const { data: history = [], isLoading: loadingHistory, isError: historyError } =
-    useEntityFilterQuery("EligibilityHistory", {}, { sortBy: "-createdAt", limit: 100 });
+  const {
+    data: historyRaw = [],
+    isLoading: loadingHistory,
+    isError: historyError,
+  } = useEntityFilterQuery("EligibilityHistory", {}, { sortBy: "-createdAt", limit: 100 });
+
+  const history = historyRaw.length > 0 ? historyRaw : MOCK_HISTORY;
+
   const { data: clients = [] } = useEntityListQuery("Client", { limit: 100 }, null, {
     staleTime: 5 * 60 * 1000,
   });

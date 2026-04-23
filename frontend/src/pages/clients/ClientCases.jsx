@@ -60,20 +60,24 @@ export default function ClientCases() {
     }
   );
 
-  const filtered = useMemo(() => cases.filter((c) => {
-    const matchStatus = filterStatus === "All" || c.displayStatus === filterStatus;
-    const q = search.toLowerCase();
-    const matchSearch =
-      !search ||
-      (c.caseNumber || c.id)?.toLowerCase().includes(q) ||
-      c.patientInitials?.toLowerCase().includes(q) ||
-      c.patientName?.toLowerCase().includes(q) ||
-      c.payerName?.toLowerCase().includes(q);
-    const created = c.createdAt ? new Date(c.createdAt) : null;
-    const matchFrom = !dateFrom || (created && created >= new Date(dateFrom));
-    const matchTo = !dateTo || (created && created <= new Date(dateTo + "T23:59:59"));
-    return matchStatus && matchSearch && matchFrom && matchTo;
-  }), [cases, dateFrom, dateTo, filterStatus, search]);
+  const filtered = useMemo(
+    () =>
+      cases.filter((c) => {
+        const matchStatus = filterStatus === "All" || c.displayStatus === filterStatus;
+        const q = search.toLowerCase();
+        const matchSearch =
+          !search ||
+          (c.caseNumber || c.id)?.toLowerCase().includes(q) ||
+          c.patientInitials?.toLowerCase().includes(q) ||
+          c.patientName?.toLowerCase().includes(q) ||
+          c.payerName?.toLowerCase().includes(q);
+        const created = c.createdAt ? new Date(c.createdAt) : null;
+        const matchFrom = !dateFrom || (created && created >= new Date(dateFrom));
+        const matchTo = !dateTo || (created && created <= new Date(dateTo + "T23:59:59"));
+        return matchStatus && matchSearch && matchFrom && matchTo;
+      }),
+    [cases, dateFrom, dateTo, filterStatus, search]
+  );
 
   const loadingState = loadingUser || loadingBranding || loadingCases;
 

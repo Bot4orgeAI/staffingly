@@ -62,7 +62,8 @@ export default function DriveSyncLogs() {
             <div>
               <h1 className="text-2xl font-bold text-slate-900">Drive Sync Logs</h1>
               <p className="mt-2 text-sm text-slate-500">
-                Track document synchronization from external storage providers and manage manual sync runs.
+                Track document synchronization from external storage providers and manage manual
+                sync runs.
               </p>
             </div>
             <button
@@ -136,7 +137,9 @@ export default function DriveSyncLogs() {
         {/* Controls */}
         <div className="bg-white rounded-2xl border border-slate-200 px-5 py-4 flex flex-col sm:flex-row gap-3 items-start sm:items-center justify-between shadow-sm">
           <div className="flex flex-wrap gap-3 flex-1 items-center">
-            <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">Filter Status</span>
+            <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">
+              Filter Status
+            </span>
             <AppSelect
               value={filterStatus}
               onValueChange={setFilterStatus}

@@ -4,6 +4,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api } from "@/lib/api";
 import { queryKeys, useAuthUserQuery, useEntityListQuery } from "@/lib/query";
 import { createPageUrl } from "@/lib/utils/page";
+import { buildPatientWorkflowParams } from "@/lib/utils/workflow";
 import StaffinglyLayout from "@/components/staffingly/StaffinglyLayout";
 import PatientForm from "@/components/patients/PatientForm";
 import InsurancePolicyForm from "@/components/patients/InsurancePolicyForm";
@@ -116,28 +117,6 @@ function getPatientWorkflowState(patient) {
   };
 }
 
-function buildVerificationParams(patient) {
-  const primaryPolicy = getPrimaryPolicy(patient);
-
-  return new URLSearchParams({
-    source: "patients",
-    patientId: patient.id,
-    first_name: patient.firstName || "",
-    last_name: patient.lastName || "",
-    dob: patient.dob ? patient.dob.split("T")[0] : "",
-    phone: patient.phone || "",
-    email: patient.email || "",
-    payer: primaryPolicy?.payerName || "",
-    member_id: primaryPolicy?.memberId || "",
-    group_number: primaryPolicy?.groupNumber || "",
-    plan_name: primaryPolicy?.planName || "",
-    plan_type: primaryPolicy?.planType || "",
-    subscriber_name: primaryPolicy?.subscriberName || "",
-    subscriber_dob: primaryPolicy?.subscriberDob ? primaryPolicy.subscriberDob.split("T")[0] : "",
-    subscriber_relationship: primaryPolicy?.subscriberRelationship || "Self",
-  }).toString();
-}
-
 function PolicyBadge({ policy }) {
   const typeColors = {
     PRIMARY: { bg: "#eef3ff", text: "#293682" },
@@ -187,7 +166,15 @@ function StatCard({ icon: Icon, label, value, detail, tone = "slate" }) {
   );
 }
 
-function PatientRow({ patient, onEdit, onDelete, onAddInsurance, onEditInsurance, onVerify }) {
+function PatientRow({
+  patient,
+  onEdit,
+  onDelete,
+  onAddInsurance,
+  onEditInsurance,
+  onVerify,
+  onStartPriorAuth,
+}) {
   const [expanded, setExpanded] = useState(false);
 
   const primaryPolicy = getPrimaryPolicy(patient);
@@ -273,6 +260,15 @@ function PatientRow({ patient, onEdit, onDelete, onAddInsurance, onEditInsurance
             style={{ backgroundColor: "#293682" }}
           >
             Verify
+          </button>
+
+          <button
+            type="button"
+            onClick={() => onStartPriorAuth(patient)}
+            disabled={!canVerify}
+            className="rounded-xl border border-[#293682]/20 bg-[#eef1ff] px-3 py-2 text-xs font-semibold text-[#293682] disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            Start PA
           </button>
 
           <button
@@ -373,6 +369,73 @@ function PatientRow({ patient, onEdit, onDelete, onAddInsurance, onEditInsurance
   );
 }
 
+const DUMMY_PATIENTS = [
+  {
+    id: "gp-sarah-mitchell",
+    firstName: "Sarah",
+    lastName: "Mitchell",
+    middleName: "J",
+    dob: "1985-03-14T00:00:00Z",
+    insurancePolicies: [
+      {
+        id: "pol-1",
+        policyType: "PRIMARY",
+        payerName: "UnitedHealthcare",
+        memberId: "UHC-884720193",
+        lastCoverageStatus: "ACTIVE",
+      },
+    ],
+  },
+  {
+    id: "gp-robert-sanchez",
+    firstName: "Robert",
+    lastName: "Sanchez",
+    middleName: "T",
+    dob: "1979-12-03T00:00:00Z",
+    insurancePolicies: [
+      {
+        id: "pol-2",
+        policyType: "PRIMARY",
+        payerName: "Medicaid",
+        memberId: "MCD-112984732",
+        lastCoverageStatus: "UNKNOWN",
+      },
+    ],
+  },
+  {
+    id: "gp-marcus-thompson",
+    firstName: "Marcus",
+    lastName: "Thompson",
+    middleName: "A",
+    dob: "1968-10-11T00:00:00Z",
+    insurancePolicies: [
+      {
+        id: "pol-3",
+        policyType: "PRIMARY",
+        payerName: "Medicare",
+        memberId: "MBI-4EG9-UA8-YK72",
+        lastCoverageStatus: "ACTIVE",
+      },
+    ],
+  },
+  {
+    id: "gp-linda-patel",
+    firstName: "Linda",
+    lastName: "Patel",
+    middleName: "K",
+    dob: "1990-11-30T00:00:00Z",
+    insurancePolicies: [
+      {
+        id: "pol-4",
+        policyType: "PRIMARY",
+        payerName: "Blue Cross Blue Shield",
+        memberId: "BCBS-774930281",
+        lastCoverageStatus: "ACTIVE",
+      },
+    ],
+  },
+];
+
 export default function Patients() {
   const [search, setSearch] = useState("");
   const [activeFilter, setActiveFilter] = useState("all");
@@ -402,7 +465,20 @@ export default function Patients() {
 
   const patientsQuery = useQuery({
     queryKey: queryKeys.patients.list(patientsParams),
-    queryFn: () => api.patients.list(patientsParams),
+    queryFn: async () => {
+      const response = await api.patients.list(patientsParams);
+      const dataRaw = response?.data || [];
+
+      // Fallback for demo
+      if (dataRaw.length === 0 && !search) {
+        return {
+          data: DUMMY_PATIENTS,
+          pagination: { total: DUMMY_PATIENTS.length, page: 1, limit: 20 },
+        };
+      }
+
+      return response;
+    },
     enabled: Boolean(user),
   });
 
@@ -476,7 +552,22 @@ export default function Patients() {
   };
 
   const handleVerifyPatient = (patient) => {
-    navigate(createPageUrl(`NewVerification?${buildVerificationParams(patient)}`));
+    navigate(
+      createPageUrl(
+        `NewVerification?${buildPatientWorkflowParams(patient, { source: "patients" })}`
+      )
+    );
+  };
+
+  const handleStartPriorAuth = (patient) => {
+    navigate(
+      createPageUrl(
+        `prior-auth?${buildPatientWorkflowParams(patient, {
+          source: "patients",
+          intent: "prior-auth",
+        })}`
+      )
+    );
   };
 
   useEffect(() => {
@@ -607,6 +698,7 @@ export default function Patients() {
                   setInsuranceModal({ patient: selectedPatient, policy })
                 }
                 onVerify={handleVerifyPatient}
+                onStartPriorAuth={handleStartPriorAuth}
               />
             ))}
           </div>

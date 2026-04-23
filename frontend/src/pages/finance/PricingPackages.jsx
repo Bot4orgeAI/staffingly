@@ -3,10 +3,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { api } from "@/lib/api";
 import { useAuthUserQuery, useEntityListQuery } from "@/lib/query";
 import StaffinglyLayout from "@/components/staffingly/StaffinglyLayout";
-import {
-  BillingAccessDenied,
-  canAccessBilling,
-} from "@/components/billing/BillingAccessGuard";
+import { BillingAccessDenied, canAccessBilling } from "@/components/billing/BillingAccessGuard";
 import { Plus, Edit2, Check, X, Zap, Star, Building2, CreditCard, Settings } from "lucide-react";
 import AppSelect from "@/components/ui/app-select";
 

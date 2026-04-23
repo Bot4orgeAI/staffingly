@@ -65,7 +65,7 @@ export default function SpecialistCaseView() {
       new Date(b.updated_date || b.created_date).getTime() -
       new Date(a.updated_date || a.created_date).getTime()
   );
-  
+
   const specialists = sData.filter((s) => s.id !== specialistId);
   const activityLogs = [...aData].sort(
     (a, b) => new Date(b.log_date).getTime() - new Date(a.log_date).getTime()
@@ -183,7 +183,9 @@ export default function SpecialistCaseView() {
               </Link>
               <div>
                 <h1 className="text-2xl font-bold text-slate-900">{specialistName}</h1>
-                <p className="mt-1 text-sm text-slate-500">{cases.length} assigned cases in tracker</p>
+                <p className="mt-1 text-sm text-slate-500">
+                  {cases.length} assigned cases in tracker
+                </p>
               </div>
             </div>
           </div>

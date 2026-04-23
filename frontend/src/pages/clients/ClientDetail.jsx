@@ -657,7 +657,7 @@ export default function ClientDetail() {
                                 <Edit2 className="w-3 h-3" /> Edit
                               </button>
                               <button
-                              onClick={() => setProviderPendingDelete(p)}
+                                onClick={() => setProviderPendingDelete(p)}
                                 className="px-2.5 py-1.5 rounded-lg border border-red-200 text-red-500 hover:bg-red-50"
                               >
                                 <Trash2 className="w-3 h-3" />
@@ -791,7 +791,7 @@ export default function ClientDetail() {
                                 <Edit2 className="w-3 h-3" />
                               </button>
                               <button
-                              onClick={() => setSubscriberPendingDelete(s)}
+                                onClick={() => setSubscriberPendingDelete(s)}
                                 className="px-2.5 py-1.5 rounded-lg border border-red-200 text-red-500 hover:bg-red-50"
                               >
                                 <Trash2 className="w-3 h-3" />

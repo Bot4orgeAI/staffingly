@@ -75,7 +75,8 @@ export function getCaseStatusLabel(status) {
 
 export function normalizeCase(rawCase) {
   const patientName = rawCase?.patientName || rawCase?.patient_name || "";
-  const patientInitials = rawCase?.patientInitials || rawCase?.patient_initials || deriveInitials(patientName);
+  const patientInitials =
+    rawCase?.patientInitials || rawCase?.patient_initials || deriveInitials(patientName);
   const procedureCodes = Array.isArray(rawCase?.procedureCodes) ? rawCase.procedureCodes : [];
   const displayStatus = getCaseStatusLabel(rawCase?.status);
 

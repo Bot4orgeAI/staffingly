@@ -245,7 +245,9 @@ function UserDrawer({ user, onClose, onSave, saveError, saving }) {
                 </p>
                 <button
                   type="button"
-                  onClick={() => setForm((current) => ({ ...current, account_locked: !current.account_locked }))}
+                  onClick={() =>
+                    setForm((current) => ({ ...current, account_locked: !current.account_locked }))
+                  }
                   className={`mt-4 inline-flex h-7 w-12 rounded-full transition-colors ${form.account_locked ? "bg-rose-600" : "bg-slate-300"}`}
                 >
                   <span
@@ -640,7 +642,10 @@ export default function SAUsers() {
                             </button>
                             <button
                               onClick={() =>
-                                toggleStatusMutation.mutate({ id: u.id, active: u.active === false ? true : false })
+                                toggleStatusMutation.mutate({
+                                  id: u.id,
+                                  active: u.active === false ? true : false,
+                                })
                               }
                               disabled={toggleStatusMutation.isPending}
                               className={`inline-flex items-center gap-1 rounded-lg border px-2.5 py-1.5 text-[11px] font-semibold transition-colors disabled:cursor-not-allowed disabled:opacity-50 ${

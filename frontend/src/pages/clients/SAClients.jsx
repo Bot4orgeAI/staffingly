@@ -14,6 +14,36 @@ import { normalizeClient } from "@/components/clients/saClients/utils";
 const CLIENTS_QUERY_KEY = "sa-clients";
 const AUTH_QUERY_KEY = "sa-clients-auth";
 
+const DUMMY_CLIENTS = [
+  {
+    id: "client-sunrise-family-clinic",
+    name: "Sunrise Family Clinic",
+    practiceName: "Sunrise Family Clinic",
+    email: "admin@sunrisefamily.com",
+    status: "ACTIVE",
+    npi: "1234567890",
+    createdAt: "2026-01-15T10:00:00Z",
+  },
+  {
+    id: "client-lakeview-orthopedics",
+    name: "Lakeview Orthopedics",
+    practiceName: "Lakeview Orthopedics",
+    email: "billing@lakeviewortho.com",
+    status: "ACTIVE",
+    npi: "0987654321",
+    createdAt: "2026-02-01T14:30:00Z",
+  },
+  {
+    id: "client-metro-mental-health-associates",
+    name: "Metro Mental Health Associates",
+    practiceName: "Metro Mental Health Associates",
+    email: "contact@metromental.com",
+    status: "ACTIVE",
+    npi: "1122334455",
+    createdAt: "2026-02-10T09:15:00Z",
+  },
+];
+
 export default function SAClients() {
   const [search, setSearch] = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState("");
@@ -54,8 +84,12 @@ export default function SAClients() {
         search: debouncedSearch || undefined,
         status: filterStatus === "all" ? undefined : filterStatus,
       });
-      const data = Array.isArray(response?.data) ? response.data : [];
-      return data.map(normalizeClient);
+      const dataRaw = Array.isArray(response?.data) ? response.data : [];
+
+      // Fallback to dummy data for demo
+      const finalData = dataRaw.length > 0 ? dataRaw : DUMMY_CLIENTS;
+
+      return finalData.map(normalizeClient);
     },
     enabled: Boolean(user),
   });

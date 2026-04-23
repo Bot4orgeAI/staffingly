@@ -3,10 +3,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { api } from "@/lib/api";
 import { useAuthUserQuery, useEntityListQuery } from "@/lib/query";
 import StaffinglyLayout from "@/components/staffingly/StaffinglyLayout";
-import {
-  BillingAccessDenied,
-  canAccessBilling,
-} from "@/components/billing/BillingAccessGuard";
+import { BillingAccessDenied, canAccessBilling } from "@/components/billing/BillingAccessGuard";
 import MetricCard from "@/components/billing/MetricCard";
 import InvoiceStatusBadge from "@/components/billing/InvoiceStatusBadge";
 import DisputeTimer from "@/components/billing/DisputeTimer";

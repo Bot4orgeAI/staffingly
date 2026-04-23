@@ -166,7 +166,9 @@ export default function ClientReports() {
         <tbody>
           ${
             denialData.length > 0
-              ? denialData.map((row) => `<tr><td>${row.name}</td><td>${row.value}</td></tr>`).join("")
+              ? denialData
+                  .map((row) => `<tr><td>${row.name}</td><td>${row.value}</td></tr>`)
+                  .join("")
               : '<tr><td colspan="2">No denials recorded</td></tr>'
           }
         </tbody>
@@ -188,7 +190,9 @@ export default function ClientReports() {
         <tbody>
           ${
             turnaroundData.length > 0
-              ? turnaroundData.map((row) => `<tr><td>${row.payer}</td><td>${row.days}</td></tr>`).join("")
+              ? turnaroundData
+                  .map((row) => `<tr><td>${row.payer}</td><td>${row.days}</td></tr>`)
+                  .join("")
               : '<tr><td colspan="2">Not enough decision data yet</td></tr>'
           }
         </tbody>
