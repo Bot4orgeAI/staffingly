@@ -58,28 +58,45 @@ export const extractDataFromFile = async (
   req: AuthenticatedRequest,
   res: Response
 ): Promise<void> => {
-  const { fileUrl, documentType } = req.body as { fileUrl?: string; documentType?: string };
+  const file = req.file as MulterFile | undefined;
+  const {
+    documentType = "Other Document",
+    provider = "auto",
+  } = req.body as {
+    documentType?: ocrService.SupportedDocumentType;
+    provider?: ocrService.OcrProvider;
+  };
 
-  // TODO: Implement AI-powered document extraction
-  // This would call an LLM service (OpenAI, Claude, etc.) to extract structured data
-  // from the document
+  if (!file) {
+    res.status(400).json({
+      success: false,
+      error: "File is required",
+    });
+    return;
+  }
 
-  // For now, return placeholder data
+  const extraction = await ocrService.extractDocumentData(
+    file.buffer,
+    file.mimetype,
+    documentType,
+    provider
+  );
+
   res.json({
-    success: true,
+    success: extraction.success,
     data: {
-      extracted: {
-        patientName: null,
-        patientDob: null,
-        insuranceId: null,
-        diagnosisCodes: [],
-        procedureCodes: [],
-      },
-      confidence: 0,
-      message: "Document extraction not yet implemented",
-      fileUrl,
+      fields: extraction.fields,
+      confidenceScores: extraction.confidenceScores,
+      overallConfidence: extraction.overallConfidence,
+      requiresReview: extraction.requiresReview,
+      lowConfidenceFields: extraction.lowConfidenceFields,
+      channelUsed: extraction.channelUsed,
+      processingTimeMs: extraction.processingTimeMs,
       documentType,
+      provider,
+      fileName: file.originalname,
     },
+    error: extraction.error,
   });
 };
 

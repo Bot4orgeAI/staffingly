@@ -28,8 +28,8 @@ router.use(authenticate);
 // General file upload
 router.post("/file", upload.single("file"), asyncHandler(uploadController.uploadFile));
 
-// General document extraction (prior auth documents)
-router.post("/extract-data", asyncHandler(uploadController.extractDataFromFile));
+// General document extraction for eligibility and prior auth support docs
+router.post("/extract-data", upload.single("file"), asyncHandler(uploadController.extractDataFromFile));
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Insurance Card Upload & OCR Routes

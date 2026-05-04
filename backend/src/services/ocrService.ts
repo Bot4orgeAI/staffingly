@@ -47,6 +47,36 @@ export interface ExtractionResult {
 }
 
 export type OcrProvider = "auto" | "ocr-space" | "google-cloud-vision" | "azure";
+export type SupportedDocumentType =
+  | "Insurance Card Front"
+  | "Insurance Card Back"
+  | "Explanation of Benefits (EOB)"
+  | "Prior Authorization Letter"
+  | "Referral Letter"
+  | "Lab/Radiology Report"
+  | "Other Document";
+
+export interface GenericExtractionResult {
+  success: boolean;
+  fields: Record<string, string | null>;
+  confidenceScores: Record<string, number>;
+  overallConfidence: number;
+  requiresReview: boolean;
+  lowConfidenceFields: string[];
+  channelUsed: "ocr-space" | "google-cloud-vision" | "azure" | "pdf-text";
+  processingTimeMs: number;
+  error?: string;
+}
+
+const SUPPORTED_DOCUMENT_TYPES: SupportedDocumentType[] = [
+  "Insurance Card Front",
+  "Insurance Card Back",
+  "Explanation of Benefits (EOB)",
+  "Prior Authorization Letter",
+  "Referral Letter",
+  "Lab/Radiology Report",
+  "Other Document",
+];
 
 interface OcrSpaceResponse {
   OCRExitCode?: number;
@@ -436,6 +466,399 @@ function parseInsuranceCardText(rawText: string): InsuranceCardExtraction {
   return extraction;
 }
 
+function extractSimplePdfText(buffer: Buffer): string | null {
+  const text = buffer
+    .toString("latin1")
+    .replace(/\r/g, "\n")
+    .replace(/[^\x20-\x7E\n]+/g, " ")
+    .replace(/\s+\n/g, "\n")
+    .replace(/\n{2,}/g, "\n")
+    .trim();
+
+  return text.length >= 20 ? text : null;
+}
+
+function extractDiagnosisCodes(text: string): string[] {
+  return [...new Set(text.match(/\b[A-TV-Z][0-9][0-9A-Z](?:\.[0-9A-Z]{1,4})?\b/g) || [])].slice(
+    0,
+    5
+  );
+}
+
+function extractProcedureCodes(text: string): string[] {
+  return [...new Set(text.match(/\b\d{5}\b/g) || [])].slice(0, 5);
+}
+
+function extractCommonDocumentFields(text: string): Record<string, string | null> {
+  const patientName =
+    extractName(text) || extractLabeledValue(text, ["patient name"], "([A-Z][A-Z ,.'-]{2,50})");
+  const payerName =
+    extractKnownPayer(text) ||
+    extractLabeledValue(text, ["payer", "insurance", "insurance company"], "([A-Z][A-Z0-9 &'./-]{2,60})");
+  const memberId = extractLabeledValue(
+    text,
+    ["member id", "member#", "subscriber id", "insurance id", "id number"],
+    "([A-Z0-9\\-]{3,30})"
+  );
+  const groupNumber = extractLabeledValue(text, ["group number", "group#", "group"], "([A-Z0-9\\-]{2,30})");
+  const patientDob = extractLabeledValue(
+    text,
+    ["dob", "date of birth", "patient dob", "birth date"],
+    "(\\d{1,2}[/-]\\d{1,2}[/-]\\d{2,4}|\\d{4}-\\d{2}-\\d{2})"
+  );
+  const serviceDate = extractLabeledValue(
+    text,
+    ["service date", "date of service", "dos"],
+    "(\\d{1,2}[/-]\\d{1,2}[/-]\\d{2,4}|\\d{4}-\\d{2}-\\d{2})"
+  );
+  const authorizationNumber = extractLabeledValue(
+    text,
+    ["authorization number", "auth number", "auth #", "authorization #"],
+    "([A-Z0-9\\-]{4,30})"
+  );
+  const referralNumber = extractLabeledValue(
+    text,
+    ["referral number", "referral #"],
+    "([A-Z0-9\\-]{4,30})"
+  );
+  const providerName =
+    extractLabeledValue(
+      text,
+      ["provider", "ordering provider", "referring provider", "physician", "doctor"],
+      "([A-Z][A-Z ,.'-]{2,50})"
+    ) || null;
+
+  return {
+    patientName: titleCaseWords(patientName),
+    patientDob: normalizeDate(patientDob),
+    payerName: titleCaseWords(payerName),
+    payerId: extractLabeledValue(text, ["payer id", "payor id"], "([A-Z0-9\\-]{2,20})"),
+    memberId: normalizeMemberId(memberId),
+    groupNumber: normalizeGroupCode(groupNumber),
+    planName: titleCaseWords(extractLabeledValue(text, ["plan name", "plan"], "([A-Z0-9][A-Z0-9\\-\\/ ]{2,50})")),
+    planType: normalizePlanType(
+      PLAN_TYPE_PATTERNS.find((planType) => text.toUpperCase().includes(planType.toUpperCase())) || null
+    ),
+    subscriberName: titleCaseWords(
+      extractLabeledValue(text, ["subscriber name", "member name"], "([A-Z][A-Z ,.'-]{2,50})")
+    ),
+    subscriberDob: normalizeDate(
+      extractLabeledValue(text, ["subscriber dob"], "(\\d{1,2}[/-]\\d{1,2}[/-]\\d{2,4}|\\d{4}-\\d{2}-\\d{2})")
+    ),
+    rxBin: normalizeWhitespace(extractLabeledValue(text, ["rxbin", "rx bin", "bin"], "(\\d{6,8})")),
+    rxPcn: normalizeWhitespace(extractLabeledValue(text, ["rxpcn", "rx pcn", "pcn"], "([A-Z0-9\\-]{2,20})")),
+    rxGroup: normalizeWhitespace(extractLabeledValue(text, ["rxgrp", "rx group"], "([A-Z0-9\\-]{2,20})")),
+    effectiveDate: normalizeDate(
+      extractLabeledValue(text, ["effective date", "effective"], "(\\d{1,2}[/-]\\d{1,2}[/-]\\d{2,4}|\\d{4}-\\d{2}-\\d{2})")
+    ),
+    serviceDate: normalizeDate(serviceDate),
+    providerName: titleCaseWords(providerName),
+    authorizationNumber: normalizeWhitespace(authorizationNumber),
+    referralNumber: normalizeWhitespace(referralNumber),
+    denialReason: normalizeWhitespace(
+      extractLabeledValue(text, ["denial reason", "reason for denial"], "([A-Z0-9 ,.'()/-]{5,120})")
+    ),
+    diagnosisCodes: extractDiagnosisCodes(text).join(", ") || null,
+    procedureCodes: extractProcedureCodes(text).join(", ") || null,
+    extractedTextSnippet: normalizeWhitespace(text.slice(0, 500)),
+  };
+}
+
+function buildGenericConfidenceScores(
+  fields: Record<string, string | null>,
+  baseConfidence: number,
+  documentType: SupportedDocumentType
+): Record<string, number> {
+  const scores: Record<string, number> = {};
+
+  for (const [field, value] of Object.entries(fields)) {
+    if (!value) continue;
+
+    let score = baseConfidence;
+    if (field === "patientName" || field === "payerName" || field === "memberId") score += 8;
+    if (documentType.includes("Insurance Card")) score += 6;
+    if (field === "diagnosisCodes" || field === "procedureCodes") score -= 6;
+
+    scores[field] = Math.max(40, Math.min(95, Math.round(score)));
+  }
+
+  return scores;
+}
+
+function buildGenericExtractionResult(
+  fields: Record<string, string | null>,
+  documentType: SupportedDocumentType,
+  channelUsed: GenericExtractionResult["channelUsed"],
+  processingTimeMs: number,
+  error?: string
+): GenericExtractionResult {
+  const populatedFieldCount = Object.values(fields).filter(Boolean).length;
+  const baseConfidence = documentType.includes("Insurance Card") ? 78 : 68;
+  const confidenceScores = buildGenericConfidenceScores(fields, baseConfidence, documentType);
+  const scoreValues = Object.values(confidenceScores);
+  const overallConfidence = scoreValues.length
+    ? Math.round(scoreValues.reduce((sum, value) => sum + value, 0) / scoreValues.length)
+    : 0;
+  const lowConfidenceFields = Object.entries(confidenceScores)
+    .filter(([, value]) => value < 70)
+    .map(([field]) => field);
+
+  return {
+    success: populatedFieldCount > 0,
+    fields,
+    confidenceScores,
+    overallConfidence,
+    requiresReview: overallConfidence < 75 || lowConfidenceFields.length > 0,
+    lowConfidenceFields,
+    channelUsed,
+    processingTimeMs,
+    error,
+  };
+}
+
+function normalizeSupportedDocumentType(documentType: string | null | undefined): SupportedDocumentType {
+  if (!documentType) {
+    return "Other Document";
+  }
+
+  const matchedType = SUPPORTED_DOCUMENT_TYPES.find((type) => type === documentType);
+  return matchedType || "Other Document";
+}
+
+function buildInsuranceCardGenericResult(
+  extraction: ExtractionResult
+): GenericExtractionResult {
+  return {
+    success: extraction.success,
+    fields: flattenExtraction(extraction.fields),
+    confidenceScores: getConfidenceScores(extraction.fields),
+    overallConfidence: extraction.overallConfidence,
+    requiresReview: extraction.requiresReview,
+    lowConfidenceFields: extraction.lowConfidenceFields,
+    channelUsed: extraction.channelUsed,
+    processingTimeMs: extraction.processingTimeMs,
+    error: extraction.error,
+  };
+}
+
+function extractDocumentSpecificFields(
+  text: string,
+  documentType: SupportedDocumentType
+): Record<string, string | null> {
+  const upperText = text.toUpperCase();
+  const denialReason = normalizeWhitespace(
+    extractLabeledValue(
+      text,
+      ["denial reason", "reason for denial", "denied because", "adverse determination"],
+      "([A-Z0-9 ,.'()/:;-]{5,160})"
+    )
+  );
+  const decisionStatus = normalizeWhitespace(
+    extractLabeledValue(
+      text,
+      ["status", "authorization status", "determination"],
+      "([A-Z][A-Z /-]{2,40})"
+    )
+  );
+  const claimNumber = normalizeWhitespace(
+    extractLabeledValue(text, ["claim number", "claim #"], "([A-Z0-9\\-]{4,30})")
+  );
+
+  switch (documentType) {
+    case "Explanation of Benefits (EOB)":
+      return {
+        claimNumber,
+        denialReason,
+        decisionStatus:
+          decisionStatus ||
+          (upperText.includes("DENIED")
+            ? "Denied"
+            : upperText.includes("APPROVED")
+              ? "Approved"
+              : null),
+      };
+    case "Prior Authorization Letter":
+      return {
+        authorizationNumber: normalizeWhitespace(
+          extractLabeledValue(
+            text,
+            ["authorization number", "auth number", "auth #", "prior auth number"],
+            "([A-Z0-9\\-]{4,30})"
+          )
+        ),
+        denialReason,
+        decisionStatus:
+          decisionStatus ||
+          (upperText.includes("APPROVED")
+            ? "Approved"
+            : upperText.includes("DENIED")
+              ? "Denied"
+              : null),
+      };
+    case "Referral Letter":
+      return {
+        referralNumber: normalizeWhitespace(
+          extractLabeledValue(
+            text,
+            ["referral number", "referral #", "reference number"],
+            "([A-Z0-9\\-]{4,30})"
+          )
+        ),
+        providerName: titleCaseWords(
+          extractLabeledValue(
+            text,
+            ["referring provider", "referred to", "provider", "physician"],
+            "([A-Z][A-Z ,.'-]{2,60})"
+          )
+        ),
+      };
+    case "Lab/Radiology Report":
+      return {
+        orderingProvider: titleCaseWords(
+          extractLabeledValue(
+            text,
+            ["ordering provider", "provider", "physician", "doctor"],
+            "([A-Z][A-Z ,.'-]{2,60})"
+          )
+        ),
+        reportType: normalizeWhitespace(
+          extractLabeledValue(
+            text,
+            ["exam", "study", "report type", "test"],
+            "([A-Z0-9 ,.'()/-]{3,80})"
+          )
+        ),
+      };
+    default:
+      return {
+        claimNumber,
+        denialReason,
+        decisionStatus,
+      };
+  }
+}
+
+function parseGenericDocumentText(
+  text: string,
+  documentType: SupportedDocumentType
+): Record<string, string | null> {
+  const commonFields = extractCommonDocumentFields(text);
+  const specificFields = extractDocumentSpecificFields(text, documentType);
+
+  return {
+    ...commonFields,
+    ...specificFields,
+  };
+}
+
+async function extractGenericTextWithProvider(
+  fileBuffer: Buffer,
+  mimeType: string,
+  provider: OcrProvider
+): Promise<{
+  text: string | null;
+  channelUsed: GenericExtractionResult["channelUsed"];
+  processingTimeMs: number;
+  error?: string;
+}> {
+  const startTime = Date.now();
+
+  if (mimeType === "application/pdf") {
+    const pdfText = extractSimplePdfText(fileBuffer);
+    if (pdfText) {
+      return {
+        text: pdfText,
+        channelUsed: "pdf-text",
+        processingTimeMs: Date.now() - startTime,
+      };
+    }
+  }
+
+  const prepared = await preprocessImage(fileBuffer, mimeType);
+
+  if (provider === "ocr-space") {
+    try {
+      return {
+        text: await extractTextWithOcrSpace(prepared.buffer, prepared.mimeType),
+        channelUsed: "ocr-space",
+        processingTimeMs: Date.now() - startTime,
+      };
+    } catch (error) {
+      return {
+        text: null,
+        channelUsed: "ocr-space",
+        processingTimeMs: Date.now() - startTime,
+        error: (error as Error).message,
+      };
+    }
+  }
+
+  if (provider === "google-cloud-vision") {
+    try {
+      return {
+        text: await extractTextWithGoogleCloudVision(prepared.buffer, prepared.mimeType),
+        channelUsed: "google-cloud-vision",
+        processingTimeMs: Date.now() - startTime,
+      };
+    } catch (error) {
+      return {
+        text: null,
+        channelUsed: "google-cloud-vision",
+        processingTimeMs: Date.now() - startTime,
+        error: (error as Error).message,
+      };
+    }
+  }
+
+  if (provider === "azure") {
+    return {
+      text: null,
+      channelUsed: "azure",
+      processingTimeMs: Date.now() - startTime,
+      error: "Azure extraction is currently only configured for insurance cards.",
+    };
+  }
+
+  if (isOcrSpaceAvailable()) {
+    try {
+      const text = await extractTextWithOcrSpace(prepared.buffer, prepared.mimeType);
+      if (text) {
+        return {
+          text,
+          channelUsed: "ocr-space",
+          processingTimeMs: Date.now() - startTime,
+        };
+      }
+    } catch (error) {
+      // Fall through to the next provider.
+      console.warn("OCR.space generic extraction failed:", (error as Error).message);
+    }
+  }
+
+  if (isGoogleCloudVisionAvailable()) {
+    try {
+      const text = await extractTextWithGoogleCloudVision(prepared.buffer, prepared.mimeType);
+      if (text) {
+        return {
+          text,
+          channelUsed: "google-cloud-vision",
+          processingTimeMs: Date.now() - startTime,
+        };
+      }
+    } catch (error) {
+      console.warn("Google Cloud Vision generic extraction failed:", (error as Error).message);
+    }
+  }
+
+  return {
+    text: null,
+    channelUsed: mimeType === "application/pdf" ? "pdf-text" : "ocr-space",
+    processingTimeMs: Date.now() - startTime,
+    error:
+      "No configured OCR provider could extract readable text from this document. Try a clearer scan or image.",
+  };
+}
+
 function getOcrSpaceApiKey(): string | null {
   return process.env.OCR_SPACE_API_KEY || null;
 }
@@ -803,6 +1226,42 @@ export async function extractInsuranceCard(
   return finalizeResult(createEmptyExtraction(), "ocr-space", 0, error);
 }
 
+export async function extractDocumentData(
+  fileBuffer: Buffer,
+  mimeType = "image/jpeg",
+  documentType: SupportedDocumentType,
+  provider: OcrProvider = "auto"
+): Promise<GenericExtractionResult> {
+  const normalizedDocumentType = normalizeSupportedDocumentType(documentType);
+
+  if (
+    normalizedDocumentType === "Insurance Card Front" ||
+    normalizedDocumentType === "Insurance Card Back"
+  ) {
+    const insuranceExtraction = await extractInsuranceCard(fileBuffer, mimeType, provider);
+    return buildInsuranceCardGenericResult(insuranceExtraction);
+  }
+
+  const extractedText = await extractGenericTextWithProvider(fileBuffer, mimeType, provider);
+  if (!extractedText.text) {
+    return buildGenericExtractionResult(
+      parseGenericDocumentText("", normalizedDocumentType),
+      normalizedDocumentType,
+      extractedText.channelUsed,
+      extractedText.processingTimeMs,
+      extractedText.error || "No readable text was found in the uploaded document."
+    );
+  }
+
+  return buildGenericExtractionResult(
+    parseGenericDocumentText(extractedText.text, normalizedDocumentType),
+    normalizedDocumentType,
+    extractedText.channelUsed,
+    extractedText.processingTimeMs,
+    extractedText.error
+  );
+}
+
 export function flattenExtraction(
   extraction: InsuranceCardExtraction
 ): Record<string, string | null> {
@@ -826,6 +1285,7 @@ export function getConfidenceScores(extraction: InsuranceCardExtraction): Record
 }
 
 export default {
+  extractDocumentData,
   extractInsuranceCard,
   flattenExtraction,
   getConfidenceScores,
