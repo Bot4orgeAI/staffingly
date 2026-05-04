@@ -3,7 +3,11 @@ import * as eligibilityController from "../controllers/eligibilityController.js"
 import { authenticate, requireRoles } from "../middleware/auth.js";
 import { validateBody, validateQuery } from "../middleware/validate.js";
 import { asyncHandler } from "../middleware/errorHandler.js";
-import { eligibilityCheckSchema, paginationSchema } from "../lib/schemas.js";
+import {
+  bulkEligibilityBatchSchema,
+  eligibilityCheckSchema,
+  paginationSchema,
+} from "../lib/schemas.js";
 
 const router = Router();
 
@@ -22,6 +26,19 @@ router.post(
   requireRoles(...ALLOWED_ROLES),
   validateBody(eligibilityCheckSchema),
   asyncHandler(eligibilityController.checkEligibility)
+);
+
+router.post(
+  "/batch",
+  requireRoles(...ALLOWED_ROLES),
+  validateBody(bulkEligibilityBatchSchema),
+  asyncHandler(eligibilityController.createBulkBatch)
+);
+
+router.get(
+  "/batch/:id",
+  requireRoles(...ALLOWED_ROLES),
+  asyncHandler(eligibilityController.getBulkBatch)
 );
 
 router.get(

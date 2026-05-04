@@ -274,7 +274,7 @@ export default function EligibilityVerifyPanel({ subscriber, provider, onClose, 
           >
             {verifying ? (
               <>
-                <Loader2 className="w-4 h-4 animate-spin" /> Verifying via Availity...
+                <Loader2 className="w-4 h-4 animate-spin" /> Verifying via n8n gateway...
               </>
             ) : (
               <>

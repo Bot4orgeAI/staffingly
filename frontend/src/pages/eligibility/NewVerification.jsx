@@ -19,8 +19,8 @@ const WORKFLOWS = [
   },
   {
     id: "upload",
-    label: "Upload Card",
-    description: "Extract details from an insurance card.",
+    label: "Upload Documents",
+    description: "Extract details from uploaded documents.",
     icon: FileUp,
   },
   {
@@ -87,17 +87,37 @@ export default function NewVerification() {
       patient_id: params.get("patientId") || "",
       first_name: firstName,
       last_name: lastName,
+      middle_name: params.get("middle_name") || "",
       dob: params.get("dob") || "",
+      gender: params.get("gender") || "",
       phone: params.get("phone") || "",
       email: params.get("email") || "",
+      address: params.get("address") || "",
+      city: params.get("city") || "",
+      state: params.get("state") || "",
+      zip: params.get("zip") || "",
       payer: params.get("payer") || "",
+      payer_id: params.get("payer_id") || "",
       member_id: params.get("member_id") || "",
       group_number: params.get("group_number") || "",
       plan_name: params.get("plan_name") || "",
       plan_type: params.get("plan_type") || "",
+      effective_date: params.get("effective_date") || "",
+      termination_date: params.get("termination_date") || "",
+      rx_bin: params.get("rx_bin") || "",
+      rx_pcn: params.get("rx_pcn") || "",
+      rx_group: params.get("rx_group") || "",
+      copay_pcp: params.get("copay_pcp") || "",
+      copay_specialist: params.get("copay_specialist") || "",
       subscriber_name: params.get("subscriber_name") || "",
       subscriber_dob: params.get("subscriber_dob") || "",
       subscriber_relationship: params.get("subscriber_relationship") || "Self",
+      provider_npi: params.get("provider_npi") || "",
+      service_date: params.get("service_date") || "",
+      service_type: params.get("service_type") || "",
+      cpt_code: params.get("cpt_code") || "",
+      facility_name: params.get("facility_name") || "",
+      notes: params.get("notes") || "",
     };
   }, [params]);
 
@@ -123,18 +143,35 @@ export default function NewVerification() {
       patient: formData.patient_name || `${formData.first_name} ${formData.last_name}`.trim(),
       payer: formData.payer || "",
       member_id: formData.member_id || "",
+      payer_id: formData.payer_id || "",
       service_type: formData.service_type || "",
       provider_npi: formData.provider_npi || "",
       dob: formData.dob || "",
       service_date: formData.service_date || "",
-      payer_id: formData.payer_id || "",
+      middle_name: formData.middle_name || "",
+      gender: formData.gender || "",
+      address: formData.address || "",
+      city: formData.city || "",
+      state: formData.state || "",
+      zip: formData.zip || "",
       plan_name: formData.plan_name || "",
       plan_type: formData.plan_type || "",
+      effective_date: formData.effective_date || "",
+      termination_date: formData.termination_date || "",
+      rx_bin: formData.rx_bin || "",
+      rx_pcn: formData.rx_pcn || "",
+      rx_group: formData.rx_group || "",
+      copay_pcp: formData.copay_pcp || "",
+      copay_specialist: formData.copay_specialist || "",
       group_number: formData.group_number || "",
       subscriber_name: formData.subscriber_name || "",
       subscriber_dob: formData.subscriber_dob || "",
       subscriber_relationship: formData.subscriber_relationship || "",
+      cpt_code: formData.cpt_code || "",
+      facility_name: formData.facility_name || "",
+      notes: formData.notes || "",
       procedure_requested: formData.cpt_code || formData.service_type || "",
+      verification_engine: "n8n",
     });
 
     navigate(createPageUrl(`Processing?${verificationParams.toString()}`));
@@ -205,6 +242,23 @@ export default function NewVerification() {
               />
             ))}
           </div>
+
+          <div className="mt-5 grid gap-3 rounded-2xl border border-slate-200 bg-slate-50 p-4 lg:grid-cols-[220px,1fr] lg:items-center">
+            <div>
+              <p className="text-sm font-semibold text-slate-900">Verification Engine</p>
+              <p className="mt-1 text-xs text-slate-500">
+                Eligibility verification is routed through the n8n workflow server.
+              </p>
+            </div>
+            <div>
+              <div className="flex h-[46px] items-center rounded-2xl border border-slate-200 bg-white px-3 py-2.5 text-sm font-medium text-slate-700">
+                n8n Gateway
+              </div>
+              <p className="mt-2 text-xs text-slate-400">
+                In-app eligibility execution has been removed from this workflow.
+              </p>
+            </div>
+          </div>
         </div>
 
         {activeWorkflow === "manual" ? (
@@ -224,7 +278,7 @@ export default function NewVerification() {
             <div className="mb-5 border-b border-slate-100 pb-4">
               <h2 className="text-lg font-bold text-slate-900">{selectedWorkflow.label}</h2>
               <p className="mt-1 text-sm text-slate-500">
-                Upload the card, review the extracted data, and continue.
+                Upload supporting documents, review the extracted data, and continue.
               </p>
             </div>
             <UploadTab onSubmit={handleRunVerification} />

@@ -13,6 +13,28 @@ export const eligibilityCheckSchema = Joi.object({
   patientId: Joi.string().allow("", null),
   submissionType: Joi.string().valid("manual", "ocr", "emr", "bulk").default("manual"),
   emrType: Joi.string().allow("", null),
+  verificationEngine: Joi.string().valid("n8n").default("n8n"),
+});
+
+export const bulkEligibilityRowSchema = Joi.object({
+  patientId: Joi.string().allow("", null),
+  patient_name: Joi.string().allow("", null),
+  first_name: Joi.string().allow("", null),
+  last_name: Joi.string().allow("", null),
+  dob: Joi.string().allow("", null),
+  payer: Joi.string().allow("", null),
+  payer_id: Joi.string().allow("", null),
+  member_id: Joi.string().required(),
+  provider_npi: Joi.string().allow("", null),
+  service_type: Joi.string().allow("", null),
+  service_type_code: Joi.string().allow("", null),
+  service_date: Joi.string().allow("", null),
+});
+
+export const bulkEligibilityBatchSchema = Joi.object({
+  clientId: Joi.string().allow("", null),
+  verificationEngine: Joi.string().valid("n8n").default("n8n"),
+  rows: Joi.array().items(bulkEligibilityRowSchema).min(1).max(250).required(),
 });
 
 export const createCustomerSchema = Joi.object({

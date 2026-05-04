@@ -1,7 +1,7 @@
-import type { Response } from "express";
-import type { AuthenticatedRequest } from "../types/index.js";
+import type { AutomationJobStatus, CoverageStatus } from "@prisma/client";
+import { Response } from "express";
+import type { AuthenticatedRequest, AuthenticatedUser } from "../types/index.js";
 import prisma from "../lib/prisma.js";
-import { CoverageStatus } from "@prisma/client";
 import {
   buildGatewayPatientId,
   normalizeEligibilityGatewayResponse,
@@ -21,6 +21,28 @@ interface CheckEligibilityBody {
   patientId?: string;
   submissionType?: "manual" | "ocr" | "emr" | "bulk";
   emrType?: string;
+  verificationEngine?: "n8n";
+}
+
+interface BulkEligibilityRow {
+  patientId?: string;
+  patient_name?: string;
+  first_name?: string;
+  last_name?: string;
+  dob?: string;
+  payer?: string;
+  payer_id?: string;
+  member_id: string;
+  provider_npi?: string;
+  service_type?: string;
+  service_type_code?: string;
+  service_date?: string;
+}
+
+interface BulkEligibilityBatchBody {
+  clientId?: string;
+  verificationEngine?: "n8n";
+  rows: BulkEligibilityRow[];
 }
 
 interface EligibilityResult {
@@ -40,6 +62,50 @@ interface EligibilityResult {
   requiresHumanReview?: boolean;
   rawResponse?: unknown;
   error?: string;
+  routingTrace?: Array<{
+    channel: string;
+    status: string;
+    detail: string;
+  }>;
+  automationJobId?: string;
+}
+
+interface EligibilityExecutionResult {
+  checkRecordId: string;
+  gatewayPatientId: string;
+  result: EligibilityResult;
+}
+
+interface BulkBatchRowResult {
+  index: number;
+  status: "completed" | "failed";
+  input: {
+    patientName: string;
+    dob: string;
+    payerName: string;
+    payerId: string;
+    memberId: string;
+    providerNpi: string;
+    serviceDate: string;
+    serviceTypeCode: string;
+  };
+  checkId?: string;
+  gatewayPatientId?: string;
+  result?: EligibilityResult;
+  error?: string;
+}
+
+interface BulkBatchJobResult {
+  totalRows: number;
+  completedRows: number;
+  successCount: number;
+  failureCount: number;
+  verificationEngine: "n8n";
+  rows: BulkBatchRowResult[];
+}
+
+interface ResolvedClientContext {
+  clientId: string;
 }
 
 interface GetHistoryQuery {
@@ -58,7 +124,143 @@ interface HistoryWhereClause {
   memberId?: string;
 }
 
-export async function checkEligibility(req: AuthenticatedRequest, res: Response): Promise<void> {
+function toCoverageStatus(value?: string): CoverageStatus | null {
+  const normalized = value?.trim().toUpperCase();
+
+  if (normalized === "ACTIVE") return "ACTIVE";
+  if (normalized === "INACTIVE") return "INACTIVE";
+  if (normalized === "UNKNOWN") return "UNKNOWN";
+
+  return null;
+}
+
+function parseDate(value?: string | null): Date | null {
+  if (!value) return null;
+  const normalized = value.includes("/") ? value.split("/").reverse().join("-") : value;
+  const parsed = new Date(normalized);
+  return Number.isNaN(parsed.getTime()) ? null : parsed;
+}
+
+function getRowPatientName(row: BulkEligibilityRow): string {
+  if (row.patient_name?.trim()) return row.patient_name.trim();
+  return [row.first_name?.trim(), row.last_name?.trim()].filter(Boolean).join(" ").trim();
+}
+
+function normalizeBulkRow(row: BulkEligibilityRow): CheckEligibilityBody {
+  return {
+    patientName: getRowPatientName(row),
+    dob: row.dob || "",
+    memberId: row.member_id,
+    payerId: row.payer_id || "",
+    payerName: row.payer || "",
+    providerNpi: row.provider_npi || "",
+    serviceTypeCode: row.service_type_code || "30",
+    serviceDate: row.service_date || new Date().toISOString().slice(0, 10),
+    patientId: row.patientId || undefined,
+    submissionType: "bulk",
+  };
+}
+
+function createEmptyBulkBatchResult(
+  totalRows: number,
+  verificationEngine: "n8n"
+): BulkBatchJobResult {
+  return {
+    totalRows,
+    completedRows: 0,
+    successCount: 0,
+    failureCount: 0,
+    verificationEngine,
+    rows: [],
+  };
+}
+
+function parseJobResult(job: { resultJson: string | null }): BulkBatchJobResult | null {
+  if (!job.resultJson) return null;
+
+  try {
+    return JSON.parse(job.resultJson) as BulkBatchJobResult;
+  } catch {
+    return null;
+  }
+}
+
+function buildRowResult(
+  index: number,
+  payload: CheckEligibilityBody,
+  execution: EligibilityExecutionResult | null,
+  error?: string
+): BulkBatchRowResult {
+  return {
+    index,
+    status: execution ? "completed" : "failed",
+    input: {
+      patientName: payload.patientName || "",
+      dob: payload.dob || "",
+      payerName: payload.payerName || "",
+      payerId: payload.payerId || "",
+      memberId: payload.memberId,
+      providerNpi: payload.providerNpi || "",
+      serviceDate: payload.serviceDate || "",
+      serviceTypeCode: payload.serviceTypeCode || "30",
+    },
+    checkId: execution?.checkRecordId,
+    gatewayPatientId: execution?.gatewayPatientId,
+    result: execution?.result,
+    error,
+  };
+}
+
+async function resolveEligibilityClientContext({
+  clientId,
+  patientId,
+  user,
+}: {
+  clientId?: string | null;
+  patientId?: string | null;
+  user?: AuthenticatedUser;
+}): Promise<ResolvedClientContext> {
+  const requestedClientId = clientId?.trim();
+  if (requestedClientId) {
+    const client = await prisma.client.findUnique({
+      where: { id: requestedClientId },
+      select: { id: true },
+    });
+    if (!client) {
+      throw new Error("The selected client could not be found.");
+    }
+    return { clientId: client.id };
+  }
+
+  if (patientId?.trim()) {
+    const patient = await prisma.patient.findUnique({
+      where: { id: patientId.trim() },
+      select: { clientId: true },
+    });
+    if (patient?.clientId) {
+      return { clientId: patient.clientId };
+    }
+  }
+
+  if (user?.clientId?.trim()) {
+    const client = await prisma.client.findUnique({
+      where: { id: user.clientId.trim() },
+      select: { id: true },
+    });
+    if (client) {
+      return { clientId: client.id };
+    }
+  }
+
+  throw new Error(
+    "A valid client context is required for eligibility checks. Please select or sign in under a client account."
+  );
+}
+
+async function runEligibilityCheck(
+  payload: CheckEligibilityBody,
+  user?: AuthenticatedUser
+): Promise<EligibilityExecutionResult> {
   const {
     patientName,
     dob,
@@ -72,7 +274,13 @@ export async function checkEligibility(req: AuthenticatedRequest, res: Response)
     patientId,
     submissionType,
     emrType,
-  } = req.body as CheckEligibilityBody;
+    verificationEngine = "n8n",
+  } = payload;
+  const clientContext = await resolveEligibilityClientContext({
+    clientId,
+    patientId,
+    user,
+  });
 
   const gatewayPatientId = buildGatewayPatientId({
     gatewayPatientId: patientId,
@@ -80,47 +288,42 @@ export async function checkEligibility(req: AuthenticatedRequest, res: Response)
     dob,
     memberId,
   });
-  const gatewayResponse = await sendEligibilityVerification({
-    gatewayPatientId,
-    patientName: patientName || "",
-    dob: dob || "",
-    payerId,
-    memberId,
-    providerNpi: providerNpi || "",
-    serviceDate: serviceDate || "",
-    serviceTypeCode: serviceTypeCode || "30",
-    submissionType,
-    emrType,
-  });
+
   const result = normalizeEligibilityGatewayResponse(
-    gatewayResponse
+    await sendEligibilityVerification({
+      gatewayPatientId,
+      patientName: patientName || "",
+      dob: dob || "",
+      payerId: payerId || "",
+      memberId,
+      providerNpi: providerNpi || "",
+      serviceDate: serviceDate || "",
+      serviceTypeCode: serviceTypeCode || "30",
+      submissionType,
+      emrType,
+    })
   ) as unknown as EligibilityResult & {
     rawResponse?: unknown;
   };
 
   const checkRecord = await prisma.eligibilityCheck.create({
     data: {
-      clientId: clientId || req.user?.clientId || "",
+      clientId: clientContext.clientId,
       gatewayPatientId,
       patientName: patientName || "",
-      patientDob: dob
-        ? new Date(dob.includes("/") ? dob.split("/").reverse().join("-") : dob)
-        : null,
+      patientDob: parseDate(dob),
       memberId,
       payerId,
       payerName,
       providerNpi,
       serviceTypeCode,
-      serviceDate: serviceDate ? new Date(serviceDate) : null,
-      coverageStatus:
-        result.success && result.coverageStatus
-          ? (result.coverageStatus?.toUpperCase() as CoverageStatus)
-          : null,
+      serviceDate: parseDate(serviceDate),
+      coverageStatus: toCoverageStatus(result.coverageStatus),
       planName: result.planName,
       planType: result.planType,
       networkStatus: result.networkStatus,
-      effectiveDate: result.effectiveDate ? new Date(result.effectiveDate) : null,
-      terminationDate: result.terminationDate ? new Date(result.terminationDate) : null,
+      effectiveDate: parseDate(result.effectiveDate || null),
+      terminationDate: parseDate(result.terminationDate || null),
       groupNumber: result.groupNumber,
       benefitsRaw: result.benefitsRaw ? JSON.stringify(result.benefitsRaw) : null,
       confidenceScore: result.confidenceScore,
@@ -130,16 +333,193 @@ export async function checkEligibility(req: AuthenticatedRequest, res: Response)
       requiresHumanReview: result.requiresHumanReview || false,
       rawResponse: result.rawResponse ? JSON.stringify(result.rawResponse) : null,
       errorMessage: result.error,
-      performedById: req.user?.userId,
+      performedById: user?.userId,
     },
   });
 
-  res.json({
-    ...result,
-    checkId: checkRecord.id,
-    check_id: checkRecord.id,
+  return {
+    checkRecordId: checkRecord.id,
     gatewayPatientId,
-    gateway_patient_id: gatewayPatientId,
+    result,
+  };
+}
+
+async function processBulkBatchJob(
+  jobId: string,
+  rows: BulkEligibilityRow[],
+  user?: AuthenticatedUser,
+  clientId?: string | null,
+  verificationEngine: "n8n" = "n8n"
+): Promise<void> {
+  const resultState = createEmptyBulkBatchResult(rows.length, verificationEngine);
+
+  await prisma.automationJob.update({
+    where: { id: jobId },
+    data: {
+      status: "RUNNING",
+      startedAt: new Date(),
+      resultJson: JSON.stringify(resultState),
+      clientId: clientId || user?.clientId || null,
+    },
+  });
+
+  for (let index = 0; index < rows.length; index += 1) {
+    const payload = {
+      ...normalizeBulkRow(rows[index] as BulkEligibilityRow),
+      clientId: clientId || user?.clientId || "",
+      verificationEngine,
+    };
+
+    try {
+      const execution = await runEligibilityCheck(payload, user);
+      resultState.rows.push(buildRowResult(index, payload, execution));
+      resultState.successCount += 1;
+    } catch (error) {
+      resultState.rows.push(
+        buildRowResult(index, payload, null, (error as Error).message || "Eligibility check failed")
+      );
+      resultState.failureCount += 1;
+    }
+
+    resultState.completedRows = resultState.rows.length;
+
+    await prisma.automationJob.update({
+      where: { id: jobId },
+      data: {
+        resultJson: JSON.stringify(resultState),
+      },
+    });
+  }
+
+  const finalStatus: AutomationJobStatus =
+    resultState.failureCount > 0 && resultState.successCount === 0 ? "FAILED" : "COMPLETED";
+
+  await prisma.automationJob.update({
+    where: { id: jobId },
+    data: {
+      status: finalStatus,
+      completedAt: new Date(),
+      errorMessage:
+        finalStatus === "FAILED"
+          ? "All bulk eligibility rows failed. Review the row errors for details."
+          : null,
+      resultJson: JSON.stringify(resultState),
+    },
+  });
+}
+
+function assertCanAccessBatch(
+  job: { clientId: string | null; triggeredBy: string | null },
+  user?: AuthenticatedUser
+): boolean {
+  if (!user) return false;
+  if (user.role === "SUPER_ADMIN" || user.role === "STAFFINGLY_ADMIN" || user.role === "STAFFINGLY_SUPERVISOR") {
+    return true;
+  }
+  if (user.clientId && job.clientId && user.clientId === job.clientId) {
+    return true;
+  }
+  return Boolean(user.email && job.triggeredBy && user.email === job.triggeredBy);
+}
+
+export async function checkEligibility(req: AuthenticatedRequest, res: Response): Promise<void> {
+  const execution = await runEligibilityCheck(req.body as CheckEligibilityBody, req.user);
+
+  res.json({
+    ...execution.result,
+    checkId: execution.checkRecordId,
+    check_id: execution.checkRecordId,
+    gatewayPatientId: execution.gatewayPatientId,
+    gateway_patient_id: execution.gatewayPatientId,
+  });
+}
+
+export async function createBulkBatch(req: AuthenticatedRequest, res: Response): Promise<void> {
+  const { clientId, rows, verificationEngine = "n8n" } = req.body as BulkEligibilityBatchBody;
+  const clientContext = await resolveEligibilityClientContext({
+    clientId,
+    user: req.user,
+  });
+  const resolvedClientId = clientContext.clientId;
+  const activeJobs = await prisma.automationJob.findMany({
+    where: {
+      jobType: "eligibility_bulk",
+      status: { in: ["QUEUED", "RUNNING"] },
+      clientId: resolvedClientId,
+    },
+  });
+
+  const queuePosition = activeJobs.filter((job) => job.status === "QUEUED").length + 1;
+  const jobRecord = await prisma.automationJob.create({
+    data: {
+      jobId: `eligibility_bulk_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
+      jobType: "eligibility_bulk",
+      clientId: resolvedClientId,
+      payerName:
+        rows.length === 1 ? rows[0]?.payer || rows[0]?.payer_id || "Unknown Payer" : "Mixed Payers",
+      status: "QUEUED",
+      queuePosition,
+      triggeredBy: req.user?.email || null,
+      resultJson: JSON.stringify(createEmptyBulkBatchResult(rows.length, verificationEngine)),
+    },
+  });
+
+  setTimeout(() => {
+    void processBulkBatchJob(jobRecord.id, rows, req.user, resolvedClientId, verificationEngine);
+  }, 0);
+
+  res.status(202).json({
+    success: true,
+    batchJobId: jobRecord.id,
+    jobId: jobRecord.jobId,
+    status: jobRecord.status.toLowerCase(),
+    queuePosition,
+    verificationEngine,
+  });
+}
+
+export async function getBulkBatch(req: AuthenticatedRequest, res: Response): Promise<void> {
+  const { id } = req.params as { id: string };
+  const job = await prisma.automationJob.findUnique({
+    where: { id },
+    select: {
+      id: true,
+      jobId: true,
+      jobType: true,
+      clientId: true,
+      payerName: true,
+      status: true,
+      queuePosition: true,
+      queuedAt: true,
+      startedAt: true,
+      completedAt: true,
+      triggeredBy: true,
+      errorMessage: true,
+      resultJson: true,
+    },
+  });
+
+  if (!job || job.jobType !== "eligibility_bulk") {
+    res.status(404).json({ error: "Bulk eligibility batch not found" });
+    return;
+  }
+
+  if (!assertCanAccessBatch(job, req.user)) {
+    res.status(403).json({ error: "You do not have access to this batch job" });
+    return;
+  }
+
+  res.json({
+    id: job.id,
+    jobId: job.jobId,
+    status: job.status.toLowerCase(),
+    queuePosition: job.queuePosition,
+    queuedAt: job.queuedAt,
+    startedAt: job.startedAt,
+    completedAt: job.completedAt,
+    payerName: job.payerName,
+    errorMessage: job.errorMessage,
+    result: parseJobResult(job),
   });
 }
 

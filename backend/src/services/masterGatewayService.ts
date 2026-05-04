@@ -113,55 +113,112 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null;
 }
 
+function unwrapGatewayPayload(raw: unknown): Record<string, unknown> {
+  if (Array.isArray(raw)) {
+    const firstItem = raw[0];
+    return isRecord(firstItem) ? firstItem : {};
+  }
+
+  return isRecord(raw) ? raw : {};
+}
+
+function asString(value: unknown): string | null {
+  return typeof value === "string" && value.trim() ? value : null;
+}
+
+function asBoolean(value: unknown): boolean | null {
+  return typeof value === "boolean" ? value : null;
+}
+
+function asNumber(value: unknown): number | null {
+  if (typeof value === "number" && Number.isFinite(value)) {
+    return value;
+  }
+
+  if (typeof value === "string" && value.trim()) {
+    const parsed = Number(value);
+    return Number.isFinite(parsed) ? parsed : null;
+  }
+
+  return null;
+}
+
+function asArray(value: unknown): unknown[] {
+  return Array.isArray(value) ? value : [];
+}
+
 export function normalizeEligibilityGatewayResponse(raw: unknown): Record<string, unknown> {
-  const payload = isRecord(raw)
-    ? isRecord(raw.data)
-      ? raw.data
-      : isRecord(raw.result)
-        ? raw.result
-        : raw
-    : {};
+  const rootPayload = unwrapGatewayPayload(raw);
+  const payload = isRecord(rootPayload.data)
+    ? rootPayload.data
+    : isRecord(rootPayload.result)
+      ? rootPayload.result
+      : rootPayload;
+
+  const rawError =
+    asString(payload.error) ||
+    asString(payload.errorMessage) ||
+    (asString(payload.status)?.toLowerCase() === "error" ? asString(payload.message) : null) ||
+    asString(rootPayload.error) ||
+    asString(rootPayload.errorMessage) ||
+    (asString(rootPayload.status)?.toLowerCase() === "error" ? asString(rootPayload.message) : null);
 
   const coverageStatus =
-    payload.coverageStatus ||
-    payload.coverage_status ||
-    payload.coverage ||
-    payload.status ||
+    asString(payload.coverageStatus) ||
+    asString(payload.coverage_status) ||
+    asString(payload.coverage) ||
+    (rawError ? "Unknown" : asString(payload.status)) ||
     "Unknown";
 
+  const explicitSuccess = asBoolean(payload.success) ?? asBoolean(rootPayload.success);
+  const success =
+    explicitSuccess ??
+    (!rawError && asString(payload.status)?.toLowerCase() !== "error" && coverageStatus !== "Unknown");
+
   return {
-    success:
-      payload.success !== undefined
-        ? Boolean(payload.success)
-        : !payload.error && !payload.errorMessage,
+    success,
     coverageStatus,
     coverage_status: coverageStatus,
-    planName: payload.planName || payload.plan_name || payload.plan || "",
-    plan_name: payload.planName || payload.plan_name || payload.plan || "",
-    planType: payload.planType || payload.plan_type || "",
-    plan_type: payload.planType || payload.plan_type || "",
-    networkStatus: payload.networkStatus || payload.network_status || "",
-    network_status: payload.networkStatus || payload.network_status || "",
-    effectiveDate: payload.effectiveDate || payload.effective_date || null,
-    effective_date: payload.effectiveDate || payload.effective_date || null,
-    terminationDate: payload.terminationDate || payload.termination_date || null,
-    termination_date: payload.terminationDate || payload.termination_date || null,
-    groupNumber: payload.groupNumber || payload.group_number || null,
-    group_number: payload.groupNumber || payload.group_number || null,
-    benefitsRaw: payload.benefitsRaw || payload.benefits_raw || [],
-    benefits_raw: payload.benefitsRaw || payload.benefits_raw || [],
-    confidenceScore: payload.confidenceScore || payload.confidence_score || null,
-    confidence_score: payload.confidenceScore || payload.confidence_score || null,
-    responseTimeSeconds: payload.responseTimeSeconds || payload.response_time_seconds || null,
-    response_time_seconds: payload.responseTimeSeconds || payload.response_time_seconds || null,
-    channelUsed: payload.channelUsed || payload.channel_used || "n8n Master Gateway",
-    channel_used: payload.channelUsed || payload.channel_used || "n8n Master Gateway",
-    flags: Array.isArray(payload.flags) ? payload.flags : [],
-    requiresHumanReview: payload.requiresHumanReview || payload.requires_human_review || false,
-    requires_human_review: payload.requiresHumanReview || payload.requires_human_review || false,
+    planName: asString(payload.planName) || asString(payload.plan_name) || asString(payload.plan) || "",
+    plan_name: asString(payload.planName) || asString(payload.plan_name) || asString(payload.plan) || "",
+    planType: asString(payload.planType) || asString(payload.plan_type) || "",
+    plan_type: asString(payload.planType) || asString(payload.plan_type) || "",
+    networkStatus: asString(payload.networkStatus) || asString(payload.network_status) || "",
+    network_status: asString(payload.networkStatus) || asString(payload.network_status) || "",
+    effectiveDate: asString(payload.effectiveDate) || asString(payload.effective_date),
+    effective_date: asString(payload.effectiveDate) || asString(payload.effective_date),
+    terminationDate: asString(payload.terminationDate) || asString(payload.termination_date),
+    termination_date: asString(payload.terminationDate) || asString(payload.termination_date),
+    groupNumber: asString(payload.groupNumber) || asString(payload.group_number),
+    group_number: asString(payload.groupNumber) || asString(payload.group_number),
+    benefitsRaw: asArray(payload.benefitsRaw).length
+      ? asArray(payload.benefitsRaw)
+      : asArray(payload.benefits_raw),
+    benefits_raw: asArray(payload.benefitsRaw).length
+      ? asArray(payload.benefitsRaw)
+      : asArray(payload.benefits_raw),
+    confidenceScore: asNumber(payload.confidenceScore) ?? asNumber(payload.confidence_score),
+    confidence_score: asNumber(payload.confidenceScore) ?? asNumber(payload.confidence_score),
+    responseTimeSeconds:
+      asNumber(payload.responseTimeSeconds) ?? asNumber(payload.response_time_seconds),
+    response_time_seconds:
+      asNumber(payload.responseTimeSeconds) ?? asNumber(payload.response_time_seconds),
+    channelUsed:
+      asString(payload.channelUsed) || asString(payload.channel_used) || "n8n Master Gateway",
+    channel_used:
+      asString(payload.channelUsed) || asString(payload.channel_used) || "n8n Master Gateway",
+    flags: asArray(payload.flags),
+    requiresHumanReview:
+      asBoolean(payload.requiresHumanReview) ?? asBoolean(payload.requires_human_review) ?? false,
+    requires_human_review:
+      asBoolean(payload.requiresHumanReview) ?? asBoolean(payload.requires_human_review) ?? false,
+    priorAuthRequired:
+      asBoolean(payload.priorAuthRequired) ?? asBoolean(payload.prior_auth_required) ?? null,
+    prior_auth_required:
+      asBoolean(payload.priorAuthRequired) ?? asBoolean(payload.prior_auth_required) ?? null,
     rawResponse: raw,
     raw_response: raw,
-    error: payload.error || payload.errorMessage || payload.message || null,
+    error: rawError,
   };
 }
 

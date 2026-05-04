@@ -5,31 +5,30 @@ import { createPageUrl } from "@/lib/utils/page";
 import { api } from "@/lib/api";
 import { Check, Loader2, ShieldCheck } from "lucide-react";
 
-const STEPS = [
-  {
-    title: "Sending EDI 270 Inquiry",
-    description:
-      "Packaging patient demographics into X12 270 transaction. Submitting to Availity clearinghouse.",
-  },
-  {
-    title: "Clearinghouse Routing",
-    description: "Availity routing inquiry to payer endpoint. Establishing secure connection.",
-  },
-  {
-    title: "Receiving EDI 271 Response",
-    description:
-      "Payer returned eligibility response. Parsing EB segments for coverage and benefit details.",
-  },
-  {
-    title: "AI Benefits Interpretation",
-    description:
-      "InsuVerifAI analyzing plan documents. Calculating patient responsibility and checking prior auth requirements.",
-  },
-  {
-    title: "Verification Complete",
-    description: "Results normalized and confidence score calculated. Ready for review.",
-  },
-];
+function getSteps() {
+  return [
+    {
+      title: "Sending EV Request",
+      description: "Packaging patient demographics into the master gateway eligibility payload.",
+    },
+    {
+      title: "Gateway Routing",
+      description: "The n8n master gateway is routing the request to the EV workflow.",
+    },
+    {
+      title: "Receiving EV Response",
+      description: "The portal is collecting and parsing the gateway response payload.",
+    },
+    {
+      title: "Normalizing Coverage Data",
+      description: "Coverage, plan, and prior-auth indicators are being normalized for the portal.",
+    },
+    {
+      title: "Verification Complete",
+      description: "Gateway results normalized and confidence score calculated. Ready for review.",
+    },
+  ];
+}
 
 export default function Processing() {
   const [currentStep, setCurrentStep] = useState(0);
@@ -60,6 +59,7 @@ export default function Processing() {
   const subscriberDob = params.get("subscriber_dob") || "";
   const subscriberRelationship = params.get("subscriber_relationship") || "";
   const procedureRequested = params.get("procedure_requested") || "";
+  const steps = getSteps();
 
   const verifyMutation = useMutation({
     mutationFn: (payload) => api.functions.invoke("availityEligibility", payload),
@@ -72,7 +72,7 @@ export default function Processing() {
     // Step 1: animate first 2 steps, then call API, then animate remaining steps
     const advanceStep = (step) => {
       setCompletedSteps((prev) => [...prev, step]);
-      if (step + 1 < STEPS.length) setCurrentStep(step + 1);
+      if (step + 1 < steps.length) setCurrentStep(step + 1);
     };
 
     // Animate steps 0 and 1 while API call happens in parallel
@@ -87,9 +87,11 @@ export default function Processing() {
           dob,
           member_id: memberId,
           payer_id: payerId,
+          payer_name: payer,
           provider_npi: providerNpi,
           service_date: serviceDate,
           service_type_code: "30",
+          verification_engine: "n8n",
         });
 
         const result = response.data;
@@ -123,6 +125,7 @@ export default function Processing() {
                 subscriber_dob: subscriberDob,
                 subscriber_relationship: subscriberRelationship,
                 procedure_requested: procedureRequested,
+                verification_engine: "n8n",
                 result_data: encoded,
               });
               navigate(createPageUrl(`Results?${resultParams.toString()}`));
@@ -158,6 +161,7 @@ export default function Processing() {
                 subscriber_dob: subscriberDob,
                 subscriber_relationship: subscriberRelationship,
                 procedure_requested: procedureRequested,
+                verification_engine: "n8n",
               });
               navigate(createPageUrl(`Results?${resultParams.toString()}`));
             }, 1200);
@@ -184,6 +188,7 @@ export default function Processing() {
             <ShieldCheck className="w-7 h-7" style={{ color: "#293682" }} />
           </div>
           <h2 className="font-bold text-slate-800 text-lg">Running Eligibility Check</h2>
+          <p className="text-slate-400 text-xs mt-1">Engine: n8n Gateway</p>
           {patient && (
             <p className="text-slate-400 text-sm mt-1">
               Patient: <span className="text-slate-600 font-medium">{patient}</span>
@@ -194,7 +199,7 @@ export default function Processing() {
 
         {/* Steps */}
         <div className="space-y-1 mb-8">
-          {STEPS.map((step, i) => {
+          {steps.map((step, i) => {
             const isDone = completedSteps.includes(i);
             const isActive = currentStep === i && !isDone;
             const isPending = !isDone && !isActive;

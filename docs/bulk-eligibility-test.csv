@@ -1,0 +1,6 @@
+first_name,last_name,dob,payer,payer_id,member_id,provider_npi,service_type,service_date
+Sarah,Mitchell,1985-03-14,UnitedHealthcare,UHC,884720193,1234567890,Specialist Visit,2026-04-27
+James,Holloway,1971-07-22,Aetna,AETNA,562901847,0987654321,Primary Care,2026-04-27
+Maria,Lopez,1990-11-05,Cigna,CIGNA,CG-1039485,1122334455,Outpatient Surgery,2026-04-28
+David,Chen,1968-09-30,Blue Cross Blue Shield,BCBS,BC-7781902,2233445566,Diagnostic Imaging,2026-04-28
+Angela,Brooks,1979-01-18,Humana,HUMANA,HU-5528190,3344556677,Physical Therapy,2026-04-29

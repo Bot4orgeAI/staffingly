@@ -45,11 +45,17 @@ const patients = {
 };
 
 const priorAuth = {
+  createCase: (data) => apiClient.post("/api/prior-auth/cases", data),
   runAction: (caseId, action, data = {}) =>
     apiClient.post(`/api/prior-auth/cases/${caseId}/actions`, {
       action,
       ...data,
     }),
+};
+
+const eligibility = {
+  createBatch: (data) => apiClient.post("/api/eligibility/batch", data),
+  getBatch: (id) => apiClient.get(`/api/eligibility/batch/${id}`),
 };
 
 // Upload API (insurance cards)
@@ -61,6 +67,8 @@ const upload = {
   // Extract data from insurance card using OCR
   extractInsuranceCard: (formData) =>
     apiClient.postFormData("/api/upload/insurance-card/extract", formData),
+  // Extract structured data from general uploaded documents
+  extractDocumentData: (formData) => apiClient.postFormData("/api/upload/extract-data", formData),
   // Get URL for uploaded card
   getInsuranceCardUrl: (uploadId) => apiClient.get(`/api/upload/insurance-card/${uploadId}/url`),
   // Confirm OCR review and attach the uploaded card to a saved policy
@@ -78,6 +86,7 @@ export const api = {
   integrations,
   client: apiClient,
   patients,
+  eligibility,
   priorAuth,
   upload,
 };
