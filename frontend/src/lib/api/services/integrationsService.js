@@ -29,7 +29,8 @@ export const Core = {
     }
 
     const data = await response.json();
-    return { file_url: data.fileUrl || data.file_url || data.url };
+    const payload = data?.data || data;
+    return { file_url: payload.fileUrl || payload.file_url || payload.url };
   },
 
   /**
