@@ -4,6 +4,7 @@ import prisma from "../lib/prisma.js";
 import type { AuthenticatedRequest } from "../types/index.js";
 import {
   buildGatewayPatientId,
+  normalizePriorAuthGatewayResponse,
   sendPriorAuthAction,
   type PriorAuthGatewayAction,
 } from "../services/masterGatewayService.js";
@@ -517,7 +518,7 @@ export const triggerGatewayAction = async (
     data: {
       action: body.action,
       gatewayPatientId,
-      gatewayResponse,
+      gatewayResponse: normalizePriorAuthGatewayResponse(gatewayResponse),
     },
   });
 };

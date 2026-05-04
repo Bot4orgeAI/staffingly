@@ -1,6 +1,8 @@
 import { createHash } from "crypto";
 
-const MASTER_GATEWAY_URL = process.env.N8N_MASTER_GATEWAY_URL;
+const DEFAULT_MASTER_GATEWAY_URL =
+  "https://cabdriver-tree-scabby.ngrok-free.dev/webhook/master-gateway";
+const MASTER_GATEWAY_URL = process.env.N8N_MASTER_GATEWAY_URL || DEFAULT_MASTER_GATEWAY_URL;
 
 export type GatewaySubmissionType = "manual" | "ocr" | "emr" | "bulk";
 export type PriorAuthGatewayAction =
@@ -13,6 +15,8 @@ export type PriorAuthGatewayAction =
 export interface EligibilityGatewayInput {
   gatewayPatientId: string;
   patientName: string;
+  patientFirstName?: string;
+  patientLastName?: string;
   dob?: string;
   payerId?: string;
   memberId: string;
@@ -35,7 +39,7 @@ export interface PriorAuthGatewayInput {
 
 function ensureGatewayConfigured(): string {
   if (!MASTER_GATEWAY_URL) {
-    throw new Error("N8N_MASTER_GATEWAY_URL is not configured");
+    throw new Error("N8N master gateway URL is not configured");
   }
 
   return MASTER_GATEWAY_URL;
@@ -225,7 +229,8 @@ export function normalizeEligibilityGatewayResponse(raw: unknown): Record<string
 export async function sendEligibilityVerification(
   input: EligibilityGatewayInput
 ): Promise<unknown> {
-  const { firstName, lastName } = splitName(input.patientName);
+  const firstName = input.patientFirstName?.trim() || splitName(input.patientName).firstName;
+  const lastName = input.patientLastName?.trim() || splitName(input.patientName).lastName;
 
   return postToGateway({
     routing_header: {
@@ -264,9 +269,43 @@ export async function sendPriorAuthAction(input: PriorAuthGatewayInput): Promise
   });
 }
 
+export function normalizePriorAuthGatewayResponse(raw: unknown): Record<string, unknown> {
+  const rootPayload = unwrapGatewayPayload(raw);
+  const payload = isRecord(rootPayload.data)
+    ? rootPayload.data
+    : isRecord(rootPayload.result)
+      ? rootPayload.result
+      : rootPayload;
+
+  return {
+    action: asString(payload.action) || asString(rootPayload.action),
+    status: asString(payload.status) || asString(rootPayload.status),
+    message: asString(payload.message) || asString(rootPayload.message),
+    confirmationNumber:
+      asString(payload.confirmationNumber) || asString(payload.confirmation_number),
+    confirmation_number:
+      asString(payload.confirmationNumber) || asString(payload.confirmation_number),
+    appealLetter: asString(payload.appealLetter) || asString(payload.appeal_letter),
+    appeal_letter: asString(payload.appealLetter) || asString(payload.appeal_letter),
+    checklistItems: payload.checklistItems || payload.checklist_items || null,
+    checklist_items: payload.checklistItems || payload.checklist_items || null,
+    missingItems: payload.missingItems || payload.missing_items || null,
+    missing_items: payload.missingItems || payload.missing_items || null,
+    confidenceScore: asNumber(payload.confidenceScore) ?? asNumber(payload.confidence_score),
+    confidence_score: asNumber(payload.confidenceScore) ?? asNumber(payload.confidence_score),
+    medicalNecessitySummary:
+      asString(payload.medicalNecessitySummary) || asString(payload.medical_necessity_summary),
+    medical_necessity_summary:
+      asString(payload.medicalNecessitySummary) || asString(payload.medical_necessity_summary),
+    rawResponse: raw,
+    raw_response: raw,
+  };
+}
+
 export default {
   buildGatewayPatientId,
   normalizeEligibilityGatewayResponse,
+  normalizePriorAuthGatewayResponse,
   sendEligibilityVerification,
   sendPriorAuthAction,
 };

@@ -1,14 +1,24 @@
-import { useMemo, useState } from "react";
-import { useNavigate } from "react-router-dom";
-import { createPageUrl } from "@/lib/utils/page";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { useMutation } from "@tanstack/react-query";
 import { useAuthUserQuery } from "@/lib/query";
+import { api } from "@/lib/api";
 import { getWorkflowContext } from "@/lib/utils/workflow";
 import StaffinglyLayout from "@/components/staffingly/StaffinglyLayout";
 import ManualEntryTab from "@/components/insuverif/ManualEntryTab";
 import UploadTab from "@/components/insuverif/UploadTab";
 import EmrTab from "@/components/insuverif/EmrTab.jsx";
 import BulkVerifyTab from "@/components/insuverif/BulkVerifyTab";
-import { ArrowRight, ClipboardCheck, FileUp, Layers3, MonitorSmartphone } from "lucide-react";
+import {
+  AlertTriangle,
+  ArrowRight,
+  CheckCircle,
+  ClipboardCheck,
+  FileUp,
+  Layers3,
+  Loader2,
+  MonitorSmartphone,
+  ShieldCheck,
+} from "lucide-react";
 
 const WORKFLOWS = [
   {
@@ -45,6 +55,44 @@ function getInitialWorkflow(params) {
   return "manual";
 }
 
+const COVERAGE_COLORS = {
+  Active: { bg: "#f0fdf4", text: "#15803d", border: "#bbf7d0", icon: CheckCircle },
+  Inactive: { bg: "#fef2f2", text: "#dc2626", border: "#fecaca", icon: AlertTriangle },
+  Unknown: { bg: "#fffbeb", text: "#b45309", border: "#fde68a", icon: AlertTriangle },
+};
+
+function normalizeEligibilityResult(data = {}) {
+  return {
+    coverage_status: data.coverage_status || data.coverageStatus || "Unknown",
+    plan_name: data.plan_name || data.planName || "",
+    plan_type: data.plan_type || data.planType || "",
+    network_status: data.network_status || data.networkStatus || "",
+    effective_date: data.effective_date || data.effectiveDate || "",
+    termination_date: data.termination_date || data.terminationDate || "",
+    prior_auth_required: data.prior_auth_required ?? data.priorAuthRequired ?? null,
+    confidence_score: data.confidence_score || data.confidenceScore || 0,
+    channel_used: data.channel_used || data.channelUsed || "n8n Master Gateway",
+    response_time_seconds: data.response_time_seconds || data.responseTimeSeconds || "",
+    check_id: data.check_id || data.checkId || "",
+    gateway_patient_id: data.gateway_patient_id || data.gatewayPatientId || "",
+    flags: Array.isArray(data.flags) ? data.flags : [],
+    error: data.error || "",
+  };
+}
+
+function ResultField({ label, value }) {
+  if (!value && value !== 0) return null;
+
+  return (
+    <div>
+      <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-400">
+        {label}
+      </p>
+      <p className="mt-1 text-sm font-semibold text-slate-700">{value}</p>
+    </div>
+  );
+}
+
 function WorkflowOption({ workflow, active, onSelect }) {
   const Icon = workflow.icon;
 
@@ -73,10 +121,13 @@ function WorkflowOption({ workflow, active, onSelect }) {
 
 export default function NewVerification() {
   const { data: user } = useAuthUserQuery();
-  const navigate = useNavigate();
   const params = useMemo(() => new URLSearchParams(window.location.search), []);
   const workflowContext = useMemo(() => getWorkflowContext(window.location.search), []);
   const [activeWorkflow, setActiveWorkflow] = useState(() => getInitialWorkflow(params));
+  const [lastRequest, setLastRequest] = useState(null);
+  const [verificationResult, setVerificationResult] = useState(null);
+  const [verificationError, setVerificationError] = useState("");
+  const statusSectionRef = useRef(null);
 
   const prefill = useMemo(() => {
     const patientName = params.get("patient_name") || "";
@@ -133,49 +184,80 @@ export default function NewVerification() {
     WORKFLOWS.find((workflow) => workflow.id === activeWorkflow) || WORKFLOWS[0];
   const isPriorAuthFlow = workflowContext.intent === "prior-auth";
 
-  const handleRunVerification = (formData) => {
-    const verificationParams = new URLSearchParams({
-      source: workflowContext.source || "",
-      intent: workflowContext.intent || "",
-      patientId: workflowContext.patientId || formData.patient_id || "",
-      first_name: formData.first_name || "",
-      last_name: formData.last_name || "",
-      patient: formData.patient_name || `${formData.first_name} ${formData.last_name}`.trim(),
-      payer: formData.payer || "",
-      member_id: formData.member_id || "",
-      payer_id: formData.payer_id || "",
-      service_type: formData.service_type || "",
-      provider_npi: formData.provider_npi || "",
-      dob: formData.dob || "",
-      service_date: formData.service_date || "",
-      middle_name: formData.middle_name || "",
-      gender: formData.gender || "",
-      address: formData.address || "",
-      city: formData.city || "",
-      state: formData.state || "",
-      zip: formData.zip || "",
-      plan_name: formData.plan_name || "",
-      plan_type: formData.plan_type || "",
-      effective_date: formData.effective_date || "",
-      termination_date: formData.termination_date || "",
-      rx_bin: formData.rx_bin || "",
-      rx_pcn: formData.rx_pcn || "",
-      rx_group: formData.rx_group || "",
-      copay_pcp: formData.copay_pcp || "",
-      copay_specialist: formData.copay_specialist || "",
-      group_number: formData.group_number || "",
-      subscriber_name: formData.subscriber_name || "",
-      subscriber_dob: formData.subscriber_dob || "",
-      subscriber_relationship: formData.subscriber_relationship || "",
-      cpt_code: formData.cpt_code || "",
-      facility_name: formData.facility_name || "",
-      notes: formData.notes || "",
-      procedure_requested: formData.cpt_code || formData.service_type || "",
-      verification_engine: "n8n",
-    });
+  const verifyMutation = useMutation({
+    mutationFn: (payload) => api.functions.invoke("availityEligibility", payload),
+  });
 
-    navigate(createPageUrl(`Processing?${verificationParams.toString()}`));
+  const handleRunVerification = async (formData) => {
+    const patientName =
+      formData.patient_name || `${formData.first_name || ""} ${formData.last_name || ""}`.trim();
+    const submissionType =
+      activeWorkflow === "upload"
+        ? "ocr"
+        : activeWorkflow === "emr"
+          ? "emr"
+          : activeWorkflow === "bulk"
+            ? "bulk"
+            : "manual";
+
+    const requestSnapshot = {
+      patientName,
+      payer: formData.payer || "",
+      memberId: formData.member_id || "",
+      providerNpi: formData.provider_npi || "",
+      serviceDate: formData.service_date || "",
+      submissionType,
+    };
+
+    setLastRequest(requestSnapshot);
+    setVerificationResult(null);
+    setVerificationError("");
+
+    try {
+      const response = await verifyMutation.mutateAsync({
+        patient_name: patientName,
+        patient_first_name: formData.first_name || "",
+        patient_last_name: formData.last_name || "",
+        dob: formData.dob || "",
+        member_id: formData.member_id || "",
+        payer_id: formData.payer_id || "",
+        payer_name: formData.payer || "",
+        provider_npi: formData.provider_npi || "",
+        service_date: formData.service_date || new Date().toISOString().slice(0, 10),
+        service_type_code: "30",
+        patient_id: workflowContext.patientId || formData.patient_id || "",
+        gateway_patient_id: formData.gateway_patient_id || "",
+        submission_type: submissionType,
+        emr_type: submissionType === "emr" ? "athenahealth" : "",
+      });
+
+      const normalized = normalizeEligibilityResult(response.data || {});
+
+      if (normalized.error) {
+        setVerificationError(normalized.error);
+        return;
+      }
+
+      setVerificationResult(normalized);
+    } catch (error) {
+      setVerificationError(error?.message || "Eligibility verification failed.");
+    }
   };
+
+  const statusTone = verificationResult
+    ? COVERAGE_COLORS[verificationResult.coverage_status] || COVERAGE_COLORS.Unknown
+    : null;
+  const StatusIcon = statusTone?.icon || ShieldCheck;
+
+  useEffect(() => {
+    if (verifyMutation.isPending) return;
+    if (!lastRequest) return;
+
+    statusSectionRef.current?.scrollIntoView({
+      behavior: "smooth",
+      block: "start",
+    });
+  }, [lastRequest, verificationError, verificationResult, verifyMutation.isPending]);
 
   return (
     <StaffinglyLayout
@@ -243,20 +325,19 @@ export default function NewVerification() {
             ))}
           </div>
 
-          <div className="mt-5 grid gap-3 rounded-2xl border border-slate-200 bg-slate-50 p-4 lg:grid-cols-[220px,1fr] lg:items-center">
-            <div>
-              <p className="text-sm font-semibold text-slate-900">Verification Engine</p>
-              <p className="mt-1 text-xs text-slate-500">
-                Eligibility verification is routed through the n8n workflow server.
-              </p>
-            </div>
-            <div>
-              <div className="flex h-[46px] items-center rounded-2xl border border-slate-200 bg-white px-3 py-2.5 text-sm font-medium text-slate-700">
-                n8n Gateway
+          <div className="mt-5 rounded-2xl border border-slate-200 bg-slate-50 p-4">
+            <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+              <div className="min-w-0 flex-1">
+                <p className="text-sm font-semibold text-slate-900">Verification Engine</p>
+                <p className="mt-1 text-xs text-slate-500">
+                  Eligibility verification is routed through the n8n workflow server.
+                </p>
               </div>
-              <p className="mt-2 text-xs text-slate-400">
-                In-app eligibility execution has been removed from this workflow.
-              </p>
+              <div className="flex justify-start lg:justify-end">
+                <div className="inline-flex h-[46px] items-center rounded-2xl border border-slate-200 bg-white px-3 py-2.5 text-sm font-medium text-slate-700">
+                  n8n Gateway
+                </div>
+              </div>
             </div>
           </div>
         </div>
@@ -269,7 +350,11 @@ export default function NewVerification() {
                 Enter or confirm the details below, then run the check.
               </p>
             </div>
-            <ManualEntryTab onSubmit={handleRunVerification} prefill={prefill} />
+            <ManualEntryTab
+              onSubmit={handleRunVerification}
+              prefill={prefill}
+              submitting={verifyMutation.isPending}
+            />
           </div>
         ) : null}
 
@@ -308,6 +393,131 @@ export default function NewVerification() {
             <EmrTab onSubmit={handleRunVerification} />
           </div>
         ) : null}
+
+        {(lastRequest || verifyMutation.isPending || verificationResult || verificationError) && (
+          <div
+            ref={statusSectionRef}
+            className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm"
+          >
+            <div className="mb-5 border-b border-slate-100 pb-4">
+              <h2 className="text-lg font-bold text-slate-900">Verification Status</h2>
+              <p className="mt-1 text-sm text-slate-500">
+                This panel reflects the real request lifecycle between the portal backend and the
+                `n8n` gateway.
+              </p>
+            </div>
+
+            {lastRequest ? (
+              <div className="grid gap-3 rounded-2xl border border-slate-200 bg-slate-50 p-4 sm:grid-cols-2 lg:grid-cols-4">
+                <ResultField label="Patient" value={lastRequest.patientName} />
+                <ResultField label="Payer" value={lastRequest.payer} />
+                <ResultField label="Submission Type" value={lastRequest.submissionType} />
+                <ResultField label="Service Date" value={lastRequest.serviceDate} />
+              </div>
+            ) : null}
+
+            <div className="mt-4 space-y-3">
+              <div className="flex items-start gap-3 rounded-2xl border border-slate-200 bg-white p-4">
+                <div className="mt-0.5 flex h-10 w-10 items-center justify-center rounded-2xl bg-[#eef3ff] text-[#293682]">
+                  {verifyMutation.isPending ? (
+                    <Loader2 className="h-5 w-5 animate-spin" />
+                  ) : verificationError ? (
+                    <AlertTriangle className="h-5 w-5 text-red-500" />
+                  ) : verificationResult ? (
+                    <StatusIcon className="h-5 w-5" style={{ color: statusTone.text }} />
+                  ) : (
+                    <ShieldCheck className="h-5 w-5" />
+                  )}
+                </div>
+                <div>
+                  <p className="text-sm font-semibold text-slate-900">
+                    {verifyMutation.isPending
+                      ? "Submitting eligibility request"
+                      : verificationError
+                        ? "Eligibility request failed"
+                        : verificationResult
+                          ? "Eligibility response received"
+                          : "Ready to send"}
+                  </p>
+                  <p className="mt-1 text-sm text-slate-500">
+                    {verifyMutation.isPending
+                      ? "The frontend has sent the request to the portal backend, and the backend is waiting for the n8n gateway response."
+                      : verificationError
+                        ? verificationError
+                        : verificationResult
+                          ? "The backend returned a normalized response, and the values below are coming from that response."
+                          : "Submit a verification request to see the live response state here."}
+                  </p>
+                </div>
+              </div>
+
+              {verificationResult ? (
+                <div
+                  className="rounded-2xl border-2 p-5"
+                  style={{
+                    backgroundColor: statusTone.bg,
+                    borderColor: statusTone.border,
+                  }}
+                >
+                  <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+                    <div>
+                      <p className="text-xs font-semibold uppercase tracking-[0.2em]" style={{ color: statusTone.text }}>
+                        Coverage Status
+                      </p>
+                      <p className="mt-2 text-2xl font-bold" style={{ color: statusTone.text }}>
+                        {verificationResult.coverage_status}
+                      </p>
+                    </div>
+                    <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                      <ResultField label="Confidence" value={`${verificationResult.confidence_score}%`} />
+                      <ResultField label="Channel" value={verificationResult.channel_used} />
+                      <ResultField
+                        label="Response Time"
+                        value={
+                          verificationResult.response_time_seconds
+                            ? `${verificationResult.response_time_seconds}s`
+                            : ""
+                        }
+                      />
+                      <ResultField label="Plan Name" value={verificationResult.plan_name} />
+                      <ResultField label="Plan Type" value={verificationResult.plan_type} />
+                      <ResultField label="Network" value={verificationResult.network_status} />
+                      <ResultField label="Effective Date" value={verificationResult.effective_date} />
+                      <ResultField
+                        label="Termination Date"
+                        value={verificationResult.termination_date}
+                      />
+                      <ResultField
+                        label="Prior Auth Required"
+                        value={
+                          verificationResult.prior_auth_required == null
+                            ? ""
+                            : verificationResult.prior_auth_required
+                              ? "Yes"
+                              : "No"
+                        }
+                      />
+                    </div>
+                  </div>
+
+                  {verificationResult.flags.length > 0 ? (
+                    <div className="mt-4 space-y-2">
+                      {verificationResult.flags.map((flag) => (
+                        <div
+                          key={flag}
+                          className="flex items-start gap-2 rounded-xl bg-white/70 px-3 py-2 text-sm text-slate-700"
+                        >
+                          <AlertTriangle className="mt-0.5 h-4 w-4 flex-shrink-0 text-amber-600" />
+                          <span>{flag}</span>
+                        </div>
+                      ))}
+                    </div>
+                  ) : null}
+                </div>
+              ) : null}
+            </div>
+          </div>
+        )}
       </div>
     </StaffinglyLayout>
   );

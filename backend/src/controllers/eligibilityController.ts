@@ -10,6 +10,8 @@ import {
 
 interface CheckEligibilityBody {
   patientName?: string;
+  patientFirstName?: string;
+  patientLastName?: string;
   dob?: string;
   memberId: string;
   payerId: string;
@@ -19,6 +21,7 @@ interface CheckEligibilityBody {
   serviceDate?: string;
   clientId?: string;
   patientId?: string;
+  gatewayPatientId?: string;
   submissionType?: "manual" | "ocr" | "emr" | "bulk";
   emrType?: string;
   verificationEngine?: "n8n";
@@ -263,6 +266,8 @@ async function runEligibilityCheck(
 ): Promise<EligibilityExecutionResult> {
   const {
     patientName,
+    patientFirstName,
+    patientLastName,
     dob,
     memberId,
     payerId,
@@ -272,6 +277,7 @@ async function runEligibilityCheck(
     serviceDate,
     clientId,
     patientId,
+    gatewayPatientId,
     submissionType,
     emrType,
     verificationEngine = "n8n",
@@ -282,17 +288,23 @@ async function runEligibilityCheck(
     user,
   });
 
-  const gatewayPatientId = buildGatewayPatientId({
-    gatewayPatientId: patientId,
-    patientName,
+  const resolvedPatientName =
+    patientName ||
+    [patientFirstName?.trim(), patientLastName?.trim()].filter(Boolean).join(" ").trim();
+
+  const resolvedGatewayPatientId = buildGatewayPatientId({
+    gatewayPatientId,
+    patientName: resolvedPatientName,
     dob,
     memberId,
   });
 
   const result = normalizeEligibilityGatewayResponse(
     await sendEligibilityVerification({
-      gatewayPatientId,
-      patientName: patientName || "",
+      gatewayPatientId: resolvedGatewayPatientId,
+      patientName: resolvedPatientName,
+      patientFirstName,
+      patientLastName,
       dob: dob || "",
       payerId: payerId || "",
       memberId,
@@ -309,8 +321,8 @@ async function runEligibilityCheck(
   const checkRecord = await prisma.eligibilityCheck.create({
     data: {
       clientId: clientContext.clientId,
-      gatewayPatientId,
-      patientName: patientName || "",
+      gatewayPatientId: resolvedGatewayPatientId,
+      patientName: resolvedPatientName,
       patientDob: parseDate(dob),
       memberId,
       payerId,
@@ -339,7 +351,7 @@ async function runEligibilityCheck(
 
   return {
     checkRecordId: checkRecord.id,
-    gatewayPatientId,
+    gatewayPatientId: resolvedGatewayPatientId,
     result,
   };
 }

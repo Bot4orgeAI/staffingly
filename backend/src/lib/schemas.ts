@@ -2,6 +2,8 @@ import Joi from "joi";
 
 export const eligibilityCheckSchema = Joi.object({
   patientName: Joi.string().required(),
+  patientFirstName: Joi.string().allow("", null),
+  patientLastName: Joi.string().allow("", null),
   dob: Joi.string().required(),
   memberId: Joi.string().required(),
   payerId: Joi.string().allow("", null),
@@ -11,6 +13,7 @@ export const eligibilityCheckSchema = Joi.object({
   serviceDate: Joi.string().allow("", null),
   clientId: Joi.string().allow("", null),
   patientId: Joi.string().allow("", null),
+  gatewayPatientId: Joi.string().allow("", null),
   submissionType: Joi.string().valid("manual", "ocr", "emr", "bulk").default("manual"),
   emrType: Joi.string().allow("", null),
   verificationEngine: Joi.string().valid("n8n").default("n8n"),

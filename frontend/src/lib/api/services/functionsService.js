@@ -14,6 +14,8 @@ const FUNCTION_MAPPINGS = {
       patientName:
         params.patient_name ||
         [params.patient_first_name, params.patient_last_name].filter(Boolean).join(" "),
+      patientFirstName: params.patient_first_name,
+      patientLastName: params.patient_last_name,
       dob: params.dob || params.patient_dob,
       memberId: params.member_id,
       payerId: params.payer_id,
@@ -23,6 +25,7 @@ const FUNCTION_MAPPINGS = {
       serviceDate: params.service_date,
       clientId: params.client_id,
       patientId: params.patient_id,
+      gatewayPatientId: params.gateway_patient_id,
       submissionType: params.submission_type,
       emrType: params.emr_type,
     }),

@@ -2,7 +2,7 @@ import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { api } from "@/lib/api";
 import { useEntityListQuery } from "@/lib/query";
-import { ChevronDown, ChevronRight, Plus } from "lucide-react";
+import { ChevronDown, ChevronRight, Loader2, Plus, ShieldCheck } from "lucide-react";
 import AppSelect from "@/components/ui/app-select";
 
 const PLAN_TYPES = [
@@ -96,47 +96,46 @@ function buildFormFromPatient(patient, currentForm) {
 
   return {
     ...currentForm,
-    patient_id: patient?.id || currentForm.patient_id || "",
-    first_name: patient?.firstName || currentForm.first_name || "",
-    last_name: patient?.lastName || currentForm.last_name || "",
-    middle_name: patient?.middleName || currentForm.middle_name || "",
-    dob: patient?.dob ? patient.dob.split("T")[0] : currentForm.dob || "",
-    gender: patient?.gender || currentForm.gender || "",
-    phone: patient?.phone || currentForm.phone || "",
-    email: patient?.email || currentForm.email || "",
-    address: patient?.address || currentForm.address || "",
-    city: patient?.city || currentForm.city || "",
-    state: patient?.state || currentForm.state || "",
-    zip: patient?.zip || currentForm.zip || "",
-    payer: primaryPolicy?.payerName || currentForm.payer || "",
-    payer_id: primaryPolicy?.payerId || currentForm.payer_id || "",
-    member_id: primaryPolicy?.memberId || currentForm.member_id || "",
-    group_number: primaryPolicy?.groupNumber || currentForm.group_number || "",
-    plan_name: primaryPolicy?.planName || currentForm.plan_name || "",
-    plan_type: primaryPolicy?.planType || currentForm.plan_type || "",
+    patient_id: patient?.id || "",
+    first_name: patient?.firstName || "",
+    last_name: patient?.lastName || "",
+    middle_name: patient?.middleName || "",
+    dob: patient?.dob ? patient.dob.split("T")[0] : "",
+    gender: patient?.gender || "",
+    phone: patient?.phone || "",
+    email: patient?.email || "",
+    address: patient?.address || "",
+    city: patient?.city || "",
+    state: patient?.state || "",
+    zip: patient?.zip || "",
+    payer: primaryPolicy?.payerName || "",
+    payer_id: primaryPolicy?.payerId || "",
+    member_id: primaryPolicy?.memberId || "",
+    group_number: primaryPolicy?.groupNumber || "",
+    plan_name: primaryPolicy?.planName || "",
+    plan_type: primaryPolicy?.planType || "",
     effective_date: primaryPolicy?.effectiveDate
       ? primaryPolicy.effectiveDate.split("T")[0]
-      : currentForm.effective_date || "",
+      : "",
     termination_date: primaryPolicy?.terminationDate
       ? primaryPolicy.terminationDate.split("T")[0]
-      : currentForm.termination_date || "",
-    rx_bin: primaryPolicy?.rxBin || currentForm.rx_bin || "",
-    rx_pcn: primaryPolicy?.rxPcn || currentForm.rx_pcn || "",
-    rx_group: primaryPolicy?.rxGroup || currentForm.rx_group || "",
+      : "",
+    rx_bin: primaryPolicy?.rxBin || "",
+    rx_pcn: primaryPolicy?.rxPcn || "",
+    rx_group: primaryPolicy?.rxGroup || "",
     copay_pcp:
       primaryPolicy?.copayPcp != null
         ? String(primaryPolicy.copayPcp)
-        : currentForm.copay_pcp || "",
+        : "",
     copay_specialist:
       primaryPolicy?.copaySpecialist != null
         ? String(primaryPolicy.copaySpecialist)
-        : currentForm.copay_specialist || "",
-    subscriber_name: primaryPolicy?.subscriberName || currentForm.subscriber_name || "",
+        : "",
+    subscriber_name: primaryPolicy?.subscriberName || "",
     subscriber_dob: primaryPolicy?.subscriberDob
       ? primaryPolicy.subscriberDob.split("T")[0]
-      : currentForm.subscriber_dob || "",
-    subscriber_relationship:
-      primaryPolicy?.subscriberRelationship || currentForm.subscriber_relationship || "Self",
+      : "",
+    subscriber_relationship: primaryPolicy?.subscriberRelationship || "Self",
   };
 }
 
@@ -156,7 +155,7 @@ const inputClass =
 /** @type {any} */
 const ringStyle = { "--tw-ring-color": "#293682" };
 
-export default function ManualEntryTab({ onSubmit, prefill = {} }) {
+export default function ManualEntryTab({ onSubmit, prefill = {}, submitting = false }) {
   const { data: payerRules = [] } = useEntityListQuery("PayerRule", { limit: 100 }, null);
   const { data: patientsResponse } = useQuery({
     queryKey: ["patients", "manual-entry-selector"],
@@ -547,14 +546,13 @@ export default function ManualEntryTab({ onSubmit, prefill = {} }) {
       {/* Visit Info */}
       <Section title="Visit Information">
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <FormInput label="Provider NPI" required>
+          <FormInput label="Provider NPI">
             <input
               className={inputClass}
               style={ringStyle}
               value={form.provider_npi}
               onChange={(e) => update("provider_npi", e.target.value)}
-              required
-              placeholder="10-digit NPI"
+              placeholder="10-digit NPI if available"
             />
           </FormInput>
           <FormInput label="Service Date">
@@ -609,15 +607,26 @@ export default function ManualEntryTab({ onSubmit, prefill = {} }) {
         </div>
       </Section>
 
-      <div className="flex justify-start">
-        <button
-          type="submit"
-          className="px-6 py-4 rounded-xl text-white font-bold text-base"
-          style={{ backgroundColor: "#293682" }}
-        >
-          Run Eligibility Check
-        </button>
-      </div>
+        <div className="flex justify-start">
+          <button
+            type="submit"
+            disabled={submitting}
+            className="inline-flex items-center gap-2 rounded-xl px-6 py-4 text-base font-bold text-white disabled:cursor-not-allowed disabled:opacity-70"
+            style={{ backgroundColor: "#293682" }}
+          >
+            {submitting ? (
+              <>
+                <Loader2 className="h-5 w-5 animate-spin" />
+                Running Eligibility Check...
+              </>
+            ) : (
+              <>
+                <ShieldCheck className="h-5 w-5" />
+                Run Eligibility Check
+              </>
+            )}
+          </button>
+        </div>
     </form>
   );
 }
