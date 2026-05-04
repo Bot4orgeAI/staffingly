@@ -175,7 +175,13 @@ function SideCard({ side, scan, selected, onSelect, onDrop, onBrowse, onClear })
   );
 }
 
-export default function InsuranceCardCapture({ clientId, patientId, onExtracted, onClose }) {
+export default function InsuranceCardCapture({
+  clientId,
+  patientId,
+  onExtracted,
+  onClose,
+  embedded = false,
+}) {
   const [screen, setScreen] = useState("capture");
   const [activeSide, setActiveSide] = useState("FRONT");
   const [extracting, setExtracting] = useState(false);
@@ -429,8 +435,20 @@ export default function InsuranceCardCapture({ clientId, patientId, onExtracted,
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/40 p-4 sm:items-center">
-      <div className="flex h-full max-h-[calc(100dvh-2rem)] w-full max-w-4xl flex-col overflow-hidden rounded-[28px] bg-white shadow-2xl sm:h-[92vh]">
+    <div
+      className={
+        embedded
+          ? "w-full"
+          : "fixed inset-0 z-50 flex items-end justify-center bg-black/40 p-4 sm:items-center"
+      }
+    >
+      <div
+        className={
+          embedded
+            ? "flex w-full flex-col overflow-hidden rounded-[28px] border border-slate-200 bg-white shadow-sm"
+            : "flex h-full max-h-[calc(100dvh-2rem)] w-full max-w-4xl flex-col overflow-hidden rounded-[28px] bg-white shadow-2xl sm:h-[92vh]"
+        }
+      >
         <div className="flex shrink-0 items-center justify-between border-b border-slate-100 bg-gradient-to-br from-[#f5f8ff] via-white to-[#eef8f7] px-6 py-5">
           <div>
             <p className="text-[11px] font-semibold uppercase tracking-[0.24em] text-[#0a7e87]">
@@ -441,15 +459,17 @@ export default function InsuranceCardCapture({ clientId, patientId, onExtracted,
               Upload front and back separately, then review the auto-filled insurance form.
             </p>
           </div>
-          <button
-            onClick={onClose}
-            className="flex h-10 w-10 items-center justify-center rounded-2xl border border-slate-200 bg-white text-slate-400"
-          >
-            <X className="h-5 w-5" />
-          </button>
+          {onClose ? (
+            <button
+              onClick={onClose}
+              className="flex h-10 w-10 items-center justify-center rounded-2xl border border-slate-200 bg-white text-slate-400"
+            >
+              <X className="h-5 w-5" />
+            </button>
+          ) : null}
         </div>
 
-        <div className="min-h-0 flex-1 overflow-y-auto px-6 py-6">
+        <div className={embedded ? "px-6 py-6" : "min-h-0 flex-1 overflow-y-auto px-6 py-6"}>
             <div className="space-y-6">
               <div className="flex flex-wrap gap-2">
                 <StepPill
@@ -677,14 +697,14 @@ export default function InsuranceCardCapture({ clientId, patientId, onExtracted,
                 <ChevronLeft className="h-4 w-4" />
                 Back to Uploads
               </button>
-            ) : (
+            ) : onClose ? (
               <button
                 onClick={onClose}
                 className="rounded-2xl border border-slate-200 px-4 py-3 text-sm font-medium text-slate-600"
               >
                 Cancel
               </button>
-            )}
+            ) : null}
 
             {screen === "capture" ? (
               <>

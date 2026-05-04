@@ -4,6 +4,7 @@ import { motion } from "framer-motion";
 import { AlertTriangle, CheckCircle2, FileImage, Upload, X } from "lucide-react";
 import AppSelect from "@/components/ui/app-select";
 import InsuranceCardCapture from "./InsuranceCardCapture";
+import { getPatientEvDraft, savePatientEvDraft } from "@/lib/utils/workflow";
 
 const PLAN_TYPES = [
   "PPO",
@@ -100,6 +101,7 @@ export default function InsurancePolicyForm({
   const knownPayerNames = [...new Set(payerRules.map((rule) => rule.payerName).filter(Boolean))];
   const initialCustomPayerName =
     policy?.payerName && !knownPayerNames.includes(policy.payerName) ? policy.payerName : "";
+  const evDraft = getPatientEvDraft(patientId);
   const [form, setForm] = useState({
     policyType: policy?.policyType || "PRIMARY",
     payerName: initialCustomPayerName ? "Other" : policy?.payerName || "",
@@ -119,6 +121,12 @@ export default function InsurancePolicyForm({
     rxGroup: policy?.rxGroup || "",
     copayPcp: policy?.copayPcp || "",
     copaySpecialist: policy?.copaySpecialist || "",
+    providerNpi: evDraft.provider_npi || "",
+    serviceDate: evDraft.service_date || new Date().toISOString().split("T")[0],
+    serviceType: evDraft.service_type || "",
+    cptCode: evDraft.cpt_code || "",
+    facilityName: evDraft.facility_name || "",
+    notes: evDraft.notes || "",
   });
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState(null);
@@ -149,6 +157,15 @@ export default function InsurancePolicyForm({
     setError(null);
 
     try {
+      savePatientEvDraft(patientId, {
+        provider_npi: form.providerNpi,
+        service_date: form.serviceDate,
+        service_type: form.serviceType,
+        cpt_code: form.cptCode,
+        facility_name: form.facilityName,
+        notes: form.notes,
+      });
+
       await onSave({
         ...form,
         payerName: resolvedPayerName,
@@ -592,6 +609,60 @@ export default function InsurancePolicyForm({
                 placeholder="0"
                 prefix="$"
               />
+            </div>
+          </section>
+
+          <section className="rounded-[24px] border border-slate-200 bg-white p-5 shadow-sm">
+            <div className="mb-4">
+              <h4 className="text-sm font-bold text-slate-800">EV Visit Details</h4>
+              <p className="mt-1 text-xs text-slate-500">
+                Keep the same visit details available when launching eligibility verification from
+                the Patients workflow.
+              </p>
+            </div>
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+              <TextField
+                label="Provider NPI"
+                value={form.providerNpi}
+                onChange={updateField("providerNpi")}
+                placeholder="10-digit NPI"
+              />
+              <TextField
+                label="Service Date"
+                type="date"
+                value={form.serviceDate}
+                onChange={updateField("serviceDate")}
+              />
+              <TextField
+                label="Service Type"
+                value={form.serviceType}
+                onChange={updateField("serviceType")}
+                placeholder="e.g., Specialist Visit"
+              />
+              <TextField
+                label="CPT Code"
+                value={form.cptCode}
+                onChange={updateField("cptCode")}
+                placeholder="e.g., 72148"
+              />
+              <TextField
+                label="Facility Name"
+                value={form.facilityName}
+                onChange={updateField("facilityName")}
+                placeholder="Optional"
+              />
+              <div className="sm:col-span-2">
+                <label className="mb-1.5 block text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">
+                  Notes
+                </label>
+                <textarea
+                  value={form.notes}
+                  onChange={updateField("notes")}
+                  rows={3}
+                  placeholder="Any additional visit notes..."
+                  className="w-full rounded-2xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm text-slate-700 focus:border-slate-300 focus:outline-none"
+                />
+              </div>
             </div>
           </section>
         </div>
