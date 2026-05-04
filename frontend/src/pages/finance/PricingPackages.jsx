@@ -1,136 +1,148 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
+import { motion } from "framer-motion";
 import { api } from "@/lib/api";
 import { useAuthUserQuery, useEntityListQuery } from "@/lib/query";
 import StaffinglyLayout from "@/components/staffingly/StaffinglyLayout";
 import { BillingAccessDenied, canAccessBilling } from "@/components/billing/BillingAccessGuard";
-import { Plus, Edit2, Check, X, Zap, Star, Building2, CreditCard, Settings } from "lucide-react";
-import AppSelect from "@/components/ui/app-select";
+import { Plus, Edit2, Check, X, CreditCard, Lock } from "lucide-react";
+import { toast } from "@/components/ui/use-toast";
+import { Input } from "@/components/ui/input";
+import { Switch } from "@/components/ui/switch";
 
-const PKG_ICONS = {
-  starter: Zap,
-  growth: Star,
-  enterprise: Building2,
-  pay_as_you_go: CreditCard,
-  custom: Settings,
-};
-const PKG_COLORS = {
-  starter: "#6366f1",
-  growth: "#10b981",
-  enterprise: "#293682",
-  pay_as_you_go: "#f6b037",
-  custom: "#8b5cf6",
-};
+function PackageCard({ pkg, canManage, onEdit }) {
+  const color = "#293682";
+  const featureItems = [
+    {
+      label: "Eligibility Checks",
+      value: pkg.unlimitedEligibility ? "Unlimited" : pkg.includedEligibilityChecks || 0,
+    },
+    {
+      label: "Prior Auth Submissions",
+      value: pkg.unlimitedPriorAuths ? "Unlimited" : pkg.includedPriorAuths || 0,
+    },
+    {
+      label: "Appeals",
+      value: pkg.unlimitedAppeals ? "Unlimited" : `${pkg.includedAppeals || 0} free`,
+    },
+  ];
 
-function PackageCard({ pkg, onEdit }) {
-  const Icon = PKG_ICONS[pkg.package_type] || Settings;
-  const color = PKG_COLORS[pkg.package_type] || "#6366f1";
+  const rateItems = [
+    !pkg.unlimitedEligibility && pkg.overageRateEligibility > 0
+      ? { label: "Eligibility Overage", value: `$${pkg.overageRateEligibility}/ea` }
+      : null,
+    !pkg.unlimitedPriorAuths && pkg.overageRatePriorAuth > 0
+      ? { label: "PA Overage", value: `$${pkg.overageRatePriorAuth}/ea` }
+      : null,
+    pkg.ratePerEligibilityCheck > 0
+      ? { label: "Per Eligibility Check", value: `$${pkg.ratePerEligibilityCheck}` }
+      : null,
+    pkg.ratePerPriorAuth > 0 ? { label: "Per Prior Auth", value: `$${pkg.ratePerPriorAuth}` } : null,
+    pkg.ratePerAppeal > 0 ? { label: "Per Appeal", value: `$${pkg.ratePerAppeal}` } : null,
+  ].filter(Boolean);
+
   return (
     <div
-      className="bg-white rounded-2xl border-2 overflow-hidden shadow-sm hover:shadow-md transition-shadow"
+      className="flex h-full flex-col rounded-2xl border border-slate-200 bg-white shadow-sm transition-shadow duration-200 hover:shadow-md"
       style={{ borderColor: color + "30" }}
     >
-      <div className="p-1" style={{ backgroundColor: color }}>
-        <div className="flex items-center gap-2 px-4 py-3">
-          <Icon className="w-5 h-5 text-white" />
-          <h3 className="font-bold text-white text-lg">{pkg.name}</h3>
-          {!pkg.is_active && (
-            <span className="ml-auto px-2 py-0.5 rounded-full bg-white/20 text-white text-xs">
-              Inactive
-            </span>
-          )}
+      <div className="border-b border-slate-100 px-5 py-4">
+        <div className="flex items-start justify-between gap-3">
+          <div className="flex items-center gap-3">
+            <div
+              className="flex h-10 w-10 items-center justify-center rounded-xl"
+              style={{ backgroundColor: color + "15", color }}
+            >
+              <CreditCard className="h-5 w-5" />
+            </div>
+            <div>
+              <h3 className="text-lg font-bold text-slate-900">{pkg.name}</h3>
+              <p className="text-xs font-medium uppercase tracking-[0.2em] text-slate-400">
+                Pricing Package
+              </p>
+            </div>
+          </div>
+          <span
+            className={`rounded-full px-3 py-1 text-xs font-semibold ${
+              pkg.isActive ? "bg-emerald-50 text-emerald-700" : "bg-slate-100 text-slate-500"
+            }`}
+          >
+            {pkg.isActive ? "Active" : "Inactive"}
+          </span>
         </div>
       </div>
-      <div className="p-5 space-y-4">
-        <div className="text-center">
-          <span className="text-4xl font-black text-slate-800">
-            ${(pkg.monthly_base_fee || 0).toFixed(0)}
-          </span>
-          <span className="text-slate-500 text-sm">/mo base</span>
-        </div>
-        <div className="space-y-2 text-sm">
-          <div className="flex justify-between py-1.5 border-b border-slate-50">
-            <span className="text-slate-600">Eligibility Checks</span>
-            <span className="font-semibold text-slate-800">
-              {pkg.unlimited_eligibility ? "Unlimited" : pkg.included_eligibility_checks || 0}
-            </span>
+
+      <div className="flex flex-1 flex-col p-5">
+        <div className="flex items-start justify-between gap-4">
+          <div>
+            <div className="flex items-baseline gap-1 text-slate-900">
+              <span className="text-sm font-semibold">$</span>
+              <span className="text-4xl font-black leading-none">{(pkg.monthlyBaseFee || 0).toFixed(0)}</span>
+              <span className="text-sm font-medium text-slate-500">/mo</span>
+            </div>
+            <p className="mt-1 text-sm text-slate-500">Base monthly fee</p>
           </div>
-          <div className="flex justify-between py-1.5 border-b border-slate-50">
-            <span className="text-slate-600">Prior Auth Submissions</span>
-            <span className="font-semibold text-slate-800">
-              {pkg.unlimited_prior_auths ? "Unlimited" : pkg.included_prior_auths || 0}
+          {pkg.chargeOnApproval && (
+            <span className="rounded-full bg-indigo-50 px-3 py-1 text-xs font-semibold text-indigo-700">
+              Approved PA pricing
             </span>
-          </div>
-          <div className="flex justify-between py-1.5 border-b border-slate-50">
-            <span className="text-slate-600">Appeals</span>
-            <span className="font-semibold text-slate-800">
-              {pkg.unlimited_appeals ? "Unlimited" : pkg.included_appeals || 0}{" "}
-              {pkg.unlimited_appeals ? "" : "free"}
-            </span>
-          </div>
-          {!pkg.unlimited_eligibility && pkg.overage_rate_eligibility > 0 && (
-            <div className="flex justify-between py-1.5 border-b border-slate-50">
-              <span className="text-slate-600">Eligibility Overage</span>
-              <span className="font-semibold text-slate-800">
-                ${pkg.overage_rate_eligibility}/ea
-              </span>
-            </div>
-          )}
-          {!pkg.unlimited_prior_auths && pkg.overage_rate_prior_auth > 0 && (
-            <div className="flex justify-between py-1.5 border-b border-slate-50">
-              <span className="text-slate-600">PA Overage</span>
-              <span className="font-semibold text-slate-800">
-                ${pkg.overage_rate_prior_auth}/ea
-              </span>
-            </div>
-          )}
-          {pkg.rate_per_eligibility_check > 0 && (
-            <div className="flex justify-between py-1.5 border-b border-slate-50">
-              <span className="text-slate-600">Per Eligibility Check</span>
-              <span className="font-semibold text-slate-800">
-                ${pkg.rate_per_eligibility_check}
-              </span>
-            </div>
-          )}
-          {pkg.rate_per_prior_auth > 0 && (
-            <div className="flex justify-between py-1.5 border-b border-slate-50">
-              <span className="text-slate-600">Per Prior Auth</span>
-              <span className="font-semibold text-slate-800">${pkg.rate_per_prior_auth}</span>
-            </div>
-          )}
-          {pkg.rate_per_appeal > 0 && (
-            <div className="flex justify-between py-1.5 border-b border-slate-50">
-              <span className="text-slate-600">Per Appeal</span>
-              <span className="font-semibold text-slate-800">${pkg.rate_per_appeal}</span>
-            </div>
-          )}
-          {pkg.includes_dedicated_account_manager && (
-            <div className="flex items-center gap-1.5 text-slate-700 py-1">
-              <Check className="w-4 h-4 text-green-600 flex-shrink-0" />
-              Dedicated Account Manager
-            </div>
           )}
         </div>
-        {pkg.internal_notes && (
-          <div className="bg-slate-50 rounded-lg p-3 text-xs text-slate-500">
-            {pkg.internal_notes}
+
+        {pkg.description && <p className="mt-4 text-sm leading-6 text-slate-600">{pkg.description}</p>}
+
+        <div className="mt-5 space-y-3">
+          {featureItems.map((item) => (
+            <div
+              key={item.label}
+              className="flex items-center justify-between rounded-xl bg-slate-50 px-4 py-3"
+            >
+              <span className="text-sm text-slate-600">{item.label}</span>
+              <span className="text-sm font-semibold text-slate-900">{item.value}</span>
+            </div>
+          ))}
+        </div>
+
+        {rateItems.length > 0 && (
+          <div className="mt-5 rounded-xl border border-slate-200 p-4">
+            <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+              Usage Rates
+            </p>
+            <div className="mt-3 space-y-2">
+              {rateItems.map((item) => (
+                <div key={item.label} className="flex items-center justify-between gap-3 text-sm">
+                  <span className="text-slate-600">{item.label}</span>
+                  <span className="font-semibold text-slate-900">{item.value}</span>
+                </div>
+              ))}
+            </div>
           </div>
         )}
-        <button
-          onClick={() => onEdit(pkg)}
-          className="w-full flex items-center justify-center gap-2 py-2 rounded-xl border-2 text-sm font-semibold transition-colors hover:text-white"
-          style={{ borderColor: color, color: color, ...{ "--hover-bg": color } }}
-          onMouseEnter={(e) => {
-            e.currentTarget.style.backgroundColor = color;
-            e.currentTarget.style.color = "white";
-          }}
-          onMouseLeave={(e) => {
-            e.currentTarget.style.backgroundColor = "white";
-            e.currentTarget.style.color = color;
-          }}
-        >
-          <Edit2 className="w-4 h-4" /> Edit Package
-        </button>
+
+        {pkg.chargeOnApproval && (
+          <div className="mt-4 flex items-center gap-2 text-sm text-slate-600">
+            <Check className="h-4 w-4 flex-shrink-0 text-emerald-600" />
+            Approved prior authorizations are charged separately.
+          </div>
+        )}
+
+        <div className="mt-auto pt-5">
+          {canManage ? (
+            <button
+              onClick={() => onEdit(pkg)}
+              className="w-full rounded-xl px-4 py-3 text-sm font-semibold text-white shadow-sm"
+              style={{ backgroundColor: color }}
+            >
+              <span className="inline-flex items-center gap-2">
+                <Edit2 className="h-4 w-4" /> Edit Package
+              </span>
+            </button>
+          ) : (
+            <div className="w-full flex items-center justify-center gap-2 rounded-xl border border-slate-200 px-4 py-3 text-sm font-medium text-slate-400">
+              <Lock className="h-4 w-4" /> View only
+            </div>
+          )}
+        </div>
       </div>
     </div>
   );
@@ -138,149 +150,268 @@ function PackageCard({ pkg, onEdit }) {
 
 const BLANK_PKG = {
   name: "",
-  package_type: "custom",
-  monthly_base_fee: 0,
-  included_eligibility_checks: 0,
-  included_prior_auths: 0,
-  included_appeals: 0,
-  unlimited_eligibility: false,
-  unlimited_prior_auths: false,
-  unlimited_appeals: false,
-  rate_per_eligibility_check: 0,
-  rate_per_prior_auth: 0,
-  rate_per_approved_prior_auth: 0,
-  rate_per_appeal: 0,
-  overage_rate_eligibility: 0,
-  overage_rate_prior_auth: 0,
-  charge_on_approval: false,
-  includes_dedicated_account_manager: false,
-  is_active: true,
-  internal_notes: "",
-  created_by: "",
+  description: "",
+  monthlyBaseFee: 0,
+  includedEligibilityChecks: 0,
+  includedPriorAuths: 0,
+  includedAppeals: 0,
+  unlimitedEligibility: false,
+  unlimitedPriorAuths: false,
+  unlimitedAppeals: false,
+  ratePerEligibilityCheck: 0,
+  ratePerPriorAuth: 0,
+  ratePerApprovedPriorAuth: 0,
+  ratePerAppeal: 0,
+  overageRateEligibility: 0,
+  overageRatePriorAuth: 0,
+  chargeOnApproval: false,
+  isActive: true,
 };
 
-function PackageForm({ initial, onSave, onCancel, userEmail }) {
+function FieldShell({ label, children, detail }) {
+  return (
+    <div>
+      <label className="mb-1.5 block text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">
+        {label}
+      </label>
+      {children}
+      {detail ? <p className="mt-1.5 text-xs text-slate-400">{detail}</p> : null}
+    </div>
+  );
+}
+
+function SectionCard({ title, detail, children }) {
+  return (
+    <section className="rounded-[24px] border border-slate-200 bg-white p-5 shadow-sm">
+      <div className="mb-4">
+        <h4 className="text-sm font-bold text-slate-800">{title}</h4>
+        {detail ? <p className="mt-1 text-xs text-slate-500">{detail}</p> : null}
+      </div>
+      {children}
+    </section>
+  );
+}
+
+function PackageForm({ initial, onSave, onCancel }) {
   const [form, setForm] = useState(initial || BLANK_PKG);
   const [saving, setSaving] = useState(false);
+  const [saveError, setSaveError] = useState("");
   const set = (k, v) => setForm((f) => ({ ...f, [k]: v }));
 
   const handleSave = async () => {
-    setSaving(true);
-    const data = { ...form, created_by: userEmail };
-    if (form.id) {
-      await api.entities.PricingPackage.update(form.id, data);
-    } else {
-      await api.entities.PricingPackage.create(data);
+    try {
+      setSaving(true);
+      setSaveError("");
+      if (form.id) {
+        await api.entities.PricingPackage.update(form.id, form);
+      } else {
+        await api.entities.PricingPackage.create(form);
+      }
+      toast({
+        title: form.id ? "Package updated" : "Package created",
+        description: `${form.name} is ready to use.`,
+      });
+      onSave();
+    } catch (error) {
+      const message = error?.response?.data?.message || error?.message || "Please try again.";
+      setSaveError(message);
+      toast({
+        title: "Unable to save package",
+        description: message,
+      });
+    } finally {
+      setSaving(false);
     }
-    onSave();
-    setSaving(false);
   };
 
   const Field = ({ label, k, type = "number", step = "0.01" }) => (
-    <div>
-      <label className="block text-xs text-slate-500 mb-1">{label}</label>
-      <input
+    <FieldShell label={label}>
+      <Input
         type={type}
         step={step}
         value={form[k] || ""}
         onChange={(e) =>
           set(k, type === "number" ? parseFloat(e.target.value) || 0 : e.target.value)
         }
-        className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-amber-300"
+        className="h-11 rounded-2xl border-slate-200 bg-slate-50 px-3 py-2.5 text-sm text-slate-700 focus-visible:ring-0 focus:border-slate-300"
+      />
+    </FieldShell>
+  );
+
+  const Toggle = ({ label, detail, k }) => (
+    <div className="flex items-center justify-between gap-4 rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3">
+      <div>
+        <p className="text-sm font-semibold text-slate-700">{label}</p>
+        {detail ? <p className="mt-1 text-xs text-slate-500">{detail}</p> : null}
+      </div>
+      <Switch
+        checked={!!form[k]}
+        onCheckedChange={(checked) => set(k, checked)}
+        className="data-[state=checked]:bg-[#293682]"
       />
     </div>
   );
 
-  const Toggle = ({ label, k }) => (
-    <label className="flex items-center gap-2 cursor-pointer">
-      <input
-        type="checkbox"
-        checked={!!form[k]}
-        onChange={(e) => set(k, e.target.checked)}
-        className="w-4 h-4 accent-amber-500"
-      />
-      <span className="text-sm text-slate-700">{label}</span>
-    </label>
-  );
-
   return (
-    <div className="fixed inset-0 bg-black/40 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto">
-        <div className="flex items-center justify-between p-6 border-b border-slate-100 sticky top-0 bg-white z-10">
-          <h2 className="font-bold text-slate-800 text-lg">
-            {form.id ? "Edit Package" : "New Package"}
-          </h2>
-          <button
-            onClick={onCancel}
-            className="w-8 h-8 rounded-full hover:bg-slate-100 flex items-center justify-center"
-          >
-            <X className="w-4 h-4 text-slate-500" />
-          </button>
-        </div>
-        <div className="p-6 space-y-4">
-          <div className="grid grid-cols-2 gap-4">
-            <Field label="Package Name" k="name" type="text" />
+    <motion.div
+      className="fixed inset-0 z-[60]"
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+    >
+      <motion.button
+        type="button"
+        aria-label="Close pricing package editor"
+        className="fixed inset-0 bg-slate-950/45 backdrop-blur-[2px]"
+        onClick={onCancel}
+      />
+      <motion.div
+        initial={{ x: "100%", opacity: 0.9 }}
+        animate={{ x: 0, opacity: 1 }}
+        exit={{ x: "100%", opacity: 0.9 }}
+        transition={{ type: "spring", stiffness: 320, damping: 32 }}
+        className="fixed right-0 top-0 flex h-[100dvh] w-full max-w-2xl flex-col overflow-hidden bg-white shadow-2xl"
+      >
+        <div className="sticky top-0 z-10 border-b border-slate-100 bg-gradient-to-br from-[#f7f9ff] via-white to-[#eef3ff] px-6 py-6">
+          <div className="flex items-start justify-between gap-4">
             <div>
-              <label className="block text-xs text-slate-500 mb-1">Package Type</label>
-              <AppSelect
-                value={form.package_type}
-                onValueChange={(v) => set("package_type", v)}
-                options={["starter", "growth", "enterprise", "pay_as_you_go", "custom"]}
+              <p className="text-[11px] font-semibold uppercase tracking-[0.24em] text-[#293682]">
+                Pricing Management
+              </p>
+              <h3 className="mt-2 text-2xl font-bold text-slate-800">
+                {form.id ? "Edit Package" : "Create Package"}
+              </h3>
+              <p className="mt-2 max-w-md text-sm text-slate-500">
+                Configure base pricing, included service volume, and any overage rules for this
+                package.
+              </p>
+            </div>
+            <button
+              onClick={onCancel}
+              className="flex h-10 w-10 items-center justify-center rounded-2xl border border-slate-200 bg-white text-slate-400"
+            >
+              <X className="h-5 w-5" />
+            </button>
+          </div>
+        </div>
+
+        <div className="flex-1 space-y-6 overflow-y-auto bg-slate-50/60 px-6 py-6">
+          {saveError ? (
+            <div className="rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">
+              {saveError}
+            </div>
+          ) : null}
+
+          <SectionCard
+            title="Package Identity"
+            detail="The high-level information used to identify and present this package."
+          >
+            <div className="grid grid-cols-1 gap-4">
+              <Field label="Package Name" k="name" type="text" />
+              <div>
+                <FieldShell
+                  label="Description"
+                  detail="A short summary that appears on the pricing card."
+                >
+                  <textarea
+                    value={form.description || ""}
+                    onChange={(e) => set("description", e.target.value)}
+                    rows={3}
+                    className="w-full rounded-2xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm text-slate-700 focus:border-slate-300 focus:outline-none"
+                  />
+                </FieldShell>
+              </div>
+            </div>
+          </SectionCard>
+
+          <SectionCard
+            title="Base Pricing"
+            detail="Set the recurring monthly fee and any individual service charges."
+          >
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+              <Field label="Monthly Base Fee ($)" k="monthlyBaseFee" />
+              <Field label="Rate Per Approved PA ($)" k="ratePerApprovedPriorAuth" />
+              <Field label="Rate Per Eligibility Check ($)" k="ratePerEligibilityCheck" />
+              <Field label="Rate Per Prior Auth ($)" k="ratePerPriorAuth" />
+              <Field label="Rate Per Appeal ($)" k="ratePerAppeal" />
+            </div>
+          </SectionCard>
+
+          <SectionCard
+            title="Included Volume"
+            detail="Define how much activity is bundled before overage pricing applies."
+          >
+            <div className="grid grid-cols-1 gap-4">
+              <Field label="Included Eligibility Checks" k="includedEligibilityChecks" step="1" />
+              <Field label="Included Prior Auths" k="includedPriorAuths" step="1" />
+              <Field label="Included Appeals" k="includedAppeals" step="1" />
+            </div>
+            <div className="mt-5 space-y-3">
+              <Toggle
+                label="Unlimited Eligibility"
+                detail="Disable volume limits for eligibility checks."
+                k="unlimitedEligibility"
+              />
+              <Toggle
+                label="Unlimited Prior Auths"
+                detail="Allow unlimited prior authorization submissions."
+                k="unlimitedPriorAuths"
+              />
+              <Toggle
+                label="Unlimited Appeals"
+                detail="Allow unlimited appeals without usage caps."
+                k="unlimitedAppeals"
               />
             </div>
-          </div>
-          <Field label="Monthly Base Fee ($)" k="monthly_base_fee" />
-          <div className="grid grid-cols-3 gap-4">
-            <Field label="Included Eligibility Checks" k="included_eligibility_checks" step="1" />
-            <Field label="Included Prior Auths" k="included_prior_auths" step="1" />
-            <Field label="Included Appeals" k="included_appeals" step="1" />
-          </div>
-          <div className="grid grid-cols-3 gap-4">
-            <Toggle label="Unlimited Eligibility" k="unlimited_eligibility" />
-            <Toggle label="Unlimited Prior Auths" k="unlimited_prior_auths" />
-            <Toggle label="Unlimited Appeals" k="unlimited_appeals" />
-          </div>
-          <div className="grid grid-cols-2 gap-4">
-            <Field label="Rate Per Eligibility Check ($)" k="rate_per_eligibility_check" />
-            <Field label="Rate Per Prior Auth ($)" k="rate_per_prior_auth" />
-            <Field label="Rate Per Appeal ($)" k="rate_per_appeal" />
-            <Field label="Rate Per Approved PA ($)" k="rate_per_approved_prior_auth" />
-            <Field label="Overage Rate - Eligibility ($)" k="overage_rate_eligibility" />
-            <Field label="Overage Rate - Prior Auth ($)" k="overage_rate_prior_auth" />
-          </div>
-          <div className="grid grid-cols-3 gap-4">
-            <Toggle label="Charge on Approval" k="charge_on_approval" />
-            <Toggle label="Dedicated Account Manager" k="includes_dedicated_account_manager" />
-            <Toggle label="Active" k="is_active" />
-          </div>
-          <div>
-            <label className="block text-xs text-slate-500 mb-1">Internal Notes</label>
-            <textarea
-              value={form.internal_notes || ""}
-              onChange={(e) => set("internal_notes", e.target.value)}
-              rows={3}
-              className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm text-slate-800 resize-none"
-            />
-          </div>
+          </SectionCard>
+
+          <SectionCard
+            title="Overage Rules"
+            detail="Optional rates that apply when a package exceeds its included volume."
+          >
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+              <Field label="Overage Rate - Eligibility ($)" k="overageRateEligibility" />
+              <Field label="Overage Rate - Prior Auth ($)" k="overageRatePriorAuth" />
+            </div>
+          </SectionCard>
+
+          <SectionCard
+            title="Package Status"
+            detail="Control whether this package is active and whether approved PA pricing applies."
+          >
+            <div className="space-y-3">
+              <Toggle
+                label="Charge on Approval"
+                detail="Bill approved prior authorizations separately using the approved PA rate."
+                k="chargeOnApproval"
+              />
+              <Toggle
+                label="Active"
+                detail="Inactive packages remain visible but should not be assigned to new clients."
+                k="isActive"
+              />
+            </div>
+          </SectionCard>
         </div>
-        <div className="flex justify-end gap-3 p-6 border-t border-slate-100 sticky bottom-0 bg-white">
+
+        <div className="sticky bottom-0 z-10 flex gap-3 border-t border-slate-200 bg-white px-6 py-4">
           <button
             onClick={onCancel}
-            className="px-4 py-2 rounded-xl border border-slate-200 text-sm text-slate-600 hover:bg-slate-50"
+            className="flex-1 rounded-2xl border border-slate-200 py-3 text-sm font-medium text-slate-600"
           >
             Cancel
           </button>
           <button
             onClick={handleSave}
             disabled={saving}
-            className="px-5 py-2 rounded-xl text-sm font-semibold text-white transition-colors"
-            style={{ backgroundColor: "#f6b037" }}
+            className="flex-1 rounded-2xl py-3 text-sm font-bold text-white shadow-lg shadow-indigo-900/10 disabled:cursor-not-allowed disabled:opacity-60"
+            style={{ backgroundColor: "#293682" }}
           >
-            {saving ? "Saving..." : "Save Package"}
+            {saving ? "Saving..." : form.id ? "Update Package" : "Create Package"}
           </button>
         </div>
-      </div>
-    </div>
+      </motion.div>
+    </motion.div>
   );
 }
 
@@ -290,6 +421,8 @@ export default function PricingPackages() {
   const queryClient = useQueryClient();
   const { data: user, isLoading: loadingUser } = useAuthUserQuery();
   const billingEnabled = Boolean(user) && canAccessBilling(user);
+  const normalizedRole = user?.role?.toLowerCase?.();
+  const canManagePackages = ["finance_admin", "super_admin", "admin"].includes(normalizedRole);
   const { data: packages = [], isLoading: loadingPackages } = useEntityListQuery(
     "PricingPackage",
     null,
@@ -311,6 +444,18 @@ export default function PricingPackages() {
     queryClient.invalidateQueries({ queryKey: ["entity", "PricingPackage"] });
   };
 
+  useEffect(() => {
+    const previousOverflow = document.body.style.overflow;
+
+    if (showForm) {
+      document.body.style.overflow = "hidden";
+    }
+
+    return () => {
+      document.body.style.overflow = previousOverflow;
+    };
+  }, [showForm]);
+
   if (!user) return null;
   if (!canAccessBilling(user)) return <BillingAccessDenied />;
 
@@ -330,13 +475,19 @@ export default function PricingPackages() {
                 Manage client pricing plans, rate structures, and included service volumes.
               </p>
             </div>
-            <button
-              onClick={handleNew}
-              className="flex items-center gap-2 px-5 py-3 rounded-2xl text-white text-sm font-bold shadow-sm"
-              style={{ backgroundColor: "#293682" }}
-            >
-              <Plus className="w-4 h-4" /> New Package
-            </button>
+            {canManagePackages ? (
+              <button
+                onClick={handleNew}
+                className="flex items-center gap-2 px-5 py-3 rounded-2xl text-white text-sm font-bold shadow-sm"
+                style={{ backgroundColor: "#293682" }}
+              >
+                <Plus className="w-4 h-4" /> New Package
+              </button>
+            ) : (
+              <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-500">
+                You have view-only access to pricing packages.
+              </div>
+            )}
           </div>
         </div>
 
@@ -347,7 +498,12 @@ export default function PricingPackages() {
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {packages.map((pkg) => (
-              <PackageCard key={pkg.id} pkg={pkg} onEdit={handleEdit} />
+              <PackageCard
+                key={pkg.id}
+                pkg={pkg}
+                canManage={canManagePackages}
+                onEdit={handleEdit}
+              />
             ))}
             {packages.length === 0 && (
               <div className="col-span-3 text-center py-16 text-slate-400">
@@ -362,7 +518,6 @@ export default function PricingPackages() {
             initial={editing}
             onSave={handleSave}
             onCancel={() => setShowForm(false)}
-            userEmail={user?.email}
           />
         )}
       </div>

@@ -2,7 +2,8 @@
 import { useState, useEffect } from "react";
 
 const TOAST_LIMIT = 20;
-const TOAST_REMOVE_DELAY = 1000000;
+const TOAST_REMOVE_DELAY = 250;
+const TOAST_AUTO_DISMISS_DELAY = 5000;
 
 const actionTypes = {
   ADD_TOAST: "ADD_TOAST",
@@ -34,6 +35,15 @@ const addToRemoveQueue = (toastId) => {
   }, TOAST_REMOVE_DELAY);
 
   toastTimeouts.set(toastId, timeout);
+};
+
+const addToAutoDismissQueue = (toastId) => {
+  window.setTimeout(() => {
+    dispatch({
+      type: actionTypes.DISMISS_TOAST,
+      toastId,
+    });
+  }, TOAST_AUTO_DISMISS_DELAY);
 };
 
 const _clearFromRemoveQueue = (toastId) => {
@@ -130,6 +140,8 @@ function toast({ ...props }) {
       },
     },
   });
+
+  addToAutoDismissQueue(id);
 
   return {
     id,
