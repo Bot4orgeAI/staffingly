@@ -3,6 +3,16 @@ import { api } from "@/lib/api";
 import { FileText, Loader2, Save, Users, Clock, CheckCircle, XCircle } from "lucide-react";
 import AppSelect from "@/components/ui/app-select";
 
+function unwrapGatewayPayload(response) {
+  const payload = response?.data?.gatewayResponse || response?.gatewayResponse || response || {};
+
+  if (Array.isArray(payload)) {
+    return payload[0] || {};
+  }
+
+  return payload;
+}
+
 function daysUntil(dateStr) {
   if (!dateStr) return null;
   const diff = new Date(dateStr).getTime() - Date.now();
@@ -66,28 +76,14 @@ export default function PADenialAppeal({ paCase, onUpdate }) {
         extractedDocumentText: paCase.medical_necessity_summary || paCase.intake_notes || "",
         denialReason: denialForm.denial_reason || paCase.denial_reason,
       });
-      let letter =
-        gatewayResponse?.data?.gatewayResponse?.appeal_letter ||
-        gatewayResponse?.data?.gatewayResponse?.appealLetter ||
+      const gatewayPayload = unwrapGatewayPayload(gatewayResponse);
+      const letter =
+        gatewayPayload?.appeal_letter ||
+        gatewayPayload?.appealLetter ||
         "";
 
       if (!letter) {
-        letter = await api.integrations.Core.InvokeLLM({
-          prompt: `You are a senior prior authorization appeal specialist. Draft a formal, persuasive appeal letter for the following denied prior authorization case. The letter should be 4-6 paragraphs, use formal clinical and insurance language, cite medical necessity clearly, and request reconsideration.
-
-Case Details:
-- Patient Initials: ${paCase.patient_initials}
-- Payer: ${paCase.payer_name}
-- Procedure/Medication: ${paCase.procedure_name} (CPT: ${paCase.cpt_code || "N/A"})
-- Diagnosis Codes: ${(paCase.diagnosis_codes || []).join(", ")}
-- Ordering Physician: ${paCase.ordering_physician_name} (NPI: ${paCase.ordering_physician_npi})
-- Denial Date: ${denialForm.denial_date || paCase.denial_date}
-- Denial Reason: ${denialForm.denial_reason || paCase.denial_reason}
-- Denial Code: ${denialForm.denial_code || paCase.denial_code}
-- Original Medical Necessity Summary: ${paCase.medical_necessity_summary?.substring(0, 800) || "Not available"}
-
-Write the full appeal letter text only, starting with "Dear Medical Director," — no preamble or explanation.`,
-        });
+        throw new Error("The n8n appeal workflow did not return an appeal letter.");
       }
       setAppealLetter(letter);
       await onUpdate({ appeal_letter: letter, status: "Appeal In Progress" });

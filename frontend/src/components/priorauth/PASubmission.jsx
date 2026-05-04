@@ -24,51 +24,9 @@ export default function PASubmission({ paCase, onUpdate }) {
   const [cmReference, setCmReference] = useState(paCase.covermymeds_reference || "");
   const [submitting, setSubmitting] = useState(false);
   const [done, setDone] = useState(!!paCase.confirmation_number);
-  const [cmData, setCmData] = useState(null);
-  const [loadingCm, setLoadingCm] = useState(false);
 
   const canSubmit =
     paCase.status === "Pending Supervisor Approval" || paCase.status === "Submitted";
-
-  const handleFormatCM = async () => {
-    setLoadingCm(true);
-    const formatted = await api.integrations.Core.InvokeLLM({
-      prompt: `Format this prior authorization case for CoverMyMeds submission. Return structured JSON with all required CoverMyMeds fields.
-
-Case data:
-- Patient Initials: ${paCase.patient_initials}, DOB: ${paCase.patient_dob}
-- Insurance ID: ${paCase.insurance_id}, Payer: ${paCase.payer_name}
-- Procedure: ${paCase.procedure_name}, CPT: ${paCase.cpt_code}, NDC: ${paCase.ndc_code || "N/A"}
-- Diagnosis: ${(paCase.diagnosis_codes || []).join(", ")}
-- Physician: ${paCase.ordering_physician_name} (NPI: ${paCase.ordering_physician_npi})
-- Medication: ${paCase.medication_name || "N/A"}, Days Supply: ${paCase.days_supply || "N/A"}, Qty: ${paCase.quantity_requested || "N/A"}
-- Pharmacy NPI: ${paCase.pharmacy_npi || "N/A"}, Step Therapy: ${paCase.step_therapy_confirmed ? "Yes" : "No"}
-- Summary: ${paCase.medical_necessity_summary?.substring(0, 500) || "Not available"}`,
-      response_json_schema: {
-        type: "object",
-        properties: {
-          patient_name_initials: { type: "string" },
-          dob: { type: "string" },
-          member_id: { type: "string" },
-          drug_name: { type: "string" },
-          ndc: { type: "string" },
-          days_supply: { type: "string" },
-          quantity: { type: "string" },
-          prescriber_npi: { type: "string" },
-          pharmacy_npi: { type: "string" },
-          diagnosis_codes: { type: "array", items: { type: "string" } },
-          clinical_rationale: { type: "string" },
-          step_therapy_note: { type: "string" },
-          clinical_criteria_responses: {
-            type: "array",
-            items: { type: "object", additionalProperties: true },
-          },
-        },
-      },
-    });
-    setCmData(formatted);
-    setLoadingCm(false);
-  };
 
   const handleLogSubmission = async () => {
     setSubmitting(true);
@@ -78,10 +36,7 @@ Case data:
         procedureName: paCase.procedure_name,
         icd10: paCase.diagnosis_codes?.[0] || "",
         extractedDocumentText:
-          cmData?.clinical_rationale ||
-          paCase.medical_necessity_summary ||
-          paCase.intake_notes ||
-          "",
+          paCase.medical_necessity_summary || paCase.intake_notes || "",
       });
       await onUpdate({
         submission_method: method,
@@ -174,63 +129,24 @@ Case data:
         </div>
       </div>
 
-      {/* CoverMyMeds Card */}
       {method === "CoverMyMeds" && (
         <div className="bg-white rounded-2xl border border-slate-200 p-5">
-          <div className="flex items-center justify-between mb-4">
-            <div>
-              <h4 className="font-bold text-slate-800">CoverMyMeds Formatting</h4>
-              <p className="text-xs text-slate-400">AI formats case data into CoverMyMeds fields</p>
-            </div>
-            <button
-              onClick={handleFormatCM}
-              disabled={loadingCm}
-              className="flex items-center gap-2 px-4 py-2 rounded-xl text-white text-sm font-bold transition-opacity hover:opacity-90 disabled:opacity-50"
-              style={{ backgroundColor: "#293682" }}
-            >
-              {loadingCm ? (
-                <Loader2 className="w-4 h-4 animate-spin" />
-              ) : (
-                <FileText className="w-4 h-4" />
-              )}
-              {loadingCm ? "Formatting…" : cmData ? "Reformat" : "Format for CoverMyMeds"}
-            </button>
+          <h4 className="font-bold text-slate-800">CoverMyMeds Routing</h4>
+          <p className="mt-1 text-xs text-slate-400">
+            CoverMyMeds submissions are now prepared and routed by the n8n workflow server during
+            submission.
+          </p>
+          <div className="mt-4">
+            <label className="block text-xs font-semibold text-slate-600 mb-1">
+              CoverMyMeds Reference Number
+            </label>
+            <input
+              value={cmReference}
+              onChange={(e) => setCmReference(e.target.value)}
+              placeholder="CMM-XXXXXXXX"
+              className="w-full px-3 py-2.5 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#293682]/30"
+            />
           </div>
-          {cmData && (
-            <div className="space-y-3">
-              <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 text-sm">
-                {Object.entries(cmData)
-                  .filter(([, val]) => !Array.isArray(val))
-                  .map(([key, val]) => (
-                    <div key={key} className="bg-slate-50 rounded-xl p-3">
-                      <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider mb-0.5">
-                        {key.replace(/_/g, " ")}
-                      </p>
-                      <p className="text-xs font-semibold text-slate-700 break-words">
-                        {String(val)}
-                      </p>
-                    </div>
-                  ))}
-              </div>
-              {cmData.clinical_criteria_responses?.map((cr, i) => (
-                <div key={i} className="bg-slate-50 rounded-xl p-3">
-                  <p className="text-xs text-slate-600 font-semibold">{cr.question}</p>
-                  <p className="text-xs text-slate-500 mt-0.5">{cr.answer}</p>
-                </div>
-              ))}
-              <div>
-                <label className="block text-xs font-semibold text-slate-600 mb-1">
-                  CoverMyMeds Reference Number
-                </label>
-                <input
-                  value={cmReference}
-                  onChange={(e) => setCmReference(e.target.value)}
-                  placeholder="CMM-XXXXXXXX"
-                  className="w-full px-3 py-2.5 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#293682]/30"
-                />
-              </div>
-            </div>
-          )}
         </div>
       )}
 

@@ -42,6 +42,7 @@ function normalizeEligibilityResult(data) {
     response_time: data.response_time_seconds || data.responseTimeSeconds || "",
     check_id: data.check_id || data.checkId || "",
     gateway_patient_id: data.gateway_patient_id || data.gatewayPatientId || "",
+    error: data.error || "",
   };
 }
 
@@ -157,23 +158,22 @@ export default function PAEligibilityCheck({ user, onCaseCreated, workflowContex
 
   const handleContinue = async () => {
     setCreating(true);
-    const newCase = await api.entities.PriorAuthCase.create({
-      eligibility_check_id: eligResult.check_id,
-      gateway_patient_id: eligResult.gateway_patient_id,
-      patient_name: form.patient_name,
-      patient_initials: form.patient_initials,
-      patient_dob: form.dob,
-      insurance_id: form.insurance_id,
-      payer_name: form.payer_name,
-      procedure_name: form.procedure_requested,
-      plan_type: eligResult.plan_type,
-      group_number: eligResult.group_number,
-      eligibility_verified: true,
-      status: "New",
-      assigned_specialist_name: user?.full_name || "Unassigned",
-    });
-    setCreating(false);
-    onCaseCreated(newCase.id);
+    try {
+      const response = await api.priorAuth.createCase({
+        eligibilityCheckId: eligResult.check_id,
+        gatewayPatientId: eligResult.gateway_patient_id,
+        patientName: form.patient_name,
+        patientInitials: form.patient_initials,
+        patientDob: form.dob,
+        insuranceId: form.insurance_id,
+        payerName: form.payer_name,
+        serviceType: form.procedure_requested,
+      });
+      const newCase = response?.data || response;
+      onCaseCreated(newCase.id);
+    } finally {
+      setCreating(false);
+    }
   };
 
   const priorAuthRequired = eligResult?.prior_auth_required;
@@ -371,6 +371,16 @@ export default function PAEligibilityCheck({ user, onCaseCreated, workflowContex
               Case initials: {form.patient_initials || "Will be generated automatically"}
             </p>
           </section>
+
+          {eligResult?.error ? (
+            <section className="rounded-[24px] border border-red-200 bg-red-50 p-5 shadow-sm">
+              <p className="flex items-center gap-2 text-sm font-bold text-red-700">
+                <AlertTriangle className="h-4 w-4" />
+                Eligibility request returned an error
+              </p>
+              <p className="mt-2 text-sm text-red-600">{eligResult.error}</p>
+            </section>
+          ) : null}
 
           {eligResult ? (
             <section className="overflow-hidden rounded-[24px] border border-slate-200 bg-white shadow-sm">

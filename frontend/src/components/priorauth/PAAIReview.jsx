@@ -2,8 +2,18 @@ import { useState } from "react";
 import { api } from "@/lib/api";
 import { Cpu, CheckCircle, XCircle, AlertTriangle, Loader2, Send, Edit3 } from "lucide-react";
 
-function normalizeAiReviewResponse(response) {
+function unwrapGatewayPayload(response) {
   const payload = response?.data?.gatewayResponse || response?.gatewayResponse || response || {};
+
+  if (Array.isArray(payload)) {
+    return payload[0] || {};
+  }
+
+  return payload;
+}
+
+function normalizeAiReviewResponse(response) {
+  const payload = unwrapGatewayPayload(response);
   return {
     checklist_items: payload.checklist_items || payload.checklistItems || null,
     missing_items: payload.missing_items || payload.missingItems || null,
@@ -37,67 +47,20 @@ export default function PAAIReview({ paCase, onUpdate }) {
         extractedDocumentText: paCase.intake_notes || "",
       });
       const gatewayResult = normalizeAiReviewResponse(gatewayResponse);
-      let aiResult = gatewayResult;
-
       if (
-        !aiResult.checklist_items ||
-        aiResult.confidence_score == null ||
-        !aiResult.medical_necessity_summary
+        !gatewayResult.checklist_items ||
+        gatewayResult.confidence_score == null ||
+        !gatewayResult.medical_necessity_summary
       ) {
-        const prompt = `You are a prior authorization specialist AI. Review this prior authorization case and provide a detailed analysis.
-
-CASE DETAILS:
-- Patient Initials: ${paCase.patient_initials}
-- Payer: ${paCase.payer_name}
-- Procedure: ${paCase.procedure_name}
-- CPT Code: ${paCase.cpt_code || "N/A"}
-- Diagnosis Codes: ${(paCase.diagnosis_codes || []).join(", ") || "N/A"}
-- Urgency: ${paCase.urgency}
-- Ordering Physician: ${paCase.ordering_physician_name || "N/A"} (NPI: ${paCase.ordering_physician_npi || "N/A"})
-- Intake Notes: ${paCase.intake_notes || "None"}
-- Medication PA: ${paCase.is_medication_pa ? `Yes — ${paCase.medication_name}` : "No"}
-- Step Therapy Confirmed: ${paCase.step_therapy_confirmed ? "Yes" : "No"}
-
-Required for this payer: Clinical Notes, Letter of Medical Necessity, Lab Results, Imaging Reports, Prior Treatment Records.
-
-Return a JSON with:
-1. checklist_items: array of objects with {item: string, status: "passed"|"flagged"|"attention", note: string}
-2. missing_items: array of strings describing exactly what is missing
-3. confidence_score: number 0-100 estimating prior auth approval likelihood
-4. medical_necessity_summary: 4-5 paragraph formal clinical summary supporting medical necessity
-
-The medical necessity summary should be in formal clinical language suitable for submission to a payer.`;
-
-        aiResult = await api.integrations.Core.InvokeLLM({
-          prompt,
-          response_json_schema: {
-            type: "object",
-            properties: {
-              checklist_items: {
-                type: "array",
-                items: {
-                  type: "object",
-                  properties: {
-                    item: { type: "string" },
-                    status: { type: "string" },
-                    note: { type: "string" },
-                  },
-                },
-              },
-              missing_items: { type: "array", items: { type: "string" } },
-              confidence_score: { type: "number" },
-              medical_necessity_summary: { type: "string" },
-            },
-          },
-        });
+        throw new Error("The n8n prior auth review workflow returned an incomplete response.");
       }
 
-      setResult(aiResult);
-      setSummary(aiResult.medical_necessity_summary || "");
+      setResult(gatewayResult);
+      setSummary(gatewayResult.medical_necessity_summary || "");
       await onUpdate({
-        ai_review_result_json: JSON.stringify(aiResult),
-        ai_confidence_score: aiResult.confidence_score,
-        medical_necessity_summary: aiResult.medical_necessity_summary,
+        ai_review_result_json: JSON.stringify(gatewayResult),
+        ai_confidence_score: gatewayResult.confidence_score,
+        medical_necessity_summary: gatewayResult.medical_necessity_summary,
         status: "Awaiting AI Review",
       });
     } finally {
