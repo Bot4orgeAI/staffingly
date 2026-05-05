@@ -32,11 +32,35 @@ interface BulkEligibilityRow {
   patient_name?: string;
   first_name?: string;
   last_name?: string;
+  middle_name?: string;
   dob?: string;
+  gender?: string;
+  phone?: string;
+  email?: string;
+  address?: string;
+  city?: string;
+  state?: string;
+  zip?: string;
   payer?: string;
   payer_id?: string;
   member_id: string;
+  group_number?: string;
+  plan_name?: string;
+  plan_type?: string;
+  effective_date?: string;
+  termination_date?: string;
+  rx_bin?: string;
+  rx_pcn?: string;
+  rx_group?: string;
+  copay_pcp?: string;
+  copay_specialist?: string;
+  subscriber_name?: string;
+  subscriber_dob?: string;
+  subscriber_relationship?: string;
   provider_npi?: string;
+  cpt_code?: string;
+  facility_name?: string;
+  notes?: string;
   service_type?: string;
   service_type_code?: string;
   service_date?: string;
@@ -152,6 +176,8 @@ function getRowPatientName(row: BulkEligibilityRow): string {
 function normalizeBulkRow(row: BulkEligibilityRow): CheckEligibilityBody {
   return {
     patientName: getRowPatientName(row),
+    patientFirstName: row.first_name || "",
+    patientLastName: row.last_name || "",
     dob: row.dob || "",
     memberId: row.member_id,
     payerId: row.payer_id || "",
