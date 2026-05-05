@@ -324,22 +324,6 @@ export default function NewVerification() {
               />
             ))}
           </div>
-
-          <div className="mt-5 rounded-2xl border border-slate-200 bg-slate-50 p-4">
-            <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
-              <div className="min-w-0 flex-1">
-                <p className="text-sm font-semibold text-slate-900">Verification Engine</p>
-                <p className="mt-1 text-xs text-slate-500">
-                  Eligibility verification is routed through the n8n workflow server.
-                </p>
-              </div>
-              <div className="flex justify-start lg:justify-end">
-                <div className="inline-flex h-[46px] items-center rounded-2xl border border-slate-200 bg-white px-3 py-2.5 text-sm font-medium text-slate-700">
-                  n8n Gateway
-                </div>
-              </div>
-            </div>
-          </div>
         </div>
 
         {activeWorkflow === "manual" ? (
