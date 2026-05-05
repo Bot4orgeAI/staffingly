@@ -16,30 +16,140 @@ import {
 } from "lucide-react";
 
 const EMPTY_ROW = {
+  patient_id: "",
   first_name: "",
+  middle_name: "",
   last_name: "",
   dob: "",
+  gender: "",
+  phone: "",
+  email: "",
+  address: "",
+  city: "",
+  state: "",
+  zip: "",
   payer: "",
   payer_id: "",
   member_id: "",
+  group_number: "",
+  plan_name: "",
+  plan_type: "",
+  effective_date: "",
+  termination_date: "",
+  rx_bin: "",
+  rx_pcn: "",
+  rx_group: "",
+  copay_pcp: "",
+  copay_specialist: "",
+  subscriber_name: "",
+  subscriber_dob: "",
+  subscriber_relationship: "Self",
   provider_npi: "",
+  cpt_code: "",
+  facility_name: "",
+  notes: "",
   service_type: "Specialist Visit",
   service_date: "",
 };
 
+const GENDERS = ["Male", "Female", "Non-binary", "Prefer not to say"];
+const PLAN_TYPES = [
+  "PPO",
+  "HMO",
+  "EPO",
+  "POS",
+  "HDHP",
+  "Medicare Advantage",
+  "Medicaid Managed Care",
+  "Unknown",
+];
+const SERVICE_TYPES = [
+  "Primary Care Visit",
+  "Specialist Visit",
+  "Urgent Care",
+  "Emergency Room",
+  "Lab/Diagnostics",
+  "Imaging/Radiology",
+  "Mental Health/Behavioral",
+  "Physical Therapy",
+  "Chiropractic",
+  "Surgery",
+  "Preventive/Wellness",
+  "Pharmacy",
+  "Other",
+];
+const RELATIONSHIPS = ["Self", "Spouse", "Child", "Other Dependent"];
+const US_STATES = [
+  "AL",
+  "AK",
+  "AZ",
+  "AR",
+  "CA",
+  "CO",
+  "CT",
+  "DE",
+  "FL",
+  "GA",
+  "HI",
+  "ID",
+  "IL",
+  "IN",
+  "IA",
+  "KS",
+  "KY",
+  "LA",
+  "ME",
+  "MD",
+  "MA",
+  "MI",
+  "MN",
+  "MS",
+  "MO",
+  "MT",
+  "NE",
+  "NV",
+  "NH",
+  "NJ",
+  "NM",
+  "NY",
+  "NC",
+  "ND",
+  "OH",
+  "OK",
+  "OR",
+  "PA",
+  "RI",
+  "SC",
+  "SD",
+  "TN",
+  "TX",
+  "UT",
+  "VT",
+  "VA",
+  "WA",
+  "WV",
+  "WI",
+  "WY",
+];
+
 const SAMPLE_CSV = [
-  "first_name,last_name,dob,payer,payer_id,member_id,provider_npi,service_type,service_date",
-  "Sarah,Mitchell,1985-03-14,UnitedHealthcare,UHC,884720193,1234567890,Specialist Visit,2026-02-21",
-  "James,Holloway,1971-07-22,Aetna,AETNA,562901847,0987654321,Primary Care,2026-02-21",
+  "patient_id,first_name,middle_name,last_name,dob,gender,phone,email,address,city,state,zip,payer,payer_id,member_id,group_number,plan_name,plan_type,effective_date,termination_date,rx_bin,rx_pcn,rx_group,copay_pcp,copay_specialist,subscriber_name,subscriber_dob,subscriber_relationship,provider_npi,service_type,service_date,cpt_code,facility_name,notes",
+  "pat-1001,Sarah,A,Mitchell,1985-03-14,Female,555-0101,sarah@example.com,12 Lake St,Austin,TX,78701,UnitedHealthcare,UHC,884720193,GRP-100,Choice Plus,PPO,2026-01-01,2026-12-31,610014,OHCARD,OHRX,25,45,Sarah Mitchell,1985-03-14,Self,1234567890,Specialist Visit,2026-02-21,99213,North Clinic,Follow-up visit",
+  "pat-1002,James,,Holloway,1971-07-22,Male,555-0102,james@example.com,99 Cedar Ave,Dallas,TX,75201,Aetna,AETNA,562901847,GRP-200,Open Access,HMO,2026-01-01,2026-12-31,610502,AETRX,AETGRP,20,40,James Holloway,1971-07-22,Self,0987654321,Primary Care Visit,2026-02-21,99214,Central Care,Annual review",
 ].join("\n");
 
 function validateRow(row) {
   const issues = [];
+  if (!row.first_name?.trim()) issues.push("first_name required");
   if (!row.last_name?.trim()) issues.push("last_name required");
+  if (!row.dob?.trim()) issues.push("dob required");
   if (!row.payer?.trim() && !row.payer_id?.trim()) issues.push("payer or payer_id required");
   if (!row.member_id?.trim()) issues.push("member_id required");
   if (row.dob && Number.isNaN(Date.parse(row.dob))) issues.push("invalid DOB");
   if (row.service_date && Number.isNaN(Date.parse(row.service_date))) issues.push("invalid service date");
+  if (row.subscriber_dob && Number.isNaN(Date.parse(row.subscriber_dob))) {
+    issues.push("invalid subscriber DOB");
+  }
   return issues;
 }
 
@@ -59,31 +169,301 @@ function parseCSV(text) {
   return { rows, error: null };
 }
 
-const COLS = [
-  "first_name",
-  "last_name",
-  "dob",
-  "payer",
-  "payer_id",
-  "member_id",
-  "provider_npi",
-  "service_type",
-  "service_date",
-];
-
 function toBatchPayloadRow(row) {
   return {
+    patient_id: row.patient_id || "",
     patient_name: [row.first_name, row.last_name].filter(Boolean).join(" ").trim(),
     first_name: row.first_name || "",
+    middle_name: row.middle_name || "",
     last_name: row.last_name || "",
     dob: row.dob || "",
+    gender: row.gender || "",
+    phone: row.phone || "",
+    email: row.email || "",
+    address: row.address || "",
+    city: row.city || "",
+    state: row.state || "",
+    zip: row.zip || "",
     payer: row.payer || "",
     payer_id: row.payer_id || "",
     member_id: row.member_id || "",
+    group_number: row.group_number || "",
+    plan_name: row.plan_name || "",
+    plan_type: row.plan_type || "",
+    effective_date: row.effective_date || "",
+    termination_date: row.termination_date || "",
+    rx_bin: row.rx_bin || "",
+    rx_pcn: row.rx_pcn || "",
+    rx_group: row.rx_group || "",
+    copay_pcp: row.copay_pcp || "",
+    copay_specialist: row.copay_specialist || "",
+    subscriber_name: row.subscriber_name || "",
+    subscriber_dob: row.subscriber_dob || "",
+    subscriber_relationship: row.subscriber_relationship || "",
     provider_npi: row.provider_npi || "",
+    cpt_code: row.cpt_code || "",
+    facility_name: row.facility_name || "",
+    notes: row.notes || "",
     service_type: row.service_type || "",
     service_date: row.service_date || "",
   };
+}
+
+function FieldShell({ label, children }) {
+  return (
+    <div>
+      <label className="mb-1.5 block text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">
+        {label}
+      </label>
+      {children}
+    </div>
+  );
+}
+
+function TextInput({ value, onChange, type = "text", placeholder = "" }) {
+  return (
+    <input
+      type={type}
+      value={value}
+      onChange={onChange}
+      placeholder={placeholder}
+      className="h-11 w-full rounded-2xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm text-slate-700 focus:border-slate-300 focus:outline-none"
+    />
+  );
+}
+
+function RowSection({ title, children }) {
+  return (
+    <div className="rounded-2xl border border-slate-200 bg-white p-4">
+      <h4 className="mb-4 text-sm font-bold text-slate-800">{title}</h4>
+      {children}
+    </div>
+  );
+}
+
+function BulkRowCard({ row, index, status, onUpdate, onRemove }) {
+  const issues = validateRow(row);
+  const patientName = [row.first_name, row.last_name].filter(Boolean).join(" ").trim();
+  const statusTone =
+    status === "ok"
+      ? "border-emerald-200 bg-emerald-50"
+      : status === "error"
+        ? "border-red-200 bg-red-50"
+        : issues.length
+          ? "border-amber-200 bg-amber-50"
+          : "border-slate-200 bg-white";
+
+  return (
+    <div className={`rounded-[24px] border p-5 shadow-sm ${statusTone}`}>
+      <div className="mb-5 flex flex-col gap-3 border-b border-slate-200/70 pb-4 sm:flex-row sm:items-start sm:justify-between">
+        <div>
+          <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-slate-500">
+            Patient {index + 1}
+          </p>
+          <h3 className="mt-1 text-base font-bold text-slate-800">
+            {patientName || "New bulk verification row"}
+          </h3>
+          <div className="mt-2 flex flex-wrap gap-2 text-xs">
+            {status === "ok" ? (
+              <span className="rounded-full bg-emerald-100 px-2.5 py-1 font-semibold text-emerald-700">
+                Verified
+              </span>
+            ) : null}
+            {status === "error" ? (
+              <span className="rounded-full bg-red-100 px-2.5 py-1 font-semibold text-red-700">
+                Failed
+              </span>
+            ) : null}
+            {issues.length > 0 ? (
+              <span className="rounded-full bg-amber-100 px-2.5 py-1 font-semibold text-amber-700">
+                {issues.length} issue{issues.length !== 1 ? "s" : ""}
+              </span>
+            ) : (
+              <span className="rounded-full bg-slate-100 px-2.5 py-1 font-semibold text-slate-600">
+                Ready for batch validation
+              </span>
+            )}
+          </div>
+          {issues.length > 0 ? (
+            <p className="mt-2 text-xs text-amber-700">{issues.join(" • ")}</p>
+          ) : null}
+        </div>
+        {!status ? (
+          <button
+            type="button"
+            onClick={onRemove}
+            className="inline-flex items-center gap-1.5 rounded-xl border border-red-200 bg-white px-3 py-2 text-xs font-semibold text-red-600 hover:bg-red-50"
+          >
+            <Trash2 className="h-3.5 w-3.5" />
+            Remove
+          </button>
+        ) : null}
+      </div>
+
+      <div className="space-y-4">
+        <RowSection title="Patient Information">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            <FieldShell label="Patient ID">
+              <TextInput value={row.patient_id || ""} onChange={(e) => onUpdate("patient_id", e.target.value)} />
+            </FieldShell>
+            <FieldShell label="First Name">
+              <TextInput value={row.first_name || ""} onChange={(e) => onUpdate("first_name", e.target.value)} />
+            </FieldShell>
+            <FieldShell label="Middle Name">
+              <TextInput value={row.middle_name || ""} onChange={(e) => onUpdate("middle_name", e.target.value)} />
+            </FieldShell>
+            <FieldShell label="Last Name">
+              <TextInput value={row.last_name || ""} onChange={(e) => onUpdate("last_name", e.target.value)} />
+            </FieldShell>
+            <FieldShell label="Date of Birth">
+              <TextInput type="date" value={row.dob || ""} onChange={(e) => onUpdate("dob", e.target.value)} />
+            </FieldShell>
+            <FieldShell label="Gender">
+              <AppSelect
+                value={row.gender || ""}
+                onValueChange={(value) => onUpdate("gender", value)}
+                options={GENDERS.map((item) => ({ label: item, value: item }))}
+                placeholder="Select..."
+                triggerClassName="h-11 rounded-2xl border-slate-200 bg-slate-50 px-3 py-2.5 text-sm"
+              />
+            </FieldShell>
+            <FieldShell label="Phone">
+              <TextInput value={row.phone || ""} onChange={(e) => onUpdate("phone", e.target.value)} />
+            </FieldShell>
+            <FieldShell label="Email">
+              <TextInput type="email" value={row.email || ""} onChange={(e) => onUpdate("email", e.target.value)} />
+            </FieldShell>
+            <div className="sm:col-span-2 lg:col-span-3">
+              <FieldShell label="Street Address">
+                <textarea
+                  value={row.address || ""}
+                  onChange={(e) => onUpdate("address", e.target.value)}
+                  rows={2}
+                  className="w-full rounded-2xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm text-slate-700 focus:border-slate-300 focus:outline-none"
+                />
+              </FieldShell>
+            </div>
+            <FieldShell label="City">
+              <TextInput value={row.city || ""} onChange={(e) => onUpdate("city", e.target.value)} />
+            </FieldShell>
+            <FieldShell label="State">
+              <AppSelect
+                value={row.state || ""}
+                onValueChange={(value) => onUpdate("state", value)}
+                options={US_STATES.map((item) => ({ label: item, value: item }))}
+                placeholder="Select..."
+                triggerClassName="h-11 rounded-2xl border-slate-200 bg-slate-50 px-3 py-2.5 text-sm"
+              />
+            </FieldShell>
+            <FieldShell label="ZIP">
+              <TextInput value={row.zip || ""} onChange={(e) => onUpdate("zip", e.target.value)} />
+            </FieldShell>
+          </div>
+        </RowSection>
+
+        <RowSection title="Insurance Information">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            <FieldShell label="Insurance Payer">
+              <TextInput value={row.payer || ""} onChange={(e) => onUpdate("payer", e.target.value)} />
+            </FieldShell>
+            <FieldShell label="Payer ID">
+              <TextInput value={row.payer_id || ""} onChange={(e) => onUpdate("payer_id", e.target.value)} />
+            </FieldShell>
+            <FieldShell label="Member ID">
+              <TextInput value={row.member_id || ""} onChange={(e) => onUpdate("member_id", e.target.value)} />
+            </FieldShell>
+            <FieldShell label="Group Number">
+              <TextInput value={row.group_number || ""} onChange={(e) => onUpdate("group_number", e.target.value)} />
+            </FieldShell>
+            <FieldShell label="Plan Name">
+              <TextInput value={row.plan_name || ""} onChange={(e) => onUpdate("plan_name", e.target.value)} />
+            </FieldShell>
+            <FieldShell label="Plan Type">
+              <AppSelect
+                value={row.plan_type || ""}
+                onValueChange={(value) => onUpdate("plan_type", value)}
+                options={PLAN_TYPES.map((item) => ({ label: item, value: item }))}
+                placeholder="Select..."
+                triggerClassName="h-11 rounded-2xl border-slate-200 bg-slate-50 px-3 py-2.5 text-sm"
+              />
+            </FieldShell>
+            <FieldShell label="Effective Date">
+              <TextInput type="date" value={row.effective_date || ""} onChange={(e) => onUpdate("effective_date", e.target.value)} />
+            </FieldShell>
+            <FieldShell label="Termination Date">
+              <TextInput type="date" value={row.termination_date || ""} onChange={(e) => onUpdate("termination_date", e.target.value)} />
+            </FieldShell>
+            <FieldShell label="Subscriber Name">
+              <TextInput value={row.subscriber_name || ""} onChange={(e) => onUpdate("subscriber_name", e.target.value)} />
+            </FieldShell>
+            <FieldShell label="Subscriber DOB">
+              <TextInput type="date" value={row.subscriber_dob || ""} onChange={(e) => onUpdate("subscriber_dob", e.target.value)} />
+            </FieldShell>
+            <FieldShell label="Subscriber Relationship">
+              <AppSelect
+                value={row.subscriber_relationship || "Self"}
+                onValueChange={(value) => onUpdate("subscriber_relationship", value)}
+                options={RELATIONSHIPS.map((item) => ({ label: item, value: item }))}
+                placeholder="Select..."
+                triggerClassName="h-11 rounded-2xl border-slate-200 bg-slate-50 px-3 py-2.5 text-sm"
+              />
+            </FieldShell>
+            <FieldShell label="Rx BIN">
+              <TextInput value={row.rx_bin || ""} onChange={(e) => onUpdate("rx_bin", e.target.value)} />
+            </FieldShell>
+            <FieldShell label="Rx PCN">
+              <TextInput value={row.rx_pcn || ""} onChange={(e) => onUpdate("rx_pcn", e.target.value)} />
+            </FieldShell>
+            <FieldShell label="Rx Group">
+              <TextInput value={row.rx_group || ""} onChange={(e) => onUpdate("rx_group", e.target.value)} />
+            </FieldShell>
+            <FieldShell label="Copay (PCP)">
+              <TextInput value={row.copay_pcp || ""} onChange={(e) => onUpdate("copay_pcp", e.target.value)} />
+            </FieldShell>
+            <FieldShell label="Copay (Specialist)">
+              <TextInput value={row.copay_specialist || ""} onChange={(e) => onUpdate("copay_specialist", e.target.value)} />
+            </FieldShell>
+          </div>
+        </RowSection>
+
+        <RowSection title="Visit Information">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            <FieldShell label="Provider NPI">
+              <TextInput value={row.provider_npi || ""} onChange={(e) => onUpdate("provider_npi", e.target.value)} />
+            </FieldShell>
+            <FieldShell label="Service Date">
+              <TextInput type="date" value={row.service_date || ""} onChange={(e) => onUpdate("service_date", e.target.value)} />
+            </FieldShell>
+            <FieldShell label="Service Type">
+              <AppSelect
+                value={row.service_type || ""}
+                onValueChange={(value) => onUpdate("service_type", value)}
+                options={SERVICE_TYPES.map((item) => ({ label: item, value: item }))}
+                placeholder="Select..."
+                triggerClassName="h-11 rounded-2xl border-slate-200 bg-slate-50 px-3 py-2.5 text-sm"
+              />
+            </FieldShell>
+            <FieldShell label="CPT Code">
+              <TextInput value={row.cpt_code || ""} onChange={(e) => onUpdate("cpt_code", e.target.value)} />
+            </FieldShell>
+            <FieldShell label="Facility Name">
+              <TextInput value={row.facility_name || ""} onChange={(e) => onUpdate("facility_name", e.target.value)} />
+            </FieldShell>
+            <div className="sm:col-span-2 lg:col-span-3">
+              <FieldShell label="Notes">
+                <textarea
+                  value={row.notes || ""}
+                  onChange={(e) => onUpdate("notes", e.target.value)}
+                  rows={2}
+                  className="w-full rounded-2xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm text-slate-700 focus:border-slate-300 focus:outline-none"
+                />
+              </FieldShell>
+            </div>
+          </div>
+        </RowSection>
+      </div>
+    </div>
+  );
 }
 
 export default function BulkVerifyTab() {
@@ -420,70 +800,22 @@ Records: ${JSON.stringify(clean.map((row, index) => ({ index, ...row })))}`,
         )}
 
         {mode === "manual" && (
-          <div className="overflow-x-auto">
-            <table className="w-full text-xs">
-              <thead>
-                <tr className="rounded-lg border border-slate-200 bg-slate-50">
-                  {COLS.map((column) => (
-                    <th
-                      key={column}
-                      className="whitespace-nowrap border-b border-slate-200 px-3 py-2 text-left font-semibold capitalize text-slate-500"
-                    >
-                      {column.replace(/_/g, " ")}
-                    </th>
-                  ))}
-                  <th className="border-b border-slate-200 px-3 py-2"></th>
-                </tr>
-              </thead>
-              <tbody>
-                {rows.map((row) => {
-                  const issues = validateRow(row);
-                  const status = results[row._id];
-                  return (
-                    <tr
-                      key={row._id}
-                      className={`border-b border-slate-100 ${
-                        status === "ok"
-                          ? "bg-emerald-50"
-                          : status === "error"
-                            ? "bg-red-50"
-                            : issues.length
-                              ? "bg-amber-50/40"
-                              : ""
-                      }`}
-                    >
-                      {COLS.map((column) => (
-                        <td key={column} className="px-1 py-1">
-                          <input
-                            value={row[column] || ""}
-                            onChange={(event) => updateRow(row._id, column, event.target.value)}
-                            className="min-w-[90px] w-full rounded-lg border border-slate-200 px-2 py-1.5 text-xs focus:border-blue-400 focus:outline-none"
-                            placeholder={column.replace(/_/g, " ")}
-                          />
-                        </td>
-                      ))}
-                      <td className="px-2 py-1">
-                        {status === "ok" && <CheckCircle className="h-4 w-4 text-emerald-500" />}
-                        {status === "error" && <AlertCircle className="h-4 w-4 text-red-500" />}
-                        {!status && (
-                          <button
-                            onClick={() => removeRow(row._id)}
-                            className="text-slate-300 hover:text-red-400"
-                          >
-                            <Trash2 className="h-3.5 w-3.5" />
-                          </button>
-                        )}
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
+          <div className="space-y-4">
+            {rows.map((row, index) => (
+              <BulkRowCard
+                key={row._id}
+                row={row}
+                index={index}
+                status={results[row._id]}
+                onUpdate={(field, value) => updateRow(row._id, field, value)}
+                onRemove={() => removeRow(row._id)}
+              />
+            ))}
             <button
               onClick={addRow}
-              className="mt-3 flex items-center gap-1.5 rounded-lg px-2 py-1.5 text-xs font-semibold text-slate-500 hover:bg-slate-50 hover:text-slate-700"
+              className="flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-slate-600 hover:bg-slate-50"
             >
-              <Plus className="h-3.5 w-3.5" /> Add Row
+              <Plus className="h-4 w-4" /> Add Patient Row
             </button>
           </div>
         )}
