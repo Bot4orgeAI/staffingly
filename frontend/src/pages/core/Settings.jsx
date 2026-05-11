@@ -1,21 +1,24 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { createPageUrl } from "@/lib/utils/page";
+import { api } from "@/lib/api";
 import { useAuthUserQuery, useEntityListQuery } from "@/lib/query";
+import { toast } from "@/components/ui/use-toast";
 import StaffinglyLayout from "@/components/staffingly/StaffinglyLayout";
-import { Search, Edit2, Trash2, X, Wifi, WifiOff } from "lucide-react";
 import AvailityApiSection from "@/components/insuverif/AvailityApiSection";
 import AppSelect from "@/components/ui/app-select";
-
-const EMR_LIST = [
-  { name: "Epic", protocol: "FHIR R4", is_connected: true, last_sync: "2 min ago" },
-  { name: "Athenahealth", protocol: "REST API", is_connected: true, last_sync: "5 min ago" },
-  { name: "eClinicalWorks", protocol: "FHIR R4", is_connected: true, last_sync: "12 min ago" },
-  { name: "Cerner / Oracle Health", protocol: "FHIR R4", is_connected: false },
-  { name: "NextGen", protocol: "REST API", is_connected: false },
-  { name: "DrChrono", protocol: "REST API", is_connected: false },
-  { name: "Kareo / Tebra", protocol: "REST API", is_connected: false },
-  { name: "AdvancedMD", protocol: "FHIR STU3", is_connected: false },
-];
+import { Input } from "@/components/ui/input";
+import {
+  Search,
+  Users,
+  Building2,
+  ShieldCheck,
+  Loader2,
+  Wifi,
+  WifiOff,
+  X,
+  Settings2,
+} from "lucide-react";
 
 const ROLE_LABELS = {
   SUPER_ADMIN: "Super Admin",
@@ -26,56 +29,249 @@ const ROLE_LABELS = {
   FINANCE_ADMIN: "Finance Admin",
 };
 
-function ConnectModal({ emr, onClose }) {
+const AUTH_TYPE_OPTIONS = [
+  { label: "SMART on FHIR", value: "smart_on_fhir" },
+  { label: "Backend OAuth", value: "backend_oauth" },
+  { label: "API Key / Custom", value: "api_key" },
+];
+
+const FHIR_VERSION_OPTIONS = [
+  { label: "FHIR R4", value: "R4" },
+  { label: "FHIR STU3", value: "STU3" },
+  { label: "FHIR DSTU2", value: "DSTU2" },
+];
+
+function MetricCard({ icon: Icon, label, value, tone }) {
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
-      <div className="bg-white rounded-2xl shadow-2xl p-6 w-full max-w-md mx-4">
-        <div className="flex justify-between items-center mb-5">
-          <h3 className="font-bold text-slate-800">Connect: {emr.name}</h3>
-          <button onClick={onClose}>
-            <X className="w-5 h-5 text-slate-400" />
-          </button>
+    <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <p className="text-xs font-semibold uppercase tracking-[0.22em] text-slate-400">{label}</p>
+          <p className="mt-3 text-2xl font-bold text-slate-900">{value}</p>
         </div>
-        <div className="space-y-3">
-          {[
-            { label: "EHR System", value: emr.name, readOnly: true },
-            { label: "API Endpoint URL", placeholder: "https://api.example.com/fhir" },
-            { label: "Client ID", placeholder: "client_id_here" },
-            { label: "Client Secret", placeholder: "••••••••", type: "password" },
-          ].map(({ label, value, placeholder, readOnly, type }) => (
-            <div key={label}>
-              <label className="text-xs font-semibold text-slate-500 uppercase tracking-wider block mb-1">
-                {label}
-              </label>
-              <input
-                defaultValue={value}
-                placeholder={placeholder}
-                readOnly={readOnly}
-                type={type || "text"}
-                className={`w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none ${readOnly ? "bg-slate-50 text-slate-500" : ""}`}
-              />
-            </div>
-          ))}
+        <div className={`rounded-2xl p-3 ${tone}`}>
+          <Icon className="h-5 w-5" />
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function EhrLogo({ name, src }) {
+  return (
+    <div className="inline-flex h-12 items-center rounded-2xl border border-slate-200 bg-white px-3 shadow-sm">
+      <img src={src} alt={`${name} logo`} className="h-7 w-auto max-w-[140px] object-contain" />
+    </div>
+  );
+}
+
+function ConnectModal({ emr, clientId, clientName, onClose, onSaved }) {
+  const queryClient = useQueryClient();
+  const [form, setForm] = useState({
+    environmentLabel: "",
+    baseUrl: "",
+    authType: "smart_on_fhir",
+    clientAppId: "",
+    clientSecret: "",
+    redirectUri: "",
+    scopes: "",
+    fhirVersion: "R4",
+  });
+  const [saving, setSaving] = useState(false);
+
+  const { data: configResponse, isLoading } = useQuery({
+    queryKey: ["settings", "emr-config", emr?.id, clientId],
+    queryFn: () => api.emr.getSystemConfig(emr.id, { clientId }),
+    enabled: Boolean(emr?.id && clientId),
+  });
+
+  useEffect(() => {
+    if (configResponse?.data?.config) {
+      setForm((current) => ({ ...current, ...configResponse.data.config }));
+    }
+  }, [configResponse]);
+
+  function update(key, value) {
+    setForm((current) => ({ ...current, [key]: value }));
+  }
+
+  async function handleSave() {
+    try {
+      setSaving(true);
+      await api.emr.saveSystemConfig(emr.id, {
+        clientId,
+        ...form,
+      });
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ["settings", "emr-config", emr.id, clientId] }),
+        queryClient.invalidateQueries({ queryKey: ["emr", "systems"] }),
+        queryClient.invalidateQueries({ queryKey: ["entity", "Client"] }),
+        queryClient.invalidateQueries({ queryKey: ["settings", "overview"] }),
+      ]);
+      toast({
+        title: "Connection saved",
+        description: `${emr.name} is configured for ${clientName}.`,
+        variant: "success",
+      });
+      onSaved();
+    } catch (error) {
+      toast({
+        title: "Unable to save EMR configuration",
+        description: error?.message || "Please try again.",
+        variant: "error",
+      });
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/45 p-4">
+      <div className="relative max-h-[92vh] w-full max-w-3xl overflow-y-auto rounded-[28px] bg-white p-6 shadow-2xl">
+        <button
+          onClick={onClose}
+          className="absolute right-5 top-5 rounded-xl p-2 text-slate-400 transition hover:bg-slate-100 hover:text-slate-600"
+          aria-label="Close modal"
+        >
+          <X className="h-5 w-5" />
+        </button>
+
+        <div className="pr-10">
+          <h2 className="text-xl font-bold text-slate-900">Manage {emr.name} connection</h2>
+          <p className="mt-2 text-sm text-slate-500">
+            Save backend EMR credentials and connection metadata for {clientName}.
+          </p>
+        </div>
+
+        <div className="mt-5 rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-600">
+          <p className="font-semibold text-slate-700">{emr.protocol}</p>
+          <p className="mt-1">
+            These values are loaded from the backend and stored per client workspace.
+          </p>
+        </div>
+
+        {isLoading ? (
+          <div className="mt-5 rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-500">
+            <span className="inline-flex items-center gap-2">
+              <Loader2 className="h-4 w-4 animate-spin" />
+              Loading saved configuration...
+            </span>
+          </div>
+        ) : null}
+
+        <div className="mt-5 grid gap-4 md:grid-cols-2">
           <div>
-            <label className="text-xs font-semibold text-slate-500 uppercase tracking-wider block mb-1">
+            <label className="mb-1.5 block text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">
+              Environment Label
+            </label>
+            <Input
+              value={form.environmentLabel}
+              onChange={(event) => update("environmentLabel", event.target.value)}
+              placeholder="Epic Sandbox"
+              className="h-11 rounded-2xl border-slate-200"
+            />
+          </div>
+          <div>
+            <label className="mb-1.5 block text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">
               FHIR Version
             </label>
-            <AppSelect value="R4" onValueChange={() => {}} options={["R4", "DSTU2", "STU3"]} />
+            <AppSelect
+              value={form.fhirVersion}
+              onValueChange={(value) => update("fhirVersion", value)}
+              options={FHIR_VERSION_OPTIONS}
+              triggerClassName="h-11 rounded-2xl border-slate-200 text-sm"
+            />
           </div>
         </div>
-        <div className="flex gap-3 mt-5">
+
+        <div className="mt-4">
+          <label className="mb-1.5 block text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">
+            Base URL
+          </label>
+          <Input
+            value={form.baseUrl}
+            onChange={(event) => update("baseUrl", event.target.value)}
+            placeholder="https://fhir.epic.example.com/interconnect-fhir-oauth/api/FHIR/R4"
+            className="h-11 rounded-2xl border-slate-200"
+          />
+        </div>
+
+        <div className="mt-4 grid gap-4 md:grid-cols-2">
+          <div>
+            <label className="mb-1.5 block text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">
+              Auth Type
+            </label>
+            <AppSelect
+              value={form.authType}
+              onValueChange={(value) => update("authType", value)}
+              options={AUTH_TYPE_OPTIONS}
+              triggerClassName="h-11 rounded-2xl border-slate-200 text-sm"
+            />
+          </div>
+          <div>
+            <label className="mb-1.5 block text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">
+              Client App ID
+            </label>
+            <Input
+              value={form.clientAppId}
+              onChange={(event) => update("clientAppId", event.target.value)}
+              placeholder="Epic app client ID"
+              className="h-11 rounded-2xl border-slate-200"
+            />
+          </div>
+        </div>
+
+        <div className="mt-4 grid gap-4 md:grid-cols-2">
+          <div>
+            <label className="mb-1.5 block text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">
+              Client Secret
+            </label>
+            <Input
+              type="password"
+              value={form.clientSecret}
+              onChange={(event) => update("clientSecret", event.target.value)}
+              placeholder="Optional for some flows"
+              className="h-11 rounded-2xl border-slate-200"
+            />
+          </div>
+          <div>
+            <label className="mb-1.5 block text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">
+              Redirect URI
+            </label>
+            <Input
+              value={form.redirectUri}
+              onChange={(event) => update("redirectUri", event.target.value)}
+              placeholder="https://app.example.com/auth/epic/callback"
+              className="h-11 rounded-2xl border-slate-200"
+            />
+          </div>
+        </div>
+
+        <div className="mt-4">
+          <label className="mb-1.5 block text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">
+            Requested Scopes
+          </label>
+          <Input
+            value={form.scopes}
+            onChange={(event) => update("scopes", event.target.value)}
+            placeholder="launch/patient patient/Patient.read patient/Coverage.read"
+            className="h-11 rounded-2xl border-slate-200"
+          />
+        </div>
+
+        <div className="mt-6 flex gap-3">
           <button
             onClick={onClose}
-            className="flex-1 py-2.5 border border-slate-200 rounded-xl text-sm text-slate-600 hover:bg-slate-50"
+            className="flex-1 rounded-2xl border border-slate-200 py-3 text-sm font-semibold text-slate-600 transition hover:bg-slate-50"
           >
             Cancel
           </button>
           <button
-            onClick={onClose}
-            className="flex-1 py-2.5 rounded-xl text-white text-sm font-bold"
-            style={{ backgroundColor: "#0a7e87" }}
+            onClick={handleSave}
+            disabled={saving}
+            className="flex-1 rounded-2xl bg-[#0a7e87] py-3 text-sm font-semibold text-white transition hover:bg-[#08656c] disabled:opacity-60"
           >
-            Save Connection
+            {saving ? "Saving..." : "Save Connection"}
           </button>
         </div>
       </div>
@@ -83,8 +279,28 @@ function ConnectModal({ emr, onClose }) {
   );
 }
 
+function RoleBadge({ role }) {
+  const isSuperAdmin = role === "SUPER_ADMIN";
+  const isSpecialist = role === "STAFFINGLY_SPECIALIST";
+  const classes = isSuperAdmin
+    ? "bg-amber-50 text-amber-700 border-amber-200"
+    : isSpecialist
+      ? "bg-teal-50 text-teal-700 border-teal-200"
+      : "bg-blue-50 text-blue-700 border-blue-200";
+
+  return (
+    <span className={`inline-flex rounded-full border px-2.5 py-1 text-[11px] font-semibold ${classes}`}>
+      {ROLE_LABELS[role] || role}
+    </span>
+  );
+}
+
 export default function Settings() {
   const { data: user } = useAuthUserQuery();
+  const [activeSection, setActiveSection] = useState("emr");
+  const [payerSearch, setPayerSearch] = useState("");
+  const [selectedClientId, setSelectedClientId] = useState("");
+  const [connectModal, setConnectModal] = useState(null);
 
   useEffect(() => {
     if (
@@ -95,14 +311,58 @@ export default function Settings() {
     }
   }, [user]);
 
-  const { data: payerRules = [] } = useEntityListQuery("PayerRule", { limit: 100 }, null);
-  const { data: users = [] } = useEntityListQuery("User", { limit: 100 }, null);
-  const [activeSection, setActiveSection] = useState("emr");
-  const [payerSearch, setPayerSearch] = useState("");
-  const [connectModal, setConnectModal] = useState(null);
+  const { data: payerRules = [] } = useEntityListQuery("PayerRule", { limit: 100 });
+  const { data: users = [] } = useEntityListQuery("User", { limit: 100 });
+  const { data: clients = [] } = useEntityListQuery("Client", { limit: 200 });
+  const { data: overviewResponse } = useQuery({
+    queryKey: ["settings", "overview"],
+    queryFn: () => api.settings.getOverview(),
+  });
+  const { data: systemsResponse, isLoading: systemsLoading } = useQuery({
+    queryKey: ["emr", "systems", selectedClientId || "global"],
+    queryFn: () => api.emr.listSystems(selectedClientId ? { clientId: selectedClientId } : {}),
+  });
 
-  const filteredPayers = payerRules.filter((p) =>
-    (p.payerName || "").toLowerCase().includes(payerSearch.toLowerCase())
+  const overview = overviewResponse?.data || null;
+  const ehrSystems = systemsResponse?.data || [];
+
+  const clientOptions = useMemo(
+    () =>
+      clients.map((client) => ({
+        label: client.name,
+        value: client.id,
+      })),
+    [clients]
+  );
+
+  const selectedClient = clients.find((client) => client.id === selectedClientId) || null;
+
+  const emrUsage = useMemo(() => {
+    return clients.reduce((accumulator, client) => {
+      if (!client.emrSystem) return accumulator;
+
+      const current = accumulator[client.emrSystem] || {
+        connectedClients: 0,
+        configuredClients: 0,
+      };
+      current.connectedClients += 1;
+
+      try {
+        const config = client.emrConfigJson ? JSON.parse(client.emrConfigJson) : null;
+        if (config?.baseUrl) {
+          current.configuredClients += 1;
+        }
+      } catch {
+        // Ignore malformed saved config when building UI counts.
+      }
+
+      accumulator[client.emrSystem] = current;
+      return accumulator;
+    }, {});
+  }, [clients]);
+
+  const filteredPayers = payerRules.filter((payer) =>
+    (payer.payerName || "").toLowerCase().includes(payerSearch.toLowerCase())
   );
 
   return (
@@ -112,203 +372,285 @@ export default function Settings() {
       title="System Settings"
       breadcrumbs={["System", "Settings"]}
     >
-      {connectModal && <ConnectModal emr={connectModal} onClose={() => setConnectModal(null)} />}
+      {connectModal ? (
+        <ConnectModal
+          emr={connectModal}
+          clientId={selectedClientId}
+          clientName={selectedClient?.name || "Selected Client"}
+          onClose={() => setConnectModal(null)}
+          onSaved={() => setConnectModal(null)}
+        />
+      ) : null}
 
-      <div className="max-w-[1400px] mx-auto space-y-5">
-        <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-          <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
-            <div>
-              <h1 className="text-2xl font-bold text-slate-900">System Settings</h1>
+      <div className="mx-auto max-w-[1400px] space-y-5">
+        <div className="rounded-[28px] border border-slate-200 bg-white p-6 shadow-sm">
+          <div className="flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
+            <div className="max-w-3xl">
+              <h1 className="text-xl font-semibold text-slate-900">System Settings</h1>
               <p className="mt-2 text-sm text-slate-500">
-                Manage EMR integrations, API credentials, and global system configurations.
+                Manage integration readiness, connected workspaces, payer reference data, and admin
+                user visibility from live backend data.
               </p>
+            </div>
+            <div className="grid gap-3 sm:grid-cols-2">
+              <MetricCard
+                icon={Building2}
+                label="Active Clients"
+                value={overview?.clients?.active ?? clients.length}
+                tone="bg-blue-50 text-blue-700"
+              />
+              <MetricCard
+                icon={Users}
+                label="Platform Users"
+                value={overview?.users?.total ?? users.length}
+                tone="bg-emerald-50 text-emerald-700"
+              />
             </div>
           </div>
         </div>
 
-        {/* Section Tabs */}
-        <div className="flex gap-1 bg-white rounded-xl border border-slate-200 p-1 w-fit">
+        <div className="flex w-fit gap-1 rounded-2xl border border-slate-200 bg-white p-1">
           {[
             { key: "emr", label: "EMR Connections" },
             { key: "availity", label: "Availity API" },
             { key: "payers", label: "Payer Directory" },
             { key: "users", label: "User Management" },
-          ].map((s) => (
+          ].map((section) => (
             <button
-              key={s.key}
-              onClick={() => setActiveSection(s.key)}
-              className={`px-5 py-2 rounded-lg text-sm font-semibold transition-all ${activeSection === s.key ? "text-white" : "text-slate-500 hover:text-slate-700"}`}
-              style={activeSection === s.key ? { backgroundColor: "#293682" } : {}}
+              key={section.key}
+              onClick={() => setActiveSection(section.key)}
+              className={`rounded-xl px-5 py-2 text-sm font-semibold transition ${
+                activeSection === section.key
+                  ? "bg-[#293682] text-white"
+                  : "text-slate-500 hover:text-slate-700"
+              }`}
             >
-              {s.label}
+              {section.label}
             </button>
           ))}
         </div>
 
-        {/* EMR Connections */}
-        {activeSection === "emr" && (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-            {EMR_LIST.map((emr) => (
-              <div key={emr.name} className="bg-white rounded-xl border border-slate-200 p-4">
-                <div className="flex items-start justify-between mb-3">
-                  <div
-                    className="w-10 h-10 rounded-xl flex items-center justify-center text-white font-bold text-sm"
-                    style={{ backgroundColor: "#293682" }}
-                  >
-                    {emr.name.charAt(0)}
-                  </div>
-                  <span
-                    className={`flex items-center gap-1 px-2 py-1 rounded-full text-[10px] font-bold ${emr.is_connected ? "bg-emerald-50 text-emerald-700" : "bg-slate-100 text-slate-500"}`}
-                  >
-                    {emr.is_connected ? (
-                      <>
-                        <Wifi className="w-3 h-3" /> Connected
-                      </>
-                    ) : (
-                      <>
-                        <WifiOff className="w-3 h-3" /> Not Connected
-                      </>
-                    )}
-                  </span>
+        {activeSection === "emr" ? (
+          <div className="space-y-5">
+            <div className="rounded-[28px] border border-slate-200 bg-white p-5 shadow-sm">
+              <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+                <div>
+                  <h2 className="text-lg font-bold text-slate-900">EMR Connection Catalog</h2>
+                  <p className="mt-1 text-sm text-slate-500">
+                    Choose a client workspace to manage saved connection details, or leave it blank
+                    to review platform-wide adoption.
+                  </p>
                 </div>
-                <h3 className="font-bold text-slate-800 text-sm">{emr.name}</h3>
-                <p className="text-xs text-slate-400 mt-0.5">{emr.protocol}</p>
-                {emr.is_connected && emr.last_sync && (
-                  <p className="text-[11px] text-emerald-600 mt-1">Last sync: {emr.last_sync}</p>
-                )}
-                <div className="flex gap-2 mt-3">
-                  {emr.is_connected ? (
-                    <>
-                      <button className="flex-1 py-1.5 rounded-lg border border-slate-200 text-xs text-slate-600 hover:bg-slate-50 flex items-center justify-center gap-1">
-                        <Edit2 className="w-3 h-3" /> Edit
-                      </button>
-                      <button className="px-3 py-1.5 rounded-lg border border-red-200 text-xs text-red-600 hover:bg-red-50 flex items-center gap-1">
-                        <Trash2 className="w-3 h-3" /> Disconnect
-                      </button>
-                    </>
-                  ) : (
-                    <button
-                      onClick={() => setConnectModal(emr)}
-                      className="w-full py-1.5 rounded-lg text-white text-xs font-bold"
-                      style={{ backgroundColor: "#0a7e87" }}
-                    >
-                      Connect
-                    </button>
-                  )}
+                <div className="w-full max-w-sm">
+                  <label className="mb-1.5 block text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">
+                    Client Workspace
+                  </label>
+                  <AppSelect
+                    value={selectedClientId}
+                    onValueChange={setSelectedClientId}
+                    options={clientOptions}
+                    placeholder="Select Client Workspace"
+                    triggerClassName="h-11 rounded-2xl border-slate-200 text-sm"
+                  />
                 </div>
               </div>
-            ))}
+            </div>
+
+            <div className="grid gap-4 md:grid-cols-3">
+              <MetricCard
+                icon={Wifi}
+                label="Connected Clients"
+                value={overview?.clients?.emrConnected ?? 0}
+                tone="bg-emerald-50 text-emerald-700"
+              />
+              <MetricCard
+                icon={ShieldCheck}
+                label="Availity Ready"
+                value={overview?.availity?.configured ? "Yes" : "No"}
+                tone="bg-violet-50 text-violet-700"
+              />
+              <MetricCard
+                icon={Settings2}
+                label="Audit Events (7d)"
+                value={overview?.audit?.eventsLast7Days ?? 0}
+                tone="bg-amber-50 text-amber-700"
+              />
+            </div>
+
+            <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+              {systemsLoading ? (
+                <div className="col-span-full rounded-[28px] border border-slate-200 bg-white px-6 py-16 text-center text-slate-400 shadow-sm">
+                  <span className="inline-flex items-center gap-2">
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                    Loading EMR systems...
+                  </span>
+                </div>
+              ) : (
+                ehrSystems.map((emr) => {
+                  const usage = emrUsage[emr.id] || { connectedClients: 0, configuredClients: 0 };
+                  return (
+                    <div
+                      key={emr.id}
+                      className="flex h-full flex-col rounded-[28px] border border-slate-200 bg-white p-5 shadow-sm"
+                    >
+                      <div className="flex items-start justify-between gap-3">
+                        <EhrLogo name={emr.name} src={emr.logoSrc} />
+                        <span
+                          className={`inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-[11px] font-semibold ${
+                            selectedClientId
+                              ? emr.isConnected
+                                ? "bg-emerald-50 text-emerald-700"
+                                : "bg-slate-100 text-slate-500"
+                              : usage.connectedClients > 0
+                                ? "bg-emerald-50 text-emerald-700"
+                                : "bg-slate-100 text-slate-500"
+                          }`}
+                        >
+                          {selectedClientId ? (
+                            emr.isConnected ? (
+                              <>
+                                <Wifi className="h-3 w-3" /> Connected
+                              </>
+                            ) : (
+                              <>
+                                <WifiOff className="h-3 w-3" /> Not Connected
+                              </>
+                            )
+                          ) : usage.connectedClients > 0 ? (
+                            <>
+                              <Wifi className="h-3 w-3" /> In Use
+                            </>
+                          ) : (
+                            <>
+                              <WifiOff className="h-3 w-3" /> Not Used
+                            </>
+                          )}
+                        </span>
+                      </div>
+
+                      <div className="mt-4">
+                        <h3 className="text-base font-bold text-slate-900">{emr.name}</h3>
+                        <p className="mt-1 text-sm text-slate-500">{emr.protocol}</p>
+                      </div>
+
+                      <div className="mt-4 space-y-2 rounded-2xl border border-slate-100 bg-slate-50 px-4 py-3 text-sm text-slate-600">
+                        <div className="flex items-center justify-between">
+                          <span>Connected clients</span>
+                          <span className="font-semibold text-slate-800">{usage.connectedClients}</span>
+                        </div>
+                        <div className="flex items-center justify-between">
+                          <span>Configured clients</span>
+                          <span className="font-semibold text-slate-800">{usage.configuredClients}</span>
+                        </div>
+                        {selectedClient ? (
+                          <div className="border-t border-slate-200 pt-2 text-xs text-slate-500">
+                            Managing setup for <span className="font-semibold text-slate-700">{selectedClient.name}</span>
+                          </div>
+                        ) : null}
+                      </div>
+
+                      <div className="mt-auto pt-5">
+                        <button
+                          onClick={() => {
+                            if (!selectedClientId) {
+                              toast({
+                                title: "Select a client workspace",
+                                description: "Pick a client before opening the EMR connection form.",
+                                variant: "warning",
+                              });
+                              return;
+                            }
+                            setConnectModal(emr);
+                          }}
+                          className="w-full rounded-2xl bg-[#0a7e87] py-3 text-sm font-semibold text-white transition hover:bg-[#08656c]"
+                        >
+                          {selectedClientId && emr.isConnected ? "Manage Connection" : "Configure Connection"}
+                        </button>
+                      </div>
+                    </div>
+                  );
+                })
+              )}
+            </div>
           </div>
-        )}
+        ) : null}
 
-        {/* Availity API */}
-        {activeSection === "availity" && <AvailityApiSection />}
+        {activeSection === "availity" ? (
+          <AvailityApiSection statusData={overview?.availity || null} />
+        ) : null}
 
-        {/* Payer Directory */}
-        {activeSection === "payers" && (
-          <div className="bg-white rounded-xl border border-slate-200 overflow-hidden">
-            <div className="px-5 py-4 border-b border-slate-100 flex items-center gap-3">
-              <div className="relative flex-1 max-w-xs">
-                <Search className="w-3.5 h-3.5 absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400" />
+        {activeSection === "payers" ? (
+          <div className="overflow-hidden rounded-[28px] border border-slate-200 bg-white shadow-sm">
+            <div className="border-b border-slate-100 px-5 py-4">
+              <div className="relative max-w-sm">
+                <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
                 <input
                   value={payerSearch}
-                  onChange={(e) => setPayerSearch(e.target.value)}
+                  onChange={(event) => setPayerSearch(event.target.value)}
                   placeholder="Search payers..."
-                  className="w-full pl-8 pr-3 py-2 border border-slate-200 rounded-lg text-xs focus:outline-none"
+                  className="h-11 w-full rounded-2xl border border-slate-200 pl-10 pr-4 text-sm text-slate-700 outline-none transition focus:border-blue-300 focus:ring-4 focus:ring-blue-100"
                 />
               </div>
             </div>
             <div className="overflow-x-auto">
-              <table className="w-full text-xs">
-                <thead>
-                  <tr className="bg-slate-50 border-b border-slate-200">
-                    {[
-                      "Payer Name",
-                      "EDI Payer ID",
-                      "Clearinghouse",
-                      "Portal URL",
-                      "Contact Phone",
-                    ].map((h) => (
-                      <th
-                        key={h}
-                        className="px-4 py-3 text-left text-slate-500 font-semibold uppercase tracking-wider whitespace-nowrap"
-                      >
-                        {h}
-                      </th>
-                    ))}
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-100">
-                  {filteredPayers.map((p) => (
-                    <tr key={p.id} className="hover:bg-slate-50/50">
-                      <td className="px-4 py-3 font-semibold text-slate-800">{p.payerName}</td>
-                      <td className="px-4 py-3 font-mono text-slate-600">{p.payerId || "—"}</td>
-                      <td className="px-4 py-3 text-slate-600">{p.submissionMethod || "—"}</td>
-                      <td className="px-4 py-3 text-blue-600">{p.portalUrl || "—"}</td>
-                      <td className="px-4 py-3 text-slate-600">{p.phoneNumber || "—"}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </div>
-        )}
-
-        {/* User Management */}
-        {activeSection === "users" && (
-          <div className="bg-white rounded-xl border border-slate-200 overflow-hidden">
-            <div className="overflow-x-auto">
-              <table className="w-full text-xs">
-                <thead>
-                  <tr className="bg-slate-50 border-b border-slate-200">
-                    {["Name", "Email", "Role", "Last Login", "Actions"].map((h) => (
-                      <th
-                        key={h}
-                        className="px-4 py-3 text-left text-slate-500 font-semibold uppercase tracking-wider"
-                      >
-                        {h}
-                      </th>
-                    ))}
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-100">
-                  {users.map((u) => (
-                    <tr key={u.id} className="hover:bg-slate-50/50">
-                      <td className="px-4 py-3 font-semibold text-slate-800">{u.name || "—"}</td>
-                      <td className="px-4 py-3 text-slate-500">{u.email}</td>
-                      <td className="px-4 py-3">
-                        <span
-                          className="px-2.5 py-1 rounded-full text-[10px] font-bold"
-                          style={{
-                            backgroundColor:
-                              u.role === "SUPER_ADMIN"
-                                ? "#fef9c3"
-                                : u.role === "STAFFINGLY_SPECIALIST"
-                                  ? "#f0fdfa"
-                                  : "#eef3ff",
-                            color:
-                              u.role === "SUPER_ADMIN"
-                                ? "#a16207"
-                                : u.role === "STAFFINGLY_SPECIALIST"
-                                  ? "#0f766e"
-                                  : "#293682",
-                          }}
+              <table className="min-w-full text-sm">
+                <thead className="bg-slate-50">
+                  <tr className="border-b border-slate-200">
+                    {["Payer Name", "EDI Payer ID", "Submission Method", "Portal URL", "Contact Phone"].map(
+                      (header) => (
+                        <th
+                          key={header}
+                          className="px-5 py-4 text-left text-xs font-semibold uppercase tracking-[0.2em] text-slate-500"
                         >
-                          {ROLE_LABELS[u.role] || u.role}
-                        </span>
+                          {header}
+                        </th>
+                      )
+                    )}
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100">
+                  {filteredPayers.map((payer) => (
+                    <tr key={payer.id} className="transition hover:bg-slate-50/80">
+                      <td className="px-5 py-4 font-semibold text-slate-900">{payer.payerName}</td>
+                      <td className="px-5 py-4 font-mono text-xs text-slate-600">{payer.payerId || "—"}</td>
+                      <td className="px-5 py-4 text-slate-600">{payer.submissionMethod || "—"}</td>
+                      <td className="px-5 py-4 text-blue-600">{payer.portalUrl || "—"}</td>
+                      <td className="px-5 py-4 text-slate-600">{payer.phoneNumber || "—"}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        ) : null}
+
+        {activeSection === "users" ? (
+          <div className="overflow-hidden rounded-[28px] border border-slate-200 bg-white shadow-sm">
+            <div className="overflow-x-auto">
+              <table className="min-w-full text-sm">
+                <thead className="bg-slate-50">
+                  <tr className="border-b border-slate-200">
+                    {["Name", "Email", "Role", "Client", "Last Login"].map((header) => (
+                      <th
+                        key={header}
+                        className="px-5 py-4 text-left text-xs font-semibold uppercase tracking-[0.2em] text-slate-500"
+                      >
+                        {header}
+                      </th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100">
+                  {users.map((entry) => (
+                    <tr key={entry.id} className="transition hover:bg-slate-50/80">
+                      <td className="px-5 py-4 font-semibold text-slate-900">{entry.name || "—"}</td>
+                      <td className="px-5 py-4 text-slate-600">{entry.email}</td>
+                      <td className="px-5 py-4">
+                        <RoleBadge role={entry.role} />
                       </td>
-                      <td className="px-4 py-3 text-slate-400">
-                        {u.lastLoginAt ? new Date(u.lastLoginAt).toLocaleString() : "Never"}
-                      </td>
-                      <td className="px-4 py-3">
-                        <div className="flex gap-2">
-                          <button className="px-3 py-1.5 rounded-lg border border-slate-200 text-xs text-slate-600 hover:bg-slate-50 flex items-center gap-1">
-                            <Edit2 className="w-3 h-3" /> Edit Role
-                          </button>
-                          <button className="px-3 py-1.5 rounded-lg border border-red-200 text-xs text-red-600 hover:bg-red-50">
-                            Deactivate
-                          </button>
-                        </div>
+                      <td className="px-5 py-4 text-slate-500">{entry.client?.name || "Platform"}</td>
+                      <td className="px-5 py-4 text-slate-500">
+                        {entry.lastLoginAt ? new Date(entry.lastLoginAt).toLocaleString() : "Never"}
                       </td>
                     </tr>
                   ))}
@@ -316,7 +658,7 @@ export default function Settings() {
               </table>
             </div>
           </div>
-        )}
+        ) : null}
       </div>
     </StaffinglyLayout>
   );

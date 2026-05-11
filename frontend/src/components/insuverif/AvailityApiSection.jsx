@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { api } from "@/lib/api";
 import { ShieldCheck, RefreshCw, CheckCircle, XCircle, Loader2 } from "lucide-react";
 
@@ -16,9 +16,23 @@ const FIELD_HELP = [
   },
 ];
 
-export default function AvailityApiSection() {
+export default function AvailityApiSection({ statusData = null }) {
   const [testing, setTesting] = useState(false);
   const [testResult, setTestResult] = useState(null);
+
+  const environmentRows = useMemo(
+    () => [
+      ["Token URL", statusData?.tokenUrl || "https://api.availity.com/availity/v1/token"],
+      [
+        "Eligibility API URL",
+        statusData?.eligibilityUrl || "https://api.availity.com/availity/v1/coverages",
+      ],
+      ["Auth Method", statusData?.authMethod || "OAuth 2.0 Client Credentials (scope: hipaa)"],
+      ["Transaction Type", "EDI 270 / 271 (Real-Time Eligibility)"],
+      ["Provider NPI", "Configurable per request"],
+    ],
+    [statusData]
+  );
 
   const handleTestConnection = async () => {
     setTesting(true);
@@ -71,8 +85,14 @@ export default function AvailityApiSection() {
             <h3 className="font-bold text-slate-800">Availity Real-Time Eligibility</h3>
             <p className="text-xs text-slate-500">EDI 270/271 transactions via Availity REST API</p>
           </div>
-          <span className="ml-auto px-3 py-1 rounded-full text-xs font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">
-            Configured
+          <span
+            className={`ml-auto rounded-full border px-3 py-1 text-xs font-bold ${
+              statusData?.configured === false
+                ? "border-amber-200 bg-amber-50 text-amber-700"
+                : "border-emerald-200 bg-emerald-50 text-emerald-700"
+            }`}
+          >
+            {statusData?.configured === false ? "Needs Credentials" : "Configured"}
           </span>
         </div>
 
@@ -125,13 +145,7 @@ export default function AvailityApiSection() {
       <div className="bg-white rounded-xl border border-slate-200 p-5">
         <h3 className="font-bold text-slate-700 text-sm mb-3">Environment Settings</h3>
         <div className="space-y-3 text-sm">
-          {[
-            ["Token URL", "https://api.availity.com/availity/v1/token"],
-            ["Eligibility API URL", "https://api.availity.com/availity/v1/coverages"],
-            ["Auth Method", "OAuth 2.0 Client Credentials (scope: hipaa)"],
-            ["Transaction Type", "EDI 270 / 271 (Real-Time Eligibility)"],
-            ["Provider NPI", "Configurable per request"],
-          ].map(([label, val]) => (
+          {environmentRows.map(([label, val]) => (
             <div key={label} className="flex justify-between py-1.5 border-b border-slate-50">
               <span className="text-slate-500">{label}</span>
               <span className="font-mono text-xs text-slate-700 text-right max-w-xs truncate">
