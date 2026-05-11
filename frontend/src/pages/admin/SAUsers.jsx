@@ -533,26 +533,25 @@ export default function SAUsers() {
         />
       )}
 
-      <div className="space-y-5 max-w-[1400px] mx-auto">
-        <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+      <div className="sv-unified-page max-w-[1400px]">
+        <div className="sv-page-panel">
           <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
             <div>
-              <h1 className="text-2xl font-bold text-slate-900">User Management</h1>
+              <h1 className="text-xl font-semibold text-slate-900">User Management</h1>
               <p className="mt-2 text-sm text-slate-500">
                 Manage roles, identity, and access restrictions for all system users.
               </p>
             </div>
             <button
               onClick={() => setDrawer("add")}
-              className="flex items-center gap-2 rounded-2xl px-5 py-3 text-sm font-bold text-white"
-              style={{ backgroundColor: "#293682" }}
+              className="sv-primary-btn rounded-2xl px-5 py-3 font-bold"
             >
               <Plus className="h-4 w-4" /> Add User
             </button>
           </div>
         </div>
 
-        <div className="rounded-2xl border border-slate-200 bg-white px-5 py-4 shadow-sm">
+        <div className="sv-page-toolbar">
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center justify-between">
             <div className="relative flex-1">
               <Search className="absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-slate-400" />
@@ -560,7 +559,7 @@ export default function SAUsers() {
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
                 placeholder="Search users…"
-                className="w-full sm:w-72 rounded-xl border border-slate-200 py-2 pl-9 pr-3 text-xs focus:outline-none focus:ring-1 focus:ring-[#293682]"
+                className="sv-search-input w-full sm:w-72"
               />
             </div>
             <div className="flex flex-wrap gap-3">
@@ -568,25 +567,25 @@ export default function SAUsers() {
                 value={filterRole}
                 onValueChange={setFilterRole}
                 options={ROLE_OPTIONS}
-                triggerClassName="h-9 w-[170px] rounded-xl px-3 py-2 text-xs focus:ring-0"
+                triggerClassName="sv-select-trigger h-9 w-[170px] focus:ring-0"
               />
               <AppSelect
                 value={filterActive}
                 onValueChange={setFilterActive}
                 options={STATUS_FILTER_OPTIONS}
-                triggerClassName="h-9 w-[170px] rounded-xl px-3 py-2 text-xs focus:ring-0"
+                triggerClassName="sv-select-trigger h-9 w-[170px] focus:ring-0"
               />
             </div>
           </div>
         </div>
 
         {/* Table */}
-        <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden">
+        <div className="sv-table-card">
           {loadingUsers ? (
             <div className="px-5 py-12 text-center text-sm text-slate-400">Loading users...</div>
           ) : (
             <div className="overflow-x-auto">
-              <table className="w-full text-xs">
+              <table className="sv-data-table">
                 <thead>
                   <tr className="bg-slate-50 border-b border-slate-200">
                     {[

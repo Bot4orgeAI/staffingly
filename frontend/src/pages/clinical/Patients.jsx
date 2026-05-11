@@ -563,12 +563,12 @@ export default function Patients() {
       title="Patients"
       breadcrumbs={["Patients", "Manage"]}
     >
-      <div className="max-w-[1400px] mx-auto space-y-5">
-        <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-          <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+      <div className="sv-unified-page max-w-[1400px]">
+        <div className="sv-page-panel">
+          <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
             <div>
-              <h1 className="text-2xl font-bold text-slate-900">Patients</h1>
-              <p className="mt-2 text-sm text-slate-500">
+              <h1 className="text-xl font-semibold text-slate-900">Patients</h1>
+              <p className="mt-1.5 text-sm text-slate-500">
                 Manage patient records and launch verification when details are ready.
               </p>
               {!clientId ? (
@@ -583,8 +583,7 @@ export default function Patients() {
             <button
               type="button"
               onClick={() => setPatientModal("add")}
-              className="flex items-center gap-2 rounded-2xl px-5 py-3 text-sm font-bold text-white"
-              style={{ backgroundColor: "#293682" }}
+              className="sv-primary-btn"
             >
               <Plus className="h-4 w-4" />
               New Patient
@@ -592,7 +591,7 @@ export default function Patients() {
           </div>
         </div>
 
-        <div className="rounded-2xl border border-slate-200 bg-white px-5 py-4 shadow-sm">
+        <div className="sv-page-toolbar">
           <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
             <div className="relative flex-1">
               <Search className="absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-slate-400" />
@@ -604,7 +603,7 @@ export default function Patients() {
                   setSearch(event.target.value);
                   setPagination((current) => ({ ...current, page: 1 }));
                 }}
-                className="w-full sm:w-72 rounded-xl border border-slate-200 py-2 pl-9 pr-3 text-xs focus:outline-none focus:ring-1 focus:ring-[#293682]"
+                className="sv-search-input w-full sm:w-72"
               />
             </div>
 

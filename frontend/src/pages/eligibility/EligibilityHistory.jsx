@@ -630,12 +630,12 @@ export default function EligibilityHistory() {
         />
       ) : null}
 
-      <div className="space-y-5 max-w-[1400px] mx-auto">
-        <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-          <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+      <div className="sv-unified-page max-w-[1400px]">
+        <div className="sv-page-panel">
+          <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
             <div>
-              <h1 className="text-2xl font-bold text-slate-900">Eligibility History</h1>
-              <p className="mt-2 text-sm text-slate-500">
+              <h1 className="text-xl font-semibold text-slate-900">Eligibility History</h1>
+              <p className="mt-1.5 text-sm text-slate-500">
                 Audit and review all past eligibility verifications across all clients and payers.
               </p>
             </div>
@@ -643,7 +643,7 @@ export default function EligibilityHistory() {
         </div>
 
         {/* Filters */}
-        <div className="bg-white rounded-2xl border border-slate-200 px-5 py-4 flex flex-col sm:flex-row gap-3 items-start sm:items-center justify-between">
+        <div className="sv-page-toolbar flex flex-col gap-3 items-start justify-between sm:flex-row sm:items-center">
           <div className="flex flex-wrap gap-3 flex-1">
             <div className="relative">
               <Search className="w-3.5 h-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
@@ -651,7 +651,7 @@ export default function EligibilityHistory() {
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
                 placeholder="Patient name or ID…"
-                className="w-full sm:w-72 pl-9 pr-3 py-2 border border-slate-200 rounded-xl text-xs focus:outline-none focus:ring-1 focus:ring-[#0a7e87]"
+                className="sv-search-input w-full sm:w-72"
               />
             </div>
             <AppSelect
@@ -663,7 +663,7 @@ export default function EligibilityHistory() {
                 { label: "Inactive", value: "Inactive" },
                 { label: "Unknown", value: "Unknown" },
               ]}
-              triggerClassName="h-9 w-[150px] rounded-xl text-xs"
+              triggerClassName="sv-select-trigger h-9 w-[150px]"
             />
             <AppSelect
               value={filterMethod}
@@ -675,7 +675,7 @@ export default function EligibilityHistory() {
                 { label: "EMR Integration", value: "EMR" },
                 { label: "Portal Automation", value: "Portal" },
               ]}
-              triggerClassName="h-9 w-[180px] rounded-xl text-xs"
+              triggerClassName="sv-select-trigger h-9 w-[180px]"
             />
           </div>
           <button
@@ -688,9 +688,9 @@ export default function EligibilityHistory() {
         </div>
 
         {/* Table */}
-        <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden">
+        <div className="sv-table-card">
           <div className="overflow-x-auto">
-            <table className="w-full text-xs">
+            <table className="sv-data-table">
               <thead>
                 <tr className="bg-slate-50 border-b border-slate-200">
                   {[

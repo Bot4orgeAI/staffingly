@@ -468,20 +468,19 @@ export default function PricingPackages() {
       title="Pricing Packages"
       breadcrumbs={["Admin", "Pricing"]}
     >
-      <div className="max-w-[1400px] mx-auto space-y-6">
-        <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-          <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+      <div className="sv-unified-page max-w-[1400px] space-y-6">
+        <div className="sv-page-panel">
+          <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
             <div>
-              <h1 className="text-2xl font-bold text-slate-900">Pricing Packages</h1>
-              <p className="mt-2 text-sm text-slate-500">
+              <h1 className="text-xl font-semibold text-slate-900">Pricing Packages</h1>
+              <p className="mt-1.5 text-sm text-slate-500">
                 Manage client pricing plans, rate structures, and included service volumes.
               </p>
             </div>
             {canManagePackages ? (
               <button
                 onClick={handleNew}
-                className="flex items-center gap-2 px-5 py-3 rounded-2xl text-white text-sm font-bold shadow-sm"
-                style={{ backgroundColor: "#293682" }}
+                className="sv-primary-btn shadow-sm"
               >
                 <Plus className="w-4 h-4" /> New Package
               </button>

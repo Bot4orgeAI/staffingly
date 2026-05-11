@@ -38,7 +38,7 @@ export default function PriorAuth({ embedded: _embedded = false }) {
         <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
           <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
             <div>
-              <h1 className="text-2xl font-bold text-slate-900">Prior Authorization</h1>
+              <h1 className="text-xl font-semibold text-slate-900">Prior Authorization</h1>
               <p className="mt-2 text-sm text-slate-500">
                 Review existing cases or start a new prior auth with eligibility context carried
                 forward.
