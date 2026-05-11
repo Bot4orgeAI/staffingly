@@ -50,8 +50,15 @@ export function buildPatientWorkflowParams(patient, options = {}) {
   const primaryPolicy = patient.insurancePolicies?.find(
     (policy) => policy.policyType === "PRIMARY"
   );
+  const secondaryPolicy = patient.insurancePolicies?.find(
+    (policy) => policy.policyType === "SECONDARY"
+  );
   const patientName = [patient.firstName, patient.lastName].filter(Boolean).join(" ").trim();
   const evDraft = getPatientEvDraft(patient.id);
+  const practiceName = patient.client?.practiceName || patient.client?.name || "";
+  const defaultNotes = patientName
+    ? `Auto-filled from saved patient record for ${patientName}.`
+    : "Auto-filled from saved patient record.";
 
   return new URLSearchParams({
     source: options.source || "patients",
@@ -89,12 +96,16 @@ export function buildPatientWorkflowParams(patient, options = {}) {
     subscriber_name: primaryPolicy?.subscriberName || "",
     subscriber_dob: primaryPolicy?.subscriberDob ? primaryPolicy.subscriberDob.split("T")[0] : "",
     subscriber_relationship: primaryPolicy?.subscriberRelationship || "Self",
-    provider_npi: evDraft.provider_npi || "",
-    service_date: evDraft.service_date || "",
-    service_type: evDraft.service_type || "",
-    cpt_code: evDraft.cpt_code || "",
-    facility_name: evDraft.facility_name || "",
-    notes: evDraft.notes || "",
+    secondary_payer: secondaryPolicy?.payerName || "",
+    secondary_member_id: secondaryPolicy?.memberId || "",
+    secondary_group_number: secondaryPolicy?.groupNumber || "",
+    secondary_plan_name: secondaryPolicy?.planName || "",
+    provider_npi: evDraft.provider_npi || patient.client?.npi || "",
+    service_date: evDraft.service_date || new Date().toISOString().split("T")[0],
+    service_type: evDraft.service_type || "Specialist Visit",
+    cpt_code: evDraft.cpt_code || "99214",
+    facility_name: evDraft.facility_name || practiceName,
+    notes: evDraft.notes || defaultNotes,
   }).toString();
 }
 
@@ -138,6 +149,10 @@ export function getWorkflowContext(search = window.location.search) {
     subscriberName: params.get("subscriber_name") || "",
     subscriberDob: params.get("subscriber_dob") || "",
     subscriberRelationship: params.get("subscriber_relationship") || "Self",
+    secondaryPayer: params.get("secondary_payer") || "",
+    secondaryMemberId: params.get("secondary_member_id") || "",
+    secondaryGroupNumber: params.get("secondary_group_number") || "",
+    secondaryPlanName: params.get("secondary_plan_name") || "",
     providerNpi: params.get("provider_npi") || "",
     serviceDate: params.get("service_date") || "",
     serviceType: params.get("service_type") || "",

@@ -136,8 +136,18 @@ const US_STATES = [
 
 const SAMPLE_CSV = [
   "patient_id,first_name,middle_name,last_name,dob,gender,phone,email,address,city,state,zip,payer,payer_id,member_id,group_number,plan_name,plan_type,effective_date,termination_date,rx_bin,rx_pcn,rx_group,copay_pcp,copay_specialist,subscriber_name,subscriber_dob,subscriber_relationship,provider_npi,service_type,service_date,cpt_code,facility_name,notes",
-  "pat-1001,Sarah,A,Mitchell,1985-03-14,Female,555-0101,sarah@example.com,12 Lake St,Austin,TX,78701,UnitedHealthcare,UHC,884720193,GRP-100,Choice Plus,PPO,2026-01-01,2026-12-31,610014,OHCARD,OHRX,25,45,Sarah Mitchell,1985-03-14,Self,1234567890,Specialist Visit,2026-02-21,99213,North Clinic,Follow-up visit",
-  "pat-1002,James,,Holloway,1971-07-22,Male,555-0102,james@example.com,99 Cedar Ave,Dallas,TX,75201,Aetna,AETNA,562901847,GRP-200,Open Access,HMO,2026-01-01,2026-12-31,610502,AETRX,AETGRP,20,40,James Holloway,1971-07-22,Self,0987654321,Primary Care Visit,2026-02-21,99214,Central Care,Annual review",
+  "patient-001,Sarah,Anne,Mitchell,1985-03-15,Female,5551234567,sarah.mitchell@email.com,123 Oak Street,Austin,TX,78701,UnitedHealthcare,87726,UHC-884720193,GRP-44821,Choice Plus PPO,PPO,2024-01-01,2026-12-31,610014,OHCARD,OHRX,25,50,Sarah A. Mitchell,1985-03-15,Self,1234567890,Specialist Visit,2026-05-11,99214,Demo Family Medicine,Autofill demo patient record",
+  "patient-002,Michael,Ray,Johnson,1978-07-22,Male,5552345678,m.johnson@email.com,456 Maple Avenue,Austin,TX,78702,Medicare,MEDICARE,1EG4-TE5-MK72,MEDB-2023,Medicare Part B,Medicare,2023-07-01,2026-12-31,004336,MEDDADV,MEDICARE,20,20,Michael R. Johnson,1978-07-22,Self,1234567890,Primary Care Visit,2026-05-12,99213,Demo Family Medicine,Autofill demo patient record",
+  "patient-003,Emily,Wei,Chen,1992-11-08,Female,5553456789,emily.chen@email.com,789 Pine Road,Round Rock,TX,78664,Blue Cross Blue Shield,BCBS,BCBS-XYZ789456,GRP-TECH2024,Blue PPO Silver,PPO,2024-01-01,2026-12-31,004336,ADV,BCBSRX,20,40,Emily W. Chen,1992-11-08,Self,1234567890,Lab/Diagnostics,2026-05-13,80053,Demo Family Medicine,Autofill demo patient record",
+  "patient-004,Robert,Luis,Garcia,1965-01-30,Male,5554567890,r.garcia@email.com,321 Cedar Lane,Austin,TX,78703,Medicare,MEDICARE,1AB2-CD3-EF45,MEDAB-2020,Medicare Part A & B,Medicare,2020-02-01,2026-12-31,004336,MEDICARE,PARTD-A,20,20,Robert L. Garcia,1965-01-30,Self,1760421357,Imaging/Radiology,2026-05-14,73721,Sunrise Family Clinic,Autofill sunrise patient record",
+  "patient-005,Amanda,Rose,Williams,1988-09-12,Female,5555678901,amanda.w@email.com,654 Birch Street,Pflugerville,TX,78660,Cigna,62308,CIG-998877665,GRP-EMP2024,Cigna Connect HMO,HMO,2024-01-01,2026-12-31,017010,CIGRX,CIGNAHMO,15,35,Amanda R. Williams,1988-09-12,Self,1760421357,Preventive/Wellness,2026-05-15,99396,Sunrise Family Clinic,Autofill sunrise patient record",
+  "patient-006,David,Allen,Brown,1972-04-25,Male,5556789012,david.brown@email.com,987 Elm Drive,Austin,TX,78704,Humana,61101,HUM-112233445,GRP-CORP100,Humana Gold Plus,PPO,2023-06-01,2026-12-31,610649,HUMANA,HUMGOLD,30,55,David Brown,1972-04-25,Self,1760421357,Physical Therapy,2026-05-16,97110,Sunrise Family Clinic,Autofill sunrise patient record",
+  "patient-007,Jennifer,Sofia,Martinez,1995-12-03,Female,5557890123,j.martinez@email.com,246 Willow Way,Cedar Park,TX,78613,Texas Medicaid,TXMED,TXM-887766554,STAR-2024,STAR Health,Medicaid Managed Care,2024-01-01,2026-12-31,014203,MEDICAID,TXSTAR,0,0,Jennifer S. Martinez,1995-12-03,Self,1881762094,Mental Health/Behavioral,2026-05-17,90837,Lakeview Orthopedics,Autofill lakeview patient record",
+  "patient-008,James,Patrick,Anderson,1958-06-17,Male,5558901234,james.a@email.com,135 Spruce Court,Austin,TX,78705,Medicare,MEDICARE,1XY9-ZW8-VU76,MEDAB-2018,Medicare Part A & B,Medicare,2018-07-01,2026-12-31,004336,MEDICARE,PARTD-B,20,20,James P. Anderson,1958-06-17,Self,1881762094,Surgery,2026-05-18,27447,Lakeview Orthopedics,Autofill lakeview patient record",
+  "patient-009,Lisa,Marie,Taylor,1983-02-28,Female,5559012345,lisa.taylor@email.com,864 Aspen Boulevard,Lakeway,TX,78734,Aetna,60054,AET-556677889,GRP-FIN500,Aetna Choice POS II,POS,2024-01-01,2026-12-31,004336,MEDDADV,AETPOS,25,45,Lisa Taylor,1983-02-28,Self,1881762094,Chiropractic,2026-05-19,98941,Lakeview Orthopedics,Autofill lakeview patient record",
+  "patient-010,Christopher,Daniel,Lee,1990-08-19,Male,5550123456,chris.lee@email.com,579 Redwood Circle,Austin,TX,78706,UnitedHealthcare,87726,UHC-223344556,GRP-STARTUP,UHC HDHP Bronze,HDHP,2024-01-01,2026-12-31,610014,OHCARD,UHCBRONZE,35,65,Christopher Lee,1990-08-19,Self,1992846711,Urgent Care,2026-05-20,99203,Metro Mental Health Associates,Autofill metro patient record",
+  "patient-011,Monica,Elena,Reyes,1987-05-09,Female,5551472580,monica.reyes@email.com,412 Juniper Street,Austin,TX,78741,Blue Cross Blue Shield,BCBS,BCBS-445512309,GRP-BH2024,Blue Essentials PPO,PPO,2024-01-01,2026-12-31,004336,ADV,BCBSESS,25,50,Monica E. Reyes,1987-05-09,Self,1992846711,Mental Health/Behavioral,2026-05-21,90834,Metro Mental Health Associates,Autofill metro patient record",
+  "patient-012,Nathan,Cole,Brooks,1993-10-27,Male,5552583691,nathan.brooks@email.com,908 Horizon Trail,Austin,TX,78745,Aetna,60054,AET-774421580,GRP-MH300,Aetna Signature Administrators PPO,PPO,2024-01-01,2026-12-31,610502,AETNA,AETSIGN,20,45,Nathan Brooks,1993-10-27,Self,1992846711,Specialist Visit,2026-05-22,99214,Metro Mental Health Associates,Autofill metro patient record",
 ].join("\n");
 
 function validateRow(row) {
@@ -243,9 +253,9 @@ function RowSection({ title, children }) {
   );
 }
 
-function BulkRowCard({ row, index, status, onUpdate, onRemove }) {
+function BulkRowCard({ row, index, status, onUpdate, onRemove, defaultCollapsed = false }) {
   const issues = validateRow(row);
-  const [collapsed, setCollapsed] = useState(false);
+  const [collapsed, setCollapsed] = useState(defaultCollapsed);
   const patientName = [row.first_name, row.last_name].filter(Boolean).join(" ").trim();
   const summaryBits = [
     row.dob ? `DOB ${row.dob}` : null,
@@ -523,6 +533,11 @@ export default function BulkVerifyTab() {
     setRows((current) => current.map((row) => (row._id === id ? { ...row, [field]: value } : row)));
 
   const processCSV = async (file) => {
+    if (!resolvedClientId) {
+      alert("Select a client before uploading a CSV file.");
+      return;
+    }
+
     const text = await file.text();
     const { rows: parsed, error } = parseCSV(text);
     if (error) {
@@ -764,27 +779,41 @@ Records: ${JSON.stringify(clean.map((row, index) => ({ index, ...row })))}`,
             {!csvRows && !aiValidating && (
               <div
                 onDragOver={(event) => {
+                  if (!resolvedClientId) return;
                   event.preventDefault();
                   setDragOver(true);
                 }}
                 onDragLeave={() => setDragOver(false)}
                 onDrop={(event) => {
+                  if (!resolvedClientId) return;
                   event.preventDefault();
                   setDragOver(false);
                   const file = event.dataTransfer.files[0];
                   if (file) void processCSV(file);
                 }}
-                onClick={() => fileRef.current?.click()}
+                onClick={() => {
+                  if (!resolvedClientId) return;
+                  fileRef.current?.click();
+                }}
                 className={`cursor-pointer rounded-2xl border-2 border-dashed p-10 text-center transition-all ${
-                  dragOver
+                  !resolvedClientId
+                    ? "border-slate-200 bg-slate-50 opacity-60 cursor-not-allowed"
+                    : dragOver
                     ? "border-blue-400 bg-blue-50"
                     : "border-slate-200 hover:border-slate-300 hover:bg-slate-50"
                 }`}
               >
                 <Upload className="mx-auto mb-3 h-10 w-10 text-slate-300" />
                 <p className="text-sm font-semibold text-slate-600">
-                  Drop CSV here or click to browse
+                  {resolvedClientId
+                    ? "Drop CSV here or click to browse"
+                    : "Select a client before uploading CSV"}
                 </p>
+                {!resolvedClientId ? (
+                  <p className="mt-2 text-xs text-slate-500">
+                    Bulk CSV imports must be tied to a client workspace.
+                  </p>
+                ) : null}
                 <input
                   ref={fileRef}
                   type="file"
@@ -800,7 +829,7 @@ Records: ${JSON.stringify(clean.map((row, index) => ({ index, ...row })))}`,
             )}
 
             {csvRows && (
-              <div className="space-y-2">
+              <div className="space-y-4">
                 <div className="flex items-center gap-3 text-xs">
                   <span className="rounded-full bg-emerald-50 px-2.5 py-1 font-semibold text-emerald-700">
                     {csvRows.filter((row) => !row._issues?.length && !row._ai_flag).length} clean
@@ -821,6 +850,28 @@ Records: ${JSON.stringify(clean.map((row, index) => ({ index, ...row })))}`,
                   >
                     Change file
                   </button>
+                </div>
+
+                <div className="space-y-4">
+                  {csvRows.map((row, index) => (
+                    <BulkRowCard
+                      key={row._id}
+                      row={row}
+                      index={index}
+                      status={results[row._id]}
+                      onUpdate={(field, value) =>
+                        setCsvRows((current) =>
+                          current.map((entry) =>
+                            entry._id === row._id ? { ...entry, [field]: value } : entry
+                          )
+                        )
+                      }
+                      onRemove={() =>
+                        setCsvRows((current) => current.filter((entry) => entry._id !== row._id))
+                      }
+                      defaultCollapsed
+                    />
+                  ))}
                 </div>
               </div>
             )}

@@ -1,16 +1,31 @@
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 import {
   AlertTriangle,
+  Brain,
   Camera,
+  ChevronDown,
+  ChevronUp,
   CheckCircle,
   FileImage,
   Loader2,
   Plus,
+  RotateCcw,
   Trash2,
   Upload,
 } from "lucide-react";
 import { api } from "@/lib/api";
 import AppSelect from "@/components/ui/app-select";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import ManualEntryTab from "./ManualEntryTab";
 
 const DOC_TYPES = [
@@ -22,6 +37,262 @@ const DOC_TYPES = [
   "Lab/Radiology Report",
   "Other Document",
 ];
+const MULTI_ALLOWED_DOC_TYPES = new Set(["Other Document"]);
+
+const FIELD_SOURCE_PRIORITY = {
+  patientName: {
+    "Insurance Card Front": 100,
+    "Insurance Card Back": 70,
+    "Explanation of Benefits (EOB)": 80,
+    "Referral Letter": 85,
+    "Prior Authorization Letter": 85,
+    "Lab/Radiology Report": 75,
+    "Other Document": 60,
+  },
+  patientDob: {
+    "Insurance Card Front": 100,
+    "Insurance Card Back": 70,
+    "Explanation of Benefits (EOB)": 80,
+    "Referral Letter": 75,
+    "Prior Authorization Letter": 75,
+    "Lab/Radiology Report": 70,
+    "Other Document": 60,
+  },
+  gender: {
+    "Insurance Card Front": 65,
+    "Insurance Card Back": 55,
+    "Explanation of Benefits (EOB)": 55,
+    "Referral Letter": 60,
+    "Prior Authorization Letter": 60,
+    "Lab/Radiology Report": 60,
+    "Other Document": 50,
+  },
+  phone: {
+    "Insurance Card Front": 50,
+    "Insurance Card Back": 85,
+    "Explanation of Benefits (EOB)": 70,
+    "Referral Letter": 75,
+    "Prior Authorization Letter": 75,
+    "Lab/Radiology Report": 70,
+    "Other Document": 55,
+  },
+  email: {
+    "Insurance Card Front": 45,
+    "Insurance Card Back": 70,
+    "Explanation of Benefits (EOB)": 55,
+    "Referral Letter": 60,
+    "Prior Authorization Letter": 60,
+    "Lab/Radiology Report": 55,
+    "Other Document": 50,
+  },
+  address: {
+    "Insurance Card Front": 55,
+    "Insurance Card Back": 75,
+    "Explanation of Benefits (EOB)": 65,
+    "Referral Letter": 65,
+    "Prior Authorization Letter": 65,
+    "Lab/Radiology Report": 60,
+    "Other Document": 50,
+  },
+  city: {
+    "Insurance Card Front": 55,
+    "Insurance Card Back": 75,
+    "Explanation of Benefits (EOB)": 65,
+    "Referral Letter": 65,
+    "Prior Authorization Letter": 65,
+    "Lab/Radiology Report": 60,
+    "Other Document": 50,
+  },
+  state: {
+    "Insurance Card Front": 55,
+    "Insurance Card Back": 75,
+    "Explanation of Benefits (EOB)": 65,
+    "Referral Letter": 65,
+    "Prior Authorization Letter": 65,
+    "Lab/Radiology Report": 60,
+    "Other Document": 50,
+  },
+  zip: {
+    "Insurance Card Front": 55,
+    "Insurance Card Back": 75,
+    "Explanation of Benefits (EOB)": 65,
+    "Referral Letter": 65,
+    "Prior Authorization Letter": 65,
+    "Lab/Radiology Report": 60,
+    "Other Document": 50,
+  },
+  payerName: {
+    "Insurance Card Front": 100,
+    "Insurance Card Back": 80,
+    "Explanation of Benefits (EOB)": 90,
+    "Prior Authorization Letter": 75,
+    "Referral Letter": 65,
+    "Lab/Radiology Report": 55,
+    "Other Document": 50,
+  },
+  payerId: {
+    "Insurance Card Front": 100,
+    "Insurance Card Back": 80,
+    "Explanation of Benefits (EOB)": 90,
+    "Prior Authorization Letter": 75,
+    "Referral Letter": 55,
+    "Lab/Radiology Report": 45,
+    "Other Document": 50,
+  },
+  memberId: {
+    "Insurance Card Front": 100,
+    "Insurance Card Back": 75,
+    "Explanation of Benefits (EOB)": 90,
+    "Prior Authorization Letter": 70,
+    "Referral Letter": 55,
+    "Lab/Radiology Report": 45,
+    "Other Document": 50,
+  },
+  groupNumber: {
+    "Insurance Card Front": 100,
+    "Insurance Card Back": 70,
+    "Explanation of Benefits (EOB)": 90,
+    "Prior Authorization Letter": 70,
+    "Referral Letter": 55,
+    "Lab/Radiology Report": 45,
+    "Other Document": 50,
+  },
+  planName: {
+    "Insurance Card Front": 100,
+    "Insurance Card Back": 75,
+    "Explanation of Benefits (EOB)": 90,
+    "Prior Authorization Letter": 70,
+    "Referral Letter": 55,
+    "Lab/Radiology Report": 45,
+    "Other Document": 50,
+  },
+  planType: {
+    "Insurance Card Front": 100,
+    "Insurance Card Back": 75,
+    "Explanation of Benefits (EOB)": 90,
+    "Prior Authorization Letter": 70,
+    "Referral Letter": 55,
+    "Lab/Radiology Report": 45,
+    "Other Document": 50,
+  },
+  subscriberName: {
+    "Insurance Card Front": 100,
+    "Insurance Card Back": 70,
+    "Explanation of Benefits (EOB)": 85,
+    "Prior Authorization Letter": 75,
+    "Referral Letter": 70,
+    "Lab/Radiology Report": 60,
+    "Other Document": 50,
+  },
+  subscriberDob: {
+    "Insurance Card Front": 100,
+    "Insurance Card Back": 70,
+    "Explanation of Benefits (EOB)": 85,
+    "Prior Authorization Letter": 75,
+    "Referral Letter": 65,
+    "Lab/Radiology Report": 55,
+    "Other Document": 50,
+  },
+  subscriberRelationship: {
+    "Insurance Card Front": 85,
+    "Insurance Card Back": 70,
+    "Explanation of Benefits (EOB)": 65,
+    "Prior Authorization Letter": 65,
+    "Referral Letter": 60,
+    "Lab/Radiology Report": 50,
+    "Other Document": 45,
+  },
+  rxBin: {
+    "Insurance Card Front": 70,
+    "Insurance Card Back": 100,
+    "Explanation of Benefits (EOB)": 55,
+    "Prior Authorization Letter": 40,
+    "Referral Letter": 35,
+    "Lab/Radiology Report": 35,
+    "Other Document": 35,
+  },
+  rxPcn: {
+    "Insurance Card Front": 70,
+    "Insurance Card Back": 100,
+    "Explanation of Benefits (EOB)": 55,
+    "Prior Authorization Letter": 40,
+    "Referral Letter": 35,
+    "Lab/Radiology Report": 35,
+    "Other Document": 35,
+  },
+  rxGroup: {
+    "Insurance Card Front": 70,
+    "Insurance Card Back": 100,
+    "Explanation of Benefits (EOB)": 55,
+    "Prior Authorization Letter": 40,
+    "Referral Letter": 35,
+    "Lab/Radiology Report": 35,
+    "Other Document": 35,
+  },
+  effectiveDate: {
+    "Insurance Card Front": 90,
+    "Insurance Card Back": 65,
+    "Explanation of Benefits (EOB)": 100,
+    "Prior Authorization Letter": 80,
+    "Referral Letter": 55,
+    "Lab/Radiology Report": 45,
+    "Other Document": 50,
+  },
+  serviceDate: {
+    "Insurance Card Front": 30,
+    "Insurance Card Back": 35,
+    "Explanation of Benefits (EOB)": 95,
+    "Prior Authorization Letter": 90,
+    "Referral Letter": 80,
+    "Lab/Radiology Report": 100,
+    "Other Document": 55,
+  },
+  providerName: {
+    "Insurance Card Front": 30,
+    "Insurance Card Back": 35,
+    "Explanation of Benefits (EOB)": 70,
+    "Prior Authorization Letter": 85,
+    "Referral Letter": 100,
+    "Lab/Radiology Report": 95,
+    "Other Document": 55,
+  },
+  providerNpi: {
+    "Insurance Card Front": 25,
+    "Insurance Card Back": 35,
+    "Explanation of Benefits (EOB)": 65,
+    "Prior Authorization Letter": 85,
+    "Referral Letter": 95,
+    "Lab/Radiology Report": 100,
+    "Other Document": 55,
+  },
+  cptCode: {
+    "Insurance Card Front": 20,
+    "Insurance Card Back": 20,
+    "Explanation of Benefits (EOB)": 70,
+    "Prior Authorization Letter": 80,
+    "Referral Letter": 75,
+    "Lab/Radiology Report": 95,
+    "Other Document": 55,
+  },
+  facilityName: {
+    "Insurance Card Front": 20,
+    "Insurance Card Back": 25,
+    "Explanation of Benefits (EOB)": 65,
+    "Prior Authorization Letter": 80,
+    "Referral Letter": 75,
+    "Lab/Radiology Report": 90,
+    "Other Document": 55,
+  },
+  notes: {
+    "Insurance Card Front": 10,
+    "Insurance Card Back": 15,
+    "Explanation of Benefits (EOB)": 75,
+    "Prior Authorization Letter": 90,
+    "Referral Letter": 80,
+    "Lab/Radiology Report": 85,
+    "Other Document": 60,
+  },
+};
 
 function splitName(fullName = "") {
   const parts = fullName
@@ -43,14 +314,24 @@ function splitName(fullName = "") {
   };
 }
 
-function createDocument(id = Date.now()) {
+function createDocument(id = Date.now(), sequence = 1) {
   return {
     id,
+    sequence,
+    expanded: true,
     docType: "Insurance Card Front",
     file: null,
     preview: null,
     extraction: null,
   };
+}
+
+function getNextDocumentType(documents = []) {
+  const preferredTypes = DOC_TYPES.filter((type) => !MULTI_ALLOWED_DOC_TYPES.has(type));
+  const usedTypes = new Set(documents.map((document) => document.docType));
+  const availableType = preferredTypes.find((type) => !usedTypes.has(type));
+
+  return availableType || "Other Document";
 }
 
 function pickBetterField(current, next, docType) {
@@ -67,14 +348,44 @@ function pickBetterField(current, next, docType) {
   return current;
 }
 
+function getFieldPriorityScore(fieldKey, docType) {
+  return FIELD_SOURCE_PRIORITY[fieldKey]?.[docType] ?? 50;
+}
+
+function pickPreferredField(current, next, docType, fieldKey) {
+  if (!next?.value) return current;
+  if (!current?.value) return { ...next, docType };
+
+  const nextPriority = getFieldPriorityScore(fieldKey, docType);
+  const currentPriority = getFieldPriorityScore(fieldKey, current.docType);
+  if (nextPriority > currentPriority) {
+    return { ...next, docType };
+  }
+
+  if (nextPriority < currentPriority) {
+    return current;
+  }
+
+  return pickBetterField(current, next, docType);
+}
+
 function mapMergedFieldsToPrefill(mergedFields = {}) {
   const subscriberName = mergedFields.subscriberName?.value || "";
   const patientName = mergedFields.patientName?.value || subscriberName;
   const patientNameParts = splitName(patientName);
+  const providerName = mergedFields.providerName?.value || "";
+  const facilityName = mergedFields.facilityName?.value || providerName;
 
   return {
     ...patientNameParts,
     dob: mergedFields.patientDob?.value || "",
+    gender: mergedFields.gender?.value || "",
+    phone: mergedFields.phone?.value || "",
+    email: mergedFields.email?.value || "",
+    address: mergedFields.address?.value || "",
+    city: mergedFields.city?.value || "",
+    state: mergedFields.state?.value || "",
+    zip: mergedFields.zip?.value || "",
     payer: mergedFields.payerName?.value || "",
     payer_id: mergedFields.payerId?.value || "",
     member_id: mergedFields.memberId?.value || "",
@@ -88,46 +399,114 @@ function mapMergedFieldsToPrefill(mergedFields = {}) {
     rx_group: mergedFields.rxGroup?.value || "",
     subscriber_name: subscriberName,
     subscriber_dob: mergedFields.subscriberDob?.value || "",
+    subscriber_relationship: mergedFields.subscriberRelationship?.value || "Self",
+    provider_npi: mergedFields.providerNpi?.value || "",
+    cpt_code: mergedFields.cptCode?.value || "",
+    facility_name: facilityName,
+    notes: mergedFields.notes?.value || "",
   };
 }
 
 function mergeExtractionResults(results = []) {
   const mergedFields = {};
-  const lowConfidenceFieldSet = new Set();
-  const confidenceScores = {};
 
   for (const result of results) {
     const fields = result?.data?.fields || {};
     const scores = result?.data?.confidenceScores || {};
-    const lowConfidenceFields = result?.data?.lowConfidenceFields || [];
 
     for (const [fieldKey, value] of Object.entries(fields)) {
       const confidence = scores[fieldKey] || 0;
-      mergedFields[fieldKey] = pickBetterField(
+      const preferredField = pickPreferredField(
         mergedFields[fieldKey],
         { value, confidence },
-        result.docType
+        result.docType,
+        fieldKey
       );
-      confidenceScores[fieldKey] = Math.max(confidenceScores[fieldKey] || 0, confidence);
-    }
 
-    for (const field of lowConfidenceFields) {
-      lowConfidenceFieldSet.add(field);
+      if (preferredField) {
+        mergedFields[fieldKey] = preferredField;
+      } else {
+        delete mergedFields[fieldKey];
+      }
     }
   }
 
-  const overallConfidence = results.length
+  const confidenceScores = Object.fromEntries(
+    Object.entries(mergedFields).map(([fieldKey, fieldValue]) => [
+      fieldKey,
+      fieldValue?.confidence || 0,
+    ])
+  );
+  const lowConfidenceFields = Object.entries(confidenceScores)
+    .filter(([, confidence]) => confidence < 70)
+    .map(([fieldKey]) => fieldKey);
+  const selectedConfidenceValues = Object.values(confidenceScores);
+  const overallConfidence = selectedConfidenceValues.length
     ? Math.round(
-        results.reduce((sum, result) => sum + (result?.data?.overallConfidence || 0), 0) /
-          results.length
+        selectedConfidenceValues.reduce((sum, value) => sum + value, 0) /
+          selectedConfidenceValues.length
       )
     : 0;
 
   return {
     mergedFields,
     confidenceScores,
-    lowConfidenceFields: [...lowConfidenceFieldSet],
+    lowConfidenceFields,
     overallConfidence,
+  };
+}
+
+function normalizeExtractionResponse(extraction, docType) {
+  return {
+    ...extraction,
+    docType: docType || extraction?.docType || "Other Document",
+    data: {
+      fields:
+        extraction?.data?.fields && typeof extraction.data.fields === "object"
+          ? extraction.data.fields
+          : {},
+      confidenceScores:
+        extraction?.data?.confidenceScores && typeof extraction.data.confidenceScores === "object"
+          ? extraction.data.confidenceScores
+          : {},
+      lowConfidenceFields: Array.isArray(extraction?.data?.lowConfidenceFields)
+        ? extraction.data.lowConfidenceFields
+        : [],
+      overallConfidence:
+        typeof extraction?.data?.overallConfidence === "number" ? extraction.data.overallConfidence : 0,
+      requiresReview: Boolean(extraction?.data?.requiresReview),
+      channelUsed: extraction?.data?.channelUsed || "unknown",
+      processingTimeMs:
+        typeof extraction?.data?.processingTimeMs === "number" ? extraction.data.processingTimeMs : 0,
+      documentType: extraction?.data?.documentType || docType || "Other Document",
+      provider: extraction?.data?.provider || "auto",
+      fileName: extraction?.data?.fileName || "",
+    },
+    success: Boolean(extraction?.success),
+    error: extraction?.error || null,
+  };
+}
+
+function buildMergedReviewState(documents = []) {
+  const extractedDocuments = documents.filter((document) => document.extraction);
+  if (extractedDocuments.length === 0) {
+    return {
+      editedData: {},
+      confidenceScores: {},
+      lowConfidenceFields: [],
+    };
+  }
+
+  const merged = mergeExtractionResults(
+    extractedDocuments.map((document) => ({
+      ...normalizeExtractionResponse(document.extraction, document.docType),
+    }))
+  );
+
+  return {
+    editedData: mapMergedFieldsToPrefill(merged.mergedFields),
+    confidenceScores: merged.confidenceScores,
+    lowConfidenceFields: merged.lowConfidenceFields,
   };
 }
 
@@ -140,6 +519,13 @@ const FIELD_LABELS = {
   first_name: "First Name",
   last_name: "Last Name",
   dob: "DOB",
+  gender: "Gender",
+  phone: "Phone",
+  email: "Email",
+  address: "Address",
+  city: "City",
+  state: "State",
+  zip: "ZIP",
   effective_date: "Effective Date",
   service_date: "Service Date",
   plan_type: "Plan Type",
@@ -148,6 +534,11 @@ const FIELD_LABELS = {
   rx_group: "Rx Group",
   subscriber_name: "Subscriber Name",
   subscriber_dob: "Subscriber DOB",
+  subscriber_relationship: "Subscriber Relationship",
+  provider_npi: "Provider NPI",
+  cpt_code: "CPT Code",
+  facility_name: "Facility Name",
+  notes: "Notes",
 };
 
 const CONFIDENCE_FIELD_MAP = {
@@ -159,6 +550,13 @@ const CONFIDENCE_FIELD_MAP = {
   first_name: "subscriberName",
   last_name: "subscriberName",
   dob: "patientDob",
+  gender: "gender",
+  phone: "phone",
+  email: "email",
+  address: "address",
+  city: "city",
+  state: "state",
+  zip: "zip",
   effective_date: "effectiveDate",
   service_date: "serviceDate",
   plan_type: "planType",
@@ -167,21 +565,44 @@ const CONFIDENCE_FIELD_MAP = {
   rx_group: "rxGroup",
   subscriber_name: "subscriberName",
   subscriber_dob: "subscriberDob",
+  subscriber_relationship: "subscriberRelationship",
+  provider_npi: "providerNpi",
+  cpt_code: "cptCode",
+  facility_name: "facilityName",
+  notes: "notes",
 };
 
 export default function UploadTab({ onSubmit, clientId = "" }) {
-  const [documents, setDocuments] = useState([createDocument()]);
+  const { data: ocrProvidersResponse } = useQuery({
+    queryKey: ["upload", "ocr-providers"],
+    queryFn: () => api.upload.getInsuranceCardOcrProviders(),
+    staleTime: 5 * 60 * 1000,
+  });
+  const [documents, setDocuments] = useState([createDocument(Date.now(), 1)]);
   const [extracting, setExtracting] = useState(false);
   const [editedData, setEditedData] = useState({});
   const [confidenceScores, setConfidenceScores] = useState({});
   const [lowConfidenceFields, setLowConfidenceFields] = useState([]);
   const [showForm, setShowForm] = useState(false);
   const [error, setError] = useState(null);
+  const [duplicateDialog, setDuplicateDialog] = useState(null);
+  const [selectedOcrProvider, setSelectedOcrProvider] = useState("auto");
   const fileRefs = useRef({});
   const cameraRefs = useRef({});
+  const nextDocumentSequenceRef = useRef(2);
 
   const canExtract = documents.some((document) => document.file);
   const hasExtractedData = Object.keys(editedData).length > 0;
+  const availableOcrProviders = ocrProvidersResponse?.data?.providers || [];
+  const ocrProviderOptions = [
+    { label: "Auto Select", value: "auto" },
+    ...availableOcrProviders
+      .filter((provider) => provider.available)
+      .map((provider) => ({
+        label: provider.label,
+        value: provider.id,
+      })),
+  ];
 
   const extractionSummary = useMemo(() => {
     return documents
@@ -200,24 +621,85 @@ export default function UploadTab({ onSubmit, clientId = "" }) {
     );
   };
 
+  useEffect(() => {
+    try {
+      const mergedState = buildMergedReviewState(documents);
+      setEditedData(mergedState.editedData);
+      setConfidenceScores(mergedState.confidenceScores);
+      setLowConfidenceFields(mergedState.lowConfidenceFields);
+
+      if (Object.keys(mergedState.editedData).length === 0) {
+        setShowForm(false);
+      }
+    } catch (mergeError) {
+      console.error("Failed to build merged upload review state", mergeError);
+      setEditedData({});
+      setConfidenceScores({});
+      setLowConfidenceFields([]);
+      setShowForm(false);
+      setError("We couldn't prepare the extracted document review. Please try rescanning the uploaded documents.");
+    }
+  }, [documents]);
+
   const addDocument = () => {
-    setDocuments((current) => [...current, createDocument(Date.now() + current.length)]);
+    const sequence = nextDocumentSequenceRef.current;
+    nextDocumentSequenceRef.current += 1;
+
+    setDocuments((current) => [
+      {
+        ...createDocument(Date.now() + current.length, sequence),
+        docType: getNextDocumentType(current),
+      },
+      ...current,
+    ]);
   };
 
   const removeDocument = (id) => {
     setDocuments((current) => current.filter((document) => document.id !== id));
   };
 
+  const replaceDuplicateDocument = (id, docType) => {
+    setDocuments((current) =>
+      current.map((document) =>
+        document.id === id
+          ? {
+              ...document,
+              docType,
+            }
+          : document.docType === docType
+            ? {
+                ...document,
+                docType: "Other Document",
+              }
+            : document
+      )
+    );
+    setError(null);
+    setShowForm(false);
+  };
+
+  const handleDuplicateConfirm = () => {
+    if (!duplicateDialog) return;
+    replaceDuplicateDocument(duplicateDialog.documentId, duplicateDialog.docType);
+    setDuplicateDialog(null);
+  };
+
   const handleFile = (id, file) => {
     if (!file) return;
 
     const commitPreview = (preview) => {
-      updateDocument(id, (document) => ({
-        ...document,
-        file,
-        preview,
-        extraction: null,
-      }));
+      setDocuments((current) =>
+        current.map((document) =>
+          document.id === id
+            ? {
+                ...document,
+                file,
+                preview,
+                extraction: null,
+              }
+            : document
+        )
+      );
     };
 
     setError(null);
@@ -233,46 +715,54 @@ export default function UploadTab({ onSubmit, clientId = "" }) {
     commitPreview("pdf");
   };
 
-  const handleExtract = async () => {
-    const docsToExtract = documents.filter((document) => document.file);
+  const extractDocuments = async (targetDocuments) => {
+    const docsToExtract = targetDocuments.filter((document) => document.file);
     if (docsToExtract.length === 0) return;
 
     setExtracting(true);
     setError(null);
 
     try {
-      const results = [];
+      const extractionById = new Map();
 
       for (const document of docsToExtract) {
         const formData = new FormData();
         formData.append("file", document.file);
         formData.append("documentType", document.docType);
+        formData.append("provider", selectedOcrProvider);
 
         const response = await api.upload.extractDocumentData(formData);
         if (!response.success && response.error) {
           throw new Error(response.error);
         }
 
-        const enrichedResponse = { ...response, docType: document.docType };
-        results.push(enrichedResponse);
-
-        updateDocument(document.id, (current) => ({
-          ...current,
-          extraction: enrichedResponse,
-        }));
+        const enrichedResponse = normalizeExtractionResponse(response, document.docType);
+        extractionById.set(document.id, enrichedResponse);
       }
 
-      const merged = mergeExtractionResults(results);
-      const mappedData = mapMergedFieldsToPrefill(merged.mergedFields);
-
-      setEditedData(mappedData);
-      setConfidenceScores(merged.confidenceScores);
-      setLowConfidenceFields(merged.lowConfidenceFields);
+      setDocuments((current) =>
+        current.map((document) =>
+          extractionById.has(document.id)
+            ? {
+                ...document,
+                extraction: extractionById.get(document.id),
+              }
+            : document
+        )
+      );
     } catch (err) {
       setError(err.message || "Failed to extract data from document(s)");
     } finally {
       setExtracting(false);
     }
+  };
+
+  const handleExtract = async () => {
+    await extractDocuments(documents);
+  };
+
+  const handleRescan = async () => {
+    await extractDocuments(documents);
   };
 
   const getFieldConfidence = (fieldKey) => {
@@ -305,119 +795,190 @@ export default function UploadTab({ onSubmit, clientId = "" }) {
             Add Document
           </button>
         </div>
+
+        <div className="mt-4 max-w-sm">
+          <label className="mb-2 block text-xs font-semibold uppercase tracking-wider text-slate-500">
+            OCR Platform
+          </label>
+          <AppSelect
+            value={selectedOcrProvider}
+            onValueChange={setSelectedOcrProvider}
+            options={ocrProviderOptions}
+            triggerClassName="h-[46px] bg-white px-3 py-2.5 text-sm"
+          />
+          <p className="mt-2 text-xs text-slate-400">
+            Choose a specific OCR engine or let the app select automatically.
+          </p>
+        </div>
       </div>
 
       <div className="space-y-4">
-        {documents.map((document, index) => (
+        {documents.map((document) => (
           <div key={document.id} className="rounded-xl border border-slate-200 bg-white p-5">
-            <div className="mb-4 flex items-center justify-between gap-3">
-              <div>
-                <p className="text-sm font-semibold text-slate-800">Document {index + 1}</p>
-                <p className="text-xs text-slate-500">
-                  Choose the file type and upload the supporting document.
-                </p>
-              </div>
-              {documents.length > 1 ? (
-                <button
-                  type="button"
-                  onClick={() => removeDocument(document.id)}
-                  className="inline-flex items-center gap-2 rounded-lg border border-red-200 px-3 py-2 text-xs font-semibold text-red-600 hover:bg-red-50"
-                >
-                  <Trash2 className="h-4 w-4" />
-                  Remove
-                </button>
-              ) : null}
-            </div>
-
-            <div className="mb-4 max-w-sm">
-              <label className="mb-2 block text-xs font-semibold uppercase tracking-wider text-slate-500">
-                Document Type
-              </label>
-              <AppSelect
-                value={document.docType}
-                onValueChange={(value) =>
-                  updateDocument(document.id, (current) => ({ ...current, docType: value }))
+            <div className="mb-4 flex items-start justify-between gap-3">
+              <button
+                type="button"
+                onClick={() =>
+                  updateDocument(document.id, (current) => ({
+                    ...current,
+                    expanded: !current.expanded,
+                  }))
                 }
-                options={DOC_TYPES.map((type) => ({ label: type, value: type }))}
-                triggerClassName="h-[46px] bg-white px-3 py-2.5 text-sm"
-              />
+                className="flex flex-1 items-start justify-between gap-3 text-left"
+              >
+                <div>
+                  <p className="text-sm font-semibold text-slate-800">Document {document.sequence}</p>
+                  <p className="text-xs text-slate-500">
+                    {document.file?.name || "Choose the file type and upload the supporting document."}
+                  </p>
+                  {document.extraction ? (
+                    <p className="mt-1 text-[11px] text-slate-400">
+                      Last scan confidence {document.extraction?.data?.overallConfidence || 0}%
+                    </p>
+                  ) : null}
+                </div>
+                <span className="mt-1 inline-flex h-8 w-8 items-center justify-center rounded-lg border border-slate-200 text-slate-500">
+                  {document.expanded ? (
+                    <ChevronUp className="h-4 w-4" />
+                  ) : (
+                    <ChevronDown className="h-4 w-4" />
+                  )}
+                </span>
+              </button>
+              <div className="mt-1 flex flex-shrink-0 items-center gap-2">
+                {documents.length > 1 ? (
+                  <button
+                    type="button"
+                    onClick={() => removeDocument(document.id)}
+                    className="inline-flex items-center gap-2 rounded-lg border border-red-200 px-3 py-2 text-xs font-semibold text-red-600 hover:bg-red-50"
+                  >
+                    <Trash2 className="h-4 w-4" />
+                    Remove
+                  </button>
+                ) : null}
+              </div>
             </div>
 
-            <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
-              <div className="space-y-3">
-                <div
-                  onDrop={(event) => {
-                    event.preventDefault();
-                    const file = event.dataTransfer.files[0];
-                    if (file) handleFile(document.id, file);
-                  }}
-                  onDragOver={(event) => event.preventDefault()}
-                  onClick={() => fileRefs.current[document.id]?.click()}
-                  className="flex min-h-[160px] cursor-pointer flex-col items-center justify-center gap-3 rounded-xl border-2 border-dashed border-slate-300 p-8 transition-colors hover:border-blue-400"
-                >
-                  <input
-                    ref={(node) => {
-                      fileRefs.current[document.id] = node;
+            {document.expanded ? (
+              <>
+                <div className="mb-4 max-w-sm">
+                  <label className="mb-2 block text-xs font-semibold uppercase tracking-wider text-slate-500">
+                    Document Type
+                  </label>
+                  <AppSelect
+                    value={document.docType}
+                    onValueChange={(value) => {
+                      const duplicate = documents.find(
+                        (entry) =>
+                          entry.id !== document.id &&
+                          entry.docType === value &&
+                          !MULTI_ALLOWED_DOC_TYPES.has(value)
+                      );
+
+                      if (duplicate) {
+                        setDuplicateDialog({
+                          documentId: document.id,
+                          docType: value,
+                        });
+                        return;
+                      }
+
+                      setDocuments((current) =>
+                        current.map((entry) =>
+                          entry.id === document.id
+                            ? {
+                                ...entry,
+                                docType: value,
+                                file: null,
+                                preview: null,
+                                extraction: null,
+                              }
+                            : entry
+                        )
+                      );
+                      setError(null);
+                      setShowForm(false);
                     }}
-                    type="file"
-                    accept=".jpg,.jpeg,.png,.heic,.heif,.pdf"
-                    className="hidden"
-                    onChange={(event) => handleFile(document.id, event.target.files?.[0])}
+                    options={DOC_TYPES.map((type) => ({ label: type, value: type }))}
+                    triggerClassName="h-[46px] bg-white px-3 py-2.5 text-sm"
                   />
-                  <div
-                    className="flex h-12 w-12 items-center justify-center rounded-xl"
-                    style={{ backgroundColor: "#eef3ff" }}
-                  >
-                    <Upload className="h-6 w-6" style={{ color: "#293682" }} />
-                  </div>
-                  <div className="text-center">
-                    <p className="text-sm font-semibold text-slate-700">
-                      Drop file here or click to upload
-                    </p>
-                    <p className="mt-1 text-xs text-slate-400">JPG, PNG, HEIC, PDF</p>
-                  </div>
                 </div>
 
-                <button
-                  type="button"
-                  onClick={() => cameraRefs.current[document.id]?.click()}
-                  className="flex w-full items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white py-3 transition-colors hover:bg-slate-50"
-                >
-                  <input
-                    ref={(node) => {
-                      cameraRefs.current[document.id] = node;
-                    }}
-                    type="file"
-                    accept="image/*"
-                    capture="environment"
-                    className="hidden"
-                    onChange={(event) => handleFile(document.id, event.target.files?.[0])}
-                  />
-                  <Camera className="h-5 w-5 text-slate-500" />
-                  <span className="text-sm font-semibold text-slate-600">Take Photo</span>
-                </button>
-              </div>
+                <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
+                  <div className="space-y-3">
+                    <div
+                      onDrop={(event) => {
+                        event.preventDefault();
+                        const file = event.dataTransfer.files[0];
+                        if (file) handleFile(document.id, file);
+                      }}
+                      onDragOver={(event) => event.preventDefault()}
+                      onClick={() => fileRefs.current[document.id]?.click()}
+                      className="flex min-h-[160px] cursor-pointer flex-col items-center justify-center gap-3 rounded-xl border-2 border-dashed border-slate-300 p-8 transition-colors hover:border-blue-400"
+                    >
+                      <input
+                        ref={(node) => {
+                          fileRefs.current[document.id] = node;
+                        }}
+                        type="file"
+                        accept=".jpg,.jpeg,.png,.heic,.heif,.pdf"
+                        className="hidden"
+                        onChange={(event) => handleFile(document.id, event.target.files?.[0])}
+                      />
+                      <div
+                        className="flex h-12 w-12 items-center justify-center rounded-xl"
+                        style={{ backgroundColor: "#eef3ff" }}
+                      >
+                        <Upload className="h-6 w-6" style={{ color: "#293682" }} />
+                      </div>
+                      <div className="text-center">
+                        <p className="text-sm font-semibold text-slate-700">
+                          Drop file here or click to upload
+                        </p>
+                        <p className="mt-1 text-xs text-slate-400">JPG, PNG, HEIC, PDF</p>
+                      </div>
+                    </div>
 
-              <div
-                className="flex min-h-[200px] items-center justify-center overflow-hidden rounded-xl border border-slate-200 bg-white"
-              >
-                {!document.file ? (
-                  <p className="text-sm text-slate-300">Preview will appear here</p>
-                ) : document.preview === "pdf" ? (
-                  <div className="p-6 text-center">
-                    <FileImage className="mx-auto mb-2 h-12 w-12 text-slate-400" />
-                    <p className="text-sm font-medium text-slate-600">{document.file.name}</p>
-                    <p className="text-xs text-slate-400">PDF Document</p>
+                    <button
+                      type="button"
+                      onClick={() => cameraRefs.current[document.id]?.click()}
+                      className="flex w-full items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white py-3 transition-colors hover:bg-slate-50"
+                    >
+                      <input
+                        ref={(node) => {
+                          cameraRefs.current[document.id] = node;
+                        }}
+                        type="file"
+                        accept="image/*"
+                        capture="environment"
+                        className="hidden"
+                        onChange={(event) => handleFile(document.id, event.target.files?.[0])}
+                      />
+                      <Camera className="h-5 w-5 text-slate-500" />
+                      <span className="text-sm font-semibold text-slate-600">Take Photo</span>
+                    </button>
                   </div>
-                ) : (
-                  <img
-                    src={document.preview}
-                    alt="Document preview"
-                    className="h-full w-full object-contain"
-                  />
-                )}
-              </div>
-            </div>
+
+                  <div className="flex min-h-[200px] items-center justify-center overflow-hidden rounded-xl border border-slate-200 bg-white">
+                    {!document.file ? (
+                      <p className="text-sm text-slate-300">Preview will appear here</p>
+                    ) : document.preview === "pdf" ? (
+                      <div className="p-6 text-center">
+                        <FileImage className="mx-auto mb-2 h-12 w-12 text-slate-400" />
+                        <p className="text-sm font-medium text-slate-600">{document.file.name}</p>
+                        <p className="text-xs text-slate-400">PDF Document</p>
+                      </div>
+                    ) : (
+                      <img
+                        src={document.preview}
+                        alt="Document preview"
+                        className="h-full w-full object-contain"
+                      />
+                    )}
+                  </div>
+                </div>
+              </>
+            ) : null}
           </div>
         ))}
       </div>
@@ -442,7 +1003,31 @@ export default function UploadTab({ onSubmit, clientId = "" }) {
               <Loader2 className="h-4 w-4 animate-spin" /> Analyzing document(s) with AI...
             </>
           ) : (
-            "Extract Data with AI →"
+            <>
+              <Brain className="h-4 w-4" />
+              Extract Data with AI
+            </>
+          )}
+        </button>
+      ) : null}
+
+      {canExtract && hasExtractedData ? (
+        <button
+          type="button"
+          onClick={handleRescan}
+          disabled={extracting}
+          className="flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-6 py-3 text-sm font-bold text-slate-700 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60"
+        >
+          {extracting ? (
+            <>
+              <Loader2 className="h-4 w-4 animate-spin" />
+              Rescanning uploaded documents...
+            </>
+          ) : (
+            <>
+              <RotateCcw className="h-4 w-4" />
+              Rescan Uploaded Documents
+            </>
           )}
         </button>
       ) : null}
@@ -545,6 +1130,29 @@ export default function UploadTab({ onSubmit, clientId = "" }) {
           />
         </div>
       ) : null}
+
+      <AlertDialog
+        open={Boolean(duplicateDialog)}
+        onOpenChange={(open) => {
+          if (!open) setDuplicateDialog(null);
+        }}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Replace Existing Document?</AlertDialogTitle>
+            <AlertDialogDescription>
+              A document of type "{duplicateDialog?.docType}" already exists. Replacing it will
+              clear the current file and extracted data for that document slot.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={() => setDuplicateDialog(null)}>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={handleDuplicateConfirm}>
+              Replace Document
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

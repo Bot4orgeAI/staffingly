@@ -86,13 +86,25 @@ const US_STATES = [
 ];
 
 const today = new Date().toISOString().split("T")[0];
+const DEFAULT_SERVICE_TYPE = "Specialist Visit";
+const DEFAULT_CPT_CODE = "99214";
+
+function getPolicy(patient, policyType) {
+  return patient?.insurancePolicies?.find((policy) => policy.policyType === policyType);
+}
 
 function getPrimaryPolicy(patient) {
-  return patient?.insurancePolicies?.find((policy) => policy.policyType === "PRIMARY");
+  return getPolicy(patient, "PRIMARY");
 }
 
 function buildFormFromPatient(patient, currentForm) {
   const primaryPolicy = getPrimaryPolicy(patient);
+  const secondaryPolicy = getPolicy(patient, "SECONDARY");
+  const practiceName = patient?.client?.practiceName || patient?.client?.name || "";
+  const patientLabel = [patient?.firstName, patient?.lastName].filter(Boolean).join(" ").trim();
+  const defaultNotes = patientLabel
+    ? `Auto-filled from saved patient record for ${patientLabel}.`
+    : "Auto-filled from saved patient record.";
 
   return {
     ...currentForm,
@@ -136,6 +148,16 @@ function buildFormFromPatient(patient, currentForm) {
       ? primaryPolicy.subscriberDob.split("T")[0]
       : "",
     subscriber_relationship: primaryPolicy?.subscriberRelationship || "Self",
+    secondary_payer: secondaryPolicy?.payerName || "",
+    secondary_member_id: secondaryPolicy?.memberId || "",
+    secondary_group_number: secondaryPolicy?.groupNumber || "",
+    secondary_plan_name: secondaryPolicy?.planName || "",
+    provider_npi: currentForm.provider_npi || patient?.client?.npi || "",
+    service_date: currentForm.service_date || today,
+    service_type: currentForm.service_type || DEFAULT_SERVICE_TYPE,
+    cpt_code: currentForm.cpt_code || DEFAULT_CPT_CODE,
+    facility_name: currentForm.facility_name || practiceName,
+    notes: currentForm.notes || defaultNotes,
   };
 }
 
@@ -196,6 +218,10 @@ export default function ManualEntryTab({
     subscriber_name: prefill.subscriber_name || "",
     subscriber_dob: prefill.subscriber_dob || "",
     subscriber_relationship: prefill.subscriber_relationship || "Self",
+    secondary_payer: prefill.secondary_payer || "",
+    secondary_member_id: prefill.secondary_member_id || "",
+    secondary_group_number: prefill.secondary_group_number || "",
+    secondary_plan_name: prefill.secondary_plan_name || "",
     provider_npi: prefill.provider_npi || "",
     service_date: prefill.service_date || today,
     service_type: prefill.service_type || "",
@@ -243,6 +269,9 @@ export default function ManualEntryTab({
                 onValueChange={(value) => {
                   const selectedPatient = patients.find((patient) => patient.id === value);
                   if (!selectedPatient) return;
+                  setShowSecondary(
+                    Boolean(selectedPatient.insurancePolicies?.some((policy) => policy.policyType === "SECONDARY"))
+                  );
                   setForm((current) => buildFormFromPatient(selectedPatient, current));
                 }}
                 options={patientOptions}
@@ -537,16 +566,38 @@ export default function ManualEntryTab({
         </button>
         {showSecondary && (
           <div className="p-4 border-t border-dashed border-slate-200 bg-slate-50/50 grid grid-cols-1 sm:grid-cols-2 gap-4">
-            {[
-              "Secondary Payer",
-              "Secondary Member ID",
-              "Secondary Group #",
-              "Secondary Plan Name",
-            ].map((label) => (
-              <FormInput key={label} label={label}>
-                <input className={inputClass} style={ringStyle} />
-              </FormInput>
-            ))}
+            <FormInput label="Secondary Payer">
+              <input
+                className={inputClass}
+                style={ringStyle}
+                value={form.secondary_payer}
+                onChange={(e) => update("secondary_payer", e.target.value)}
+              />
+            </FormInput>
+            <FormInput label="Secondary Member ID">
+              <input
+                className={inputClass}
+                style={ringStyle}
+                value={form.secondary_member_id}
+                onChange={(e) => update("secondary_member_id", e.target.value)}
+              />
+            </FormInput>
+            <FormInput label="Secondary Group #">
+              <input
+                className={inputClass}
+                style={ringStyle}
+                value={form.secondary_group_number}
+                onChange={(e) => update("secondary_group_number", e.target.value)}
+              />
+            </FormInput>
+            <FormInput label="Secondary Plan Name">
+              <input
+                className={inputClass}
+                style={ringStyle}
+                value={form.secondary_plan_name}
+                onChange={(e) => update("secondary_plan_name", e.target.value)}
+              />
+            </FormInput>
           </div>
         )}
       </div>
