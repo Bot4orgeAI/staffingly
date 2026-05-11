@@ -124,3 +124,79 @@
 .sidebar-scroll::-webkit-scrollbar-thumb:hover {
   background: var(--app-scrollbar-thumb-active);
 }
+
+@layer components {
+  .sv-unified-page {
+    @apply mx-auto space-y-5;
+  }
+
+  .sv-page-panel {
+    @apply rounded-2xl border border-slate-200 bg-white p-5 shadow-sm;
+  }
+
+  .sv-page-toolbar {
+    @apply rounded-2xl border border-slate-200 bg-white px-5 py-4 shadow-sm;
+  }
+
+  .sv-primary-btn {
+    @apply inline-flex items-center justify-center gap-2 rounded-xl px-4 text-sm font-semibold text-white transition-colors disabled:pointer-events-none disabled:opacity-50;
+    min-height: 2.5rem;
+    background-color: #293682;
+  }
+
+  .sv-primary-btn:hover {
+    background-color: #1f275f;
+  }
+
+  .sv-search-input {
+    @apply rounded-xl border border-slate-200 bg-white py-2 pl-9 pr-3 text-xs text-slate-700 outline-none transition;
+  }
+
+  .sv-search-input:focus {
+    border-color: rgba(41, 54, 130, 0.35);
+    box-shadow: 0 0 0 3px rgba(41, 54, 130, 0.08);
+  }
+
+  .sv-select-trigger {
+    @apply rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs text-slate-700;
+  }
+
+  .sv-table-card {
+    @apply overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm;
+  }
+
+  .sv-data-table {
+    @apply w-full border-collapse text-xs;
+  }
+
+  .sv-data-table thead tr {
+    @apply border-b border-slate-200 bg-slate-50;
+  }
+
+  .sv-data-table thead th {
+    @apply px-5 py-3 text-left text-xs font-semibold uppercase tracking-[0.18em] text-slate-500;
+  }
+
+  .sv-data-table tbody tr {
+    @apply border-b border-slate-100;
+  }
+
+  .sv-data-table tbody tr:last-child {
+    border-bottom-width: 0;
+  }
+
+  .sv-data-table tbody td {
+    @apply px-5 py-4 align-top text-xs text-slate-600;
+  }
+
+  .sv-unified-page input:not([type="checkbox"]):not([type="radio"]):not([type="file"]),
+  .sv-unified-page textarea,
+  .sv-unified-page select {
+    font-size: 0.875rem;
+  }
+
+  .sv-unified-page table th,
+  .sv-unified-page table td {
+    font-size: 0.75rem;
+  }
+}

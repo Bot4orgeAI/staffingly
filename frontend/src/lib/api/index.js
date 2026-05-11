@@ -72,6 +72,12 @@ const emr = {
     apiClient.get(`/api/eligibility/emr-systems/${systemId}/patients/${patientId}`, params),
 };
 
+const settings = {
+  getOverview: () => apiClient.get("/api/settings/overview"),
+  getSecurity: () => apiClient.get("/api/settings/security"),
+  updateSecurity: (data) => apiClient.put("/api/settings/security", data),
+};
+
 // Upload API (insurance cards)
 const upload = {
   // Upload insurance card image
@@ -102,6 +108,7 @@ export const api = {
   patients,
   eligibility,
   emr,
+  settings,
   priorAuth,
   upload,
 };
