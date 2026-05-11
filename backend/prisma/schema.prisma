@@ -523,6 +523,22 @@ model AuditLog {
   createdAt  DateTime @default(now())
 }
 
+model SystemSecuritySettings {
+  id                               String   @id @default(cuid())
+  singletonKey                     String   @unique @default("global")
+  sessionTimeoutHours              Int      @default(8)
+  otpExpiryMinutes                 Int      @default(5)
+  lockoutThreshold                 Int      @default(5)
+  passwordExpiryDays               Int      @default(90)
+  concurrentSessions               Int      @default(2)
+  countryBlocking                  Boolean  @default(true)
+  approvedCountries                String[] @default(["US", "IN", "PK", "BD"])
+  alertRecipientsJson              String?  @db.Text
+  twoFactorConfigJson              String?  @db.Text
+  createdAt                        DateTime @default(now())
+  updatedAt                        DateTime @updatedAt
+}
+
 // ─────────────────────────────────────────────────────────────────────────────
 // Legacy Staff model (keep for backwards compatibility)
 // ─────────────────────────────────────────────────────────────────────────────

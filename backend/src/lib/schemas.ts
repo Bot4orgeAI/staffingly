@@ -148,6 +148,34 @@ export const paginationSchema = Joi.object({
   search: Joi.string().allow("", null),
 });
 
+export const securitySettingsSchema = Joi.object({
+  sessionTimeoutHours: Joi.number().integer().min(1).max(24).required(),
+  otpExpiryMinutes: Joi.number().integer().min(1).max(30).required(),
+  lockoutThreshold: Joi.number().integer().min(3).max(10).required(),
+  passwordExpiryDays: Joi.number().integer().min(0).max(365).required(),
+  concurrentSessions: Joi.number().integer().min(1).max(10).required(),
+  countryBlocking: Joi.boolean().required(),
+  approvedCountries: Joi.array().items(Joi.string().trim().min(2).max(3)).required(),
+  alertRecipients: Joi.array()
+    .items(
+      Joi.object({
+        event: Joi.string().required(),
+        audience: Joi.string().allow("", null),
+        email: Joi.boolean().required(),
+        sms: Joi.boolean().required(),
+      })
+    )
+    .required(),
+  twoFactorConfig: Joi.object({
+    otpMethod: Joi.string().required(),
+    otpLength: Joi.number().integer().min(4).max(8).required(),
+    otpSingleUse: Joi.boolean().required(),
+    newIpRequiresFresh2fa: Joi.boolean().required(),
+    newDeviceRequiresEmailConfirmation: Joi.boolean().required(),
+    maxRegisteredDevices: Joi.number().integer().min(1).max(10).required(),
+  }).required(),
+});
+
 export const loginSchema = Joi.object({
   email: Joi.string().email().required(),
   password: Joi.string().required(),

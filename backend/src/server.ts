@@ -30,6 +30,7 @@ import activityRoutes from "./routes/activityRoutes.js";
 import aiRoutes from "./routes/aiRoutes.js";
 import emailRoutes from "./routes/emailRoutes.js";
 import patientRoutes from "./routes/patientRoutes.js";
+import settingsRoutes from "./routes/settingsRoutes.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -93,6 +94,7 @@ app.use("/api/activity", activityRoutes);
 app.use("/api/ai", aiRoutes);
 app.use("/api/email", emailRoutes);
 app.use("/api/patients", patientRoutes);
+app.use("/api/settings", settingsRoutes);
 
 // Error Handling
 app.use(notFoundHandler);
