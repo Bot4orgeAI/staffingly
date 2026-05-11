@@ -14,17 +14,91 @@ export type PriorAuthGatewayAction =
 
 export interface EligibilityGatewayInput {
   gatewayPatientId: string;
+  sourcePatientId?: string;
   patientName: string;
   patientFirstName?: string;
+  patientMiddleName?: string;
   patientLastName?: string;
   dob?: string;
+  gender?: string;
+  phone?: string;
+  email?: string;
+  address?: string;
+  city?: string;
+  state?: string;
+  zip?: string;
   payerId?: string;
+  payerName?: string;
   memberId: string;
+  groupNumber?: string;
+  planName?: string;
+  planType?: string;
+  effectiveDate?: string;
+  terminationDate?: string;
+  rxBin?: string;
+  rxPcn?: string;
+  rxGroup?: string;
+  copayPcp?: string;
+  copaySpecialist?: string;
+  subscriberName?: string;
+  subscriberDob?: string;
+  subscriberRelationship?: string;
+  secondaryPayer?: string;
+  secondaryMemberId?: string;
+  secondaryGroupNumber?: string;
+  secondaryPlanName?: string;
   providerNpi?: string;
   serviceDate?: string;
+  serviceType?: string;
   serviceTypeCode?: string;
+  cptCode?: string;
+  facilityName?: string;
+  notes?: string;
   submissionType?: GatewaySubmissionType;
   emrType?: string;
+}
+
+export interface EligibilityGatewayBulkItem {
+  gatewayPatientId: string;
+  patientFirstName?: string;
+  patientMiddleName?: string;
+  patientLastName?: string;
+  dob?: string;
+  gender?: string;
+  phone?: string;
+  email?: string;
+  address?: string;
+  city?: string;
+  state?: string;
+  zip?: string;
+  payerId?: string;
+  payerName?: string;
+  memberId: string;
+  groupNumber?: string;
+  planName?: string;
+  planType?: string;
+  effectiveDate?: string;
+  terminationDate?: string;
+  rxBin?: string;
+  rxPcn?: string;
+  rxGroup?: string;
+  copayPcp?: string;
+  copaySpecialist?: string;
+  subscriberName?: string;
+  subscriberDob?: string;
+  subscriberRelationship?: string;
+  secondaryPayer?: string;
+  secondaryMemberId?: string;
+  secondaryGroupNumber?: string;
+  secondaryPlanName?: string;
+  providerNpi?: string;
+  serviceDate?: string;
+  serviceType?: string;
+  serviceTypeCode?: string;
+  cptCode?: string;
+  facilityName?: string;
+  notes?: string;
+  sourcePatientId?: string;
 }
 
 export interface PriorAuthGatewayInput {
@@ -103,6 +177,51 @@ async function postToGateway(payload: Record<string, unknown>): Promise<unknown>
   }
 
   return parsed;
+}
+
+function buildEligibilityGatewayData(input: EligibilityGatewayBulkItem): Record<string, unknown> {
+  return {
+    patientId: input.gatewayPatientId,
+    sourcePatientId: input.sourcePatientId || "",
+    patientFirstName: input.patientFirstName || "",
+    patientMiddleName: input.patientMiddleName || "",
+    patientLastName: input.patientLastName || "",
+    patientDob: input.dob || "",
+    gender: input.gender || "",
+    phone: input.phone || "",
+    email: input.email || "",
+    address: input.address || "",
+    city: input.city || "",
+    state: input.state || "",
+    zip: input.zip || "",
+    payerName: input.payerName || "",
+    payerId: input.payerId || "",
+    memberId: input.memberId,
+    groupNumber: input.groupNumber || "",
+    planName: input.planName || "",
+    planType: input.planType || "",
+    effectiveDate: input.effectiveDate || "",
+    terminationDate: input.terminationDate || "",
+    rxBin: input.rxBin || "",
+    rxPcn: input.rxPcn || "",
+    rxGroup: input.rxGroup || "",
+    copayPcp: input.copayPcp || "",
+    copaySpecialist: input.copaySpecialist || "",
+    subscriberName: input.subscriberName || "",
+    subscriberDob: input.subscriberDob || "",
+    subscriberRelationship: input.subscriberRelationship || "",
+    secondaryPayer: input.secondaryPayer || "",
+    secondaryMemberId: input.secondaryMemberId || "",
+    secondaryGroupNumber: input.secondaryGroupNumber || "",
+    secondaryPlanName: input.secondaryPlanName || "",
+    providerNpi: input.providerNpi || "",
+    serviceDate: input.serviceDate || "",
+    serviceType: input.serviceType || "",
+    serviceTypeCode: input.serviceTypeCode || "30",
+    cptCode: input.cptCode || "",
+    facilityName: input.facilityName || "",
+    notes: input.notes || "",
+  };
 }
 
 function tryParseJson(text: string): unknown {
@@ -238,17 +357,62 @@ export async function sendEligibilityVerification(
       submission_type: input.submissionType || "manual",
       emr_type: input.emrType || "",
     },
-    data: {
-      patient_id: input.gatewayPatientId,
+    data: buildEligibilityGatewayData({
+      gatewayPatientId: input.gatewayPatientId,
+      sourcePatientId: input.sourcePatientId,
       patientFirstName: firstName,
+      patientMiddleName: input.patientMiddleName,
       patientLastName: lastName,
-      patientDob: input.dob || "",
+      dob: input.dob || "",
+      gender: input.gender || "",
+      phone: input.phone || "",
+      email: input.email || "",
+      address: input.address || "",
+      city: input.city || "",
+      state: input.state || "",
+      zip: input.zip || "",
+      payerName: input.payerName || "",
       payerId: input.payerId || "",
       memberId: input.memberId,
+      groupNumber: input.groupNumber || "",
+      planName: input.planName || "",
+      planType: input.planType || "",
+      effectiveDate: input.effectiveDate || "",
+      terminationDate: input.terminationDate || "",
+      rxBin: input.rxBin || "",
+      rxPcn: input.rxPcn || "",
+      rxGroup: input.rxGroup || "",
+      copayPcp: input.copayPcp || "",
+      copaySpecialist: input.copaySpecialist || "",
+      subscriberName: input.subscriberName || "",
+      subscriberDob: input.subscriberDob || "",
+      subscriberRelationship: input.subscriberRelationship || "",
+      secondaryPayer: input.secondaryPayer || "",
+      secondaryMemberId: input.secondaryMemberId || "",
+      secondaryGroupNumber: input.secondaryGroupNumber || "",
+      secondaryPlanName: input.secondaryPlanName || "",
       providerNpi: input.providerNpi || "",
       serviceDate: input.serviceDate || "",
+      serviceType: input.serviceType || "",
       serviceTypeCode: input.serviceTypeCode || "30",
+      cptCode: input.cptCode || "",
+      facilityName: input.facilityName || "",
+      notes: input.notes || "",
+    }),
+  });
+}
+
+export async function sendEligibilityBulkVerification(
+  inputs: EligibilityGatewayBulkItem[],
+  options?: { emrType?: string }
+): Promise<unknown> {
+  return postToGateway({
+    routing_header: {
+      module: "EV",
+      submission_type: "bulk",
+      emr_type: options?.emrType || "",
     },
+    data: inputs.map((input) => buildEligibilityGatewayData(input)),
   });
 }
 
@@ -306,6 +470,7 @@ export default {
   buildGatewayPatientId,
   normalizeEligibilityGatewayResponse,
   normalizePriorAuthGatewayResponse,
+  sendEligibilityBulkVerification,
   sendEligibilityVerification,
   sendPriorAuthAction,
 };

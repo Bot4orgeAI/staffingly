@@ -5,6 +5,7 @@ import prisma from "../lib/prisma.js";
 import {
   buildGatewayPatientId,
   normalizeEligibilityGatewayResponse,
+  sendEligibilityBulkVerification,
   sendEligibilityVerification,
 } from "../services/masterGatewayService.js";
 import { getEhrSystemById, listEhrSystems } from "../services/emrCatalogService.js";
@@ -12,14 +13,44 @@ import { getEhrSystemById, listEhrSystems } from "../services/emrCatalogService.
 interface CheckEligibilityBody {
   patientName?: string;
   patientFirstName?: string;
+  patientMiddleName?: string;
   patientLastName?: string;
   dob?: string;
+  gender?: string;
+  phone?: string;
+  email?: string;
+  address?: string;
+  city?: string;
+  state?: string;
+  zip?: string;
   memberId: string;
   payerId: string;
   payerName?: string;
+  groupNumber?: string;
+  planName?: string;
+  planType?: string;
+  effectiveDate?: string;
+  terminationDate?: string;
+  rxBin?: string;
+  rxPcn?: string;
+  rxGroup?: string;
+  copayPcp?: string;
+  copaySpecialist?: string;
+  subscriberName?: string;
+  subscriberDob?: string;
+  subscriberRelationship?: string;
+  secondaryPayer?: string;
+  secondaryMemberId?: string;
+  secondaryGroupNumber?: string;
+  secondaryPlanName?: string;
   providerNpi?: string;
   serviceTypeCode?: string;
   serviceDate?: string;
+  serviceType?: string;
+  cptCode?: string;
+  facilityName?: string;
+  notes?: string;
+  sourcePatientId?: string;
   clientId?: string;
   patientId?: string;
   gatewayPatientId?: string;
@@ -30,6 +61,7 @@ interface CheckEligibilityBody {
 
 interface BulkEligibilityRow {
   patientId?: string;
+  patient_id?: string;
   patient_name?: string;
   first_name?: string;
   last_name?: string;
@@ -58,6 +90,10 @@ interface BulkEligibilityRow {
   subscriber_name?: string;
   subscriber_dob?: string;
   subscriber_relationship?: string;
+  secondary_payer?: string;
+  secondary_member_id?: string;
+  secondary_group_number?: string;
+  secondary_plan_name?: string;
   provider_npi?: string;
   cpt_code?: string;
   facility_name?: string;
@@ -212,18 +248,49 @@ function getRowPatientName(row: BulkEligibilityRow): string {
 }
 
 function normalizeBulkRow(row: BulkEligibilityRow): CheckEligibilityBody {
+  const sourcePatientId = row.patientId || row.patient_id || "";
   return {
     patientName: getRowPatientName(row),
     patientFirstName: row.first_name || "",
+    patientMiddleName: row.middle_name || "",
     patientLastName: row.last_name || "",
     dob: row.dob || "",
+    gender: row.gender || "",
+    phone: row.phone || "",
+    email: row.email || "",
+    address: row.address || "",
+    city: row.city || "",
+    state: row.state || "",
+    zip: row.zip || "",
     memberId: row.member_id,
     payerId: row.payer_id || "",
     payerName: row.payer || "",
+    groupNumber: row.group_number || "",
+    planName: row.plan_name || "",
+    planType: row.plan_type || "",
+    effectiveDate: row.effective_date || "",
+    terminationDate: row.termination_date || "",
+    rxBin: row.rx_bin || "",
+    rxPcn: row.rx_pcn || "",
+    rxGroup: row.rx_group || "",
+    copayPcp: row.copay_pcp || "",
+    copaySpecialist: row.copay_specialist || "",
+    subscriberName: row.subscriber_name || "",
+    subscriberDob: row.subscriber_dob || "",
+    subscriberRelationship: row.subscriber_relationship || "",
+    secondaryPayer: row.secondary_payer || "",
+    secondaryMemberId: row.secondary_member_id || "",
+    secondaryGroupNumber: row.secondary_group_number || "",
+    secondaryPlanName: row.secondary_plan_name || "",
     providerNpi: row.provider_npi || "",
     serviceTypeCode: row.service_type_code || "30",
     serviceDate: row.service_date || new Date().toISOString().slice(0, 10),
-    patientId: row.patientId || undefined,
+    serviceType: row.service_type || "",
+    cptCode: row.cpt_code || "",
+    facilityName: row.facility_name || "",
+    notes: row.notes || "",
+    sourcePatientId,
+    patientId: sourcePatientId || undefined,
     submissionType: "bulk",
   };
 }
@@ -276,6 +343,180 @@ function buildRowResult(
     result: execution?.result,
     error,
   };
+}
+
+function unwrapBulkGatewayResults(raw: unknown): unknown[] {
+  if (Array.isArray(raw)) {
+    return raw;
+  }
+
+  if (raw && typeof raw === "object") {
+    const record = raw as Record<string, unknown>;
+    if (Array.isArray(record.data)) return record.data;
+    if (Array.isArray(record.results)) return record.results;
+    if (Array.isArray(record.items)) return record.items;
+
+    if (record.data && typeof record.data === "object") {
+      const nestedData = record.data as Record<string, unknown>;
+      if (Array.isArray(nestedData.results)) return nestedData.results;
+      if (Array.isArray(nestedData.items)) return nestedData.items;
+    }
+  }
+
+  return [];
+}
+
+async function createEligibilityCheckRecord(
+  payload: CheckEligibilityBody,
+  result: EligibilityResult,
+  gatewayPatientId: string,
+  clientId: string,
+  user?: AuthenticatedUser
+): Promise<string> {
+  const checkRecord = await prisma.eligibilityCheck.create({
+    data: {
+      clientId,
+      gatewayPatientId,
+      patientName: payload.patientName || "",
+      patientDob: parseDate(payload.dob),
+      memberId: payload.memberId,
+      payerId: payload.payerId,
+      payerName: payload.payerName,
+      providerNpi: payload.providerNpi,
+      serviceTypeCode: payload.serviceTypeCode,
+      serviceDate: parseDate(payload.serviceDate),
+      coverageStatus: toCoverageStatus(result.coverageStatus),
+      planName: result.planName,
+      planType: result.planType,
+      networkStatus: result.networkStatus,
+      effectiveDate: parseDate(result.effectiveDate || null),
+      terminationDate: parseDate(result.terminationDate || null),
+      groupNumber: result.groupNumber,
+      benefitsRaw: result.benefitsRaw ? JSON.stringify(result.benefitsRaw) : null,
+      confidenceScore: result.confidenceScore,
+      responseTimeSeconds: result.responseTimeSeconds,
+      channelUsed: result.channelUsed,
+      flags: result.flags || [],
+      requiresHumanReview: result.requiresHumanReview || false,
+      rawResponse: result.rawResponse ? JSON.stringify(result.rawResponse) : null,
+      errorMessage: result.error,
+      performedById: user?.userId,
+    },
+  });
+
+  return checkRecord.id;
+}
+
+async function executeBulkGatewayRequest(
+  payloads: CheckEligibilityBody[],
+  clientId: string,
+  user?: AuthenticatedUser
+): Promise<Array<{ execution: EligibilityExecutionResult | null; error?: string }>> {
+  const preparedPayloads = payloads.map((payload) => {
+    const resolvedGatewayPatientId = buildGatewayPatientId({
+      gatewayPatientId: payload.gatewayPatientId,
+      patientName: payload.patientName,
+      dob: payload.dob,
+      memberId: payload.memberId,
+    });
+
+    return {
+      payload,
+      gatewayPatientId: resolvedGatewayPatientId,
+    };
+  });
+
+  const rawGatewayResponse = await sendEligibilityBulkVerification(
+    preparedPayloads.map(({ payload, gatewayPatientId }) => ({
+      gatewayPatientId,
+      sourcePatientId: payload.sourcePatientId || payload.patientId || "",
+      patientFirstName: payload.patientFirstName || "",
+      patientMiddleName: payload.patientMiddleName || "",
+      patientLastName: payload.patientLastName || "",
+      dob: payload.dob || "",
+      gender: payload.gender || "",
+      phone: payload.phone || "",
+      email: payload.email || "",
+      address: payload.address || "",
+      city: payload.city || "",
+      state: payload.state || "",
+      zip: payload.zip || "",
+      payerName: payload.payerName || "",
+      payerId: payload.payerId || "",
+      memberId: payload.memberId,
+      groupNumber: payload.groupNumber || "",
+      planName: payload.planName || "",
+      planType: payload.planType || "",
+      effectiveDate: payload.effectiveDate || "",
+      terminationDate: payload.terminationDate || "",
+      rxBin: payload.rxBin || "",
+      rxPcn: payload.rxPcn || "",
+      rxGroup: payload.rxGroup || "",
+      copayPcp: payload.copayPcp || "",
+      copaySpecialist: payload.copaySpecialist || "",
+      subscriberName: payload.subscriberName || "",
+      subscriberDob: payload.subscriberDob || "",
+      subscriberRelationship: payload.subscriberRelationship || "",
+      secondaryPayer: payload.secondaryPayer || "",
+      secondaryMemberId: payload.secondaryMemberId || "",
+      secondaryGroupNumber: payload.secondaryGroupNumber || "",
+      secondaryPlanName: payload.secondaryPlanName || "",
+      providerNpi: payload.providerNpi || "",
+      serviceDate: payload.serviceDate || "",
+      serviceType: payload.serviceType || "",
+      serviceTypeCode: payload.serviceTypeCode || "30",
+      cptCode: payload.cptCode || "",
+      facilityName: payload.facilityName || "",
+      notes: payload.notes || "",
+    }))
+  );
+
+  const rawItems = unwrapBulkGatewayResults(rawGatewayResponse);
+  const fallbackError =
+    rawItems.length === 0
+      ? "The bulk eligibility gateway response did not contain a results array."
+      : undefined;
+
+  const executions: Array<{ execution: EligibilityExecutionResult | null; error?: string }> = [];
+
+  for (let index = 0; index < preparedPayloads.length; index += 1) {
+    const prepared = preparedPayloads[index];
+    if (!prepared) {
+      executions.push({ execution: null, error: "Missing prepared bulk payload." });
+      continue;
+    }
+
+    const rawItem = rawItems[index];
+    if (rawItem == null) {
+      executions.push({
+        execution: null,
+        error: fallbackError || "The bulk gateway response was missing a row result.",
+      });
+      continue;
+    }
+
+    const normalized = normalizeEligibilityGatewayResponse(rawItem) as EligibilityResult & {
+      rawResponse?: unknown;
+    };
+
+    const checkRecordId = await createEligibilityCheckRecord(
+      prepared.payload,
+      normalized,
+      prepared.gatewayPatientId,
+      clientId,
+      user
+    );
+
+    executions.push({
+      execution: {
+        checkRecordId,
+        gatewayPatientId: prepared.gatewayPatientId,
+        result: normalized,
+      },
+    });
+  }
+
+  return executions;
 }
 
 async function resolveEligibilityClientContext({
@@ -528,14 +769,44 @@ async function runEligibilityCheck(
   const {
     patientName,
     patientFirstName,
+    patientMiddleName,
     patientLastName,
     dob,
+    gender,
+    phone,
+    email,
+    address,
+    city,
+    state,
+    zip,
     memberId,
     payerId,
     payerName,
+    groupNumber,
+    planName,
+    planType,
+    effectiveDate,
+    terminationDate,
+    rxBin,
+    rxPcn,
+    rxGroup,
+    copayPcp,
+    copaySpecialist,
+    subscriberName,
+    subscriberDob,
+    subscriberRelationship,
+    secondaryPayer,
+    secondaryMemberId,
+    secondaryGroupNumber,
+    secondaryPlanName,
     providerNpi,
     serviceTypeCode,
     serviceDate,
+    serviceType,
+    cptCode,
+    facilityName,
+    notes,
+    sourcePatientId,
     clientId,
     patientId,
     gatewayPatientId,
@@ -563,15 +834,46 @@ async function runEligibilityCheck(
   const result = normalizeEligibilityGatewayResponse(
     await sendEligibilityVerification({
       gatewayPatientId: resolvedGatewayPatientId,
+      sourcePatientId: sourcePatientId || patientId || "",
       patientName: resolvedPatientName,
       patientFirstName,
+      patientMiddleName,
       patientLastName,
       dob: dob || "",
+      gender: gender || "",
+      phone: phone || "",
+      email: email || "",
+      address: address || "",
+      city: city || "",
+      state: state || "",
+      zip: zip || "",
       payerId: payerId || "",
+      payerName: payerName || "",
       memberId,
+      groupNumber: groupNumber || "",
+      planName: planName || "",
+      planType: planType || "",
+      effectiveDate: effectiveDate || "",
+      terminationDate: terminationDate || "",
+      rxBin: rxBin || "",
+      rxPcn: rxPcn || "",
+      rxGroup: rxGroup || "",
+      copayPcp: copayPcp || "",
+      copaySpecialist: copaySpecialist || "",
+      subscriberName: subscriberName || "",
+      subscriberDob: subscriberDob || "",
+      subscriberRelationship: subscriberRelationship || "",
+      secondaryPayer: secondaryPayer || "",
+      secondaryMemberId: secondaryMemberId || "",
+      secondaryGroupNumber: secondaryGroupNumber || "",
+      secondaryPlanName: secondaryPlanName || "",
       providerNpi: providerNpi || "",
       serviceDate: serviceDate || "",
       serviceTypeCode: serviceTypeCode || "30",
+      serviceType: serviceType || "",
+      cptCode: cptCode || "",
+      facilityName: facilityName || "",
+      notes: notes || "",
       submissionType,
       emrType,
     })
@@ -579,39 +881,19 @@ async function runEligibilityCheck(
     rawResponse?: unknown;
   };
 
-  const checkRecord = await prisma.eligibilityCheck.create({
-    data: {
-      clientId: clientContext.clientId,
-      gatewayPatientId: resolvedGatewayPatientId,
+  const checkRecordId = await createEligibilityCheckRecord(
+    {
+      ...payload,
       patientName: resolvedPatientName,
-      patientDob: parseDate(dob),
-      memberId,
-      payerId,
-      payerName,
-      providerNpi,
-      serviceTypeCode,
-      serviceDate: parseDate(serviceDate),
-      coverageStatus: toCoverageStatus(result.coverageStatus),
-      planName: result.planName,
-      planType: result.planType,
-      networkStatus: result.networkStatus,
-      effectiveDate: parseDate(result.effectiveDate || null),
-      terminationDate: parseDate(result.terminationDate || null),
-      groupNumber: result.groupNumber,
-      benefitsRaw: result.benefitsRaw ? JSON.stringify(result.benefitsRaw) : null,
-      confidenceScore: result.confidenceScore,
-      responseTimeSeconds: result.responseTimeSeconds,
-      channelUsed: result.channelUsed,
-      flags: result.flags || [],
-      requiresHumanReview: result.requiresHumanReview || false,
-      rawResponse: result.rawResponse ? JSON.stringify(result.rawResponse) : null,
-      errorMessage: result.error,
-      performedById: user?.userId,
     },
-  });
+    result,
+    resolvedGatewayPatientId,
+    clientContext.clientId,
+    user
+  );
 
   return {
-    checkRecordId: checkRecord.id,
+    checkRecordId,
     gatewayPatientId: resolvedGatewayPatientId,
     result,
   };
@@ -636,33 +918,60 @@ async function processBulkBatchJob(
     },
   });
 
-  for (let index = 0; index < rows.length; index += 1) {
-    const payload = {
-      ...normalizeBulkRow(rows[index] as BulkEligibilityRow),
-      clientId: clientId || user?.clientId || "",
-      verificationEngine,
-    };
+  const payloads = rows.map((row) => ({
+    ...normalizeBulkRow(row as BulkEligibilityRow),
+    clientId: clientId || user?.clientId || "",
+    verificationEngine,
+  }));
 
-    try {
-      const execution = await runEligibilityCheck(payload, user);
-      resultState.rows.push(buildRowResult(index, payload, execution));
-      resultState.successCount += 1;
-    } catch (error) {
+  try {
+    const executions = await executeBulkGatewayRequest(
+      payloads,
+      clientId || user?.clientId || "",
+      user
+    );
+
+    for (let index = 0; index < executions.length; index += 1) {
+      const payload = payloads[index];
+      const outcome = executions[index];
+
+      if (!payload || !outcome) {
+        resultState.rows.push(
+          buildRowResult(index, payload || ({ memberId: "" } as CheckEligibilityBody), null, "Missing bulk row context")
+        );
+        resultState.failureCount += 1;
+        continue;
+      }
+
+      if (outcome.execution) {
+        resultState.rows.push(buildRowResult(index, payload, outcome.execution));
+        resultState.successCount += 1;
+      } else {
+        resultState.rows.push(
+          buildRowResult(index, payload, null, outcome.error || "Eligibility check failed")
+        );
+        resultState.failureCount += 1;
+      }
+    }
+  } catch (error) {
+    const message = (error as Error).message || "Bulk eligibility request failed";
+    for (let index = 0; index < payloads.length; index += 1) {
+      const payload = payloads[index];
       resultState.rows.push(
-        buildRowResult(index, payload, null, (error as Error).message || "Eligibility check failed")
+        buildRowResult(index, payload, null, message)
       );
       resultState.failureCount += 1;
     }
-
-    resultState.completedRows = resultState.rows.length;
-
-    await prisma.automationJob.update({
-      where: { id: jobId },
-      data: {
-        resultJson: JSON.stringify(resultState),
-      },
-    });
   }
+
+  resultState.completedRows = resultState.rows.length;
+
+  await prisma.automationJob.update({
+    where: { id: jobId },
+    data: {
+      resultJson: JSON.stringify(resultState),
+    },
+  });
 
   const finalStatus: AutomationJobStatus =
     resultState.failureCount > 0 && resultState.successCount === 0 ? "FAILED" : "COMPLETED";
