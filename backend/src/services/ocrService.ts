@@ -179,6 +179,122 @@ function titleCaseWords(value: string | null | undefined): string | null {
     .join(" ");
 }
 
+const NAME_STOP_WORDS = [
+  "MEMBER",
+  "ID",
+  "GROUP",
+  "BIN",
+  "PCN",
+  "RX",
+  "DOB",
+  "RECORD",
+  "MEDICAL",
+  "EXAM",
+  "TYPE",
+  "PLAN",
+  "PAYER",
+  "SUBSCRIBER",
+  "INSURANCE",
+  "AUTHORIZATION",
+  "REFERRAL",
+  "NPI",
+  "CLAIM",
+  "NUMBER",
+  "FACILITY",
+  "GENDER",
+  "SEX",
+];
+
+const ADDRESS_STOP_WORDS = [
+  "MEMBER",
+  "GROUP",
+  "PLAN",
+  "PAYER",
+  "SUBSCRIBER",
+  "AUTHORIZATION",
+  "REFERRAL",
+  "EXAM",
+  "TYPE",
+  "FACILITY",
+  "CLINIC",
+  "PHONE",
+  "EMAIL",
+];
+
+function sanitizeNameCandidate(value: string | null | undefined): string | null {
+  const cleaned = normalizeWhitespace(value);
+  if (!cleaned) return null;
+
+  const normalized = cleaned
+    .replace(/\b(DR|MR|MRS|MS)\.?\s+/gi, "")
+    .replace(/[^A-Z ,.'-]/gi, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+  if (!normalized) return null;
+
+  const upper = normalized.toUpperCase();
+  if (NAME_STOP_WORDS.some((word) => upper.includes(word))) {
+    return null;
+  }
+
+  const tokens = normalized
+    .split(/[ ,]+/)
+    .map((token) => token.trim())
+    .filter(Boolean);
+  if (tokens.length < 2 || tokens.length > 4) {
+    return null;
+  }
+
+  const validTokens = tokens.filter((token) => /^[A-Z][A-Z.'-]*$/i.test(token));
+  if (validTokens.length !== tokens.length) {
+    return null;
+  }
+
+  return titleCaseWords(tokens.join(" "));
+}
+
+function sanitizeAddressLine(value: string | null | undefined): string | null {
+  const cleaned = normalizeWhitespace(value);
+  if (!cleaned) return null;
+
+  const upper = cleaned.toUpperCase();
+  if (!/^\d{1,6}\s+/.test(cleaned)) return null;
+  if (ADDRESS_STOP_WORDS.some((word) => upper.includes(word))) return null;
+  if (/@/.test(cleaned)) return null;
+
+  return cleaned;
+}
+
+function sanitizeCity(value: string | null | undefined): string | null {
+  const cleaned = normalizeWhitespace(value);
+  if (!cleaned) return null;
+
+  const upper = cleaned.toUpperCase();
+  if (/\d/.test(cleaned)) return null;
+  if (cleaned.split(/\s+/).length > 3) return null;
+  if (ADDRESS_STOP_WORDS.some((word) => upper.includes(word))) return null;
+  if (/(WAY|STREET|ST|ROAD|RD|AVENUE|AVE|DRIVE|DR|LANE|LN|BLVD)\b/i.test(cleaned)) return null;
+
+  return titleCaseWords(cleaned);
+}
+
+function sanitizeFacilityName(value: string | null | undefined): string | null {
+  const cleaned = normalizeWhitespace(value);
+  if (!cleaned) return null;
+
+  const upper = cleaned.toUpperCase();
+  if (
+    /(EXAM TYPE|MEMBER ID|GROUP NUMBER|PAYER ID|RX BIN|RX PCN|PATIENT NAME|SUBSCRIBER NAME|GENDER|SEX)\b/i.test(
+      upper
+    )
+  ) {
+    return null;
+  }
+
+  if (cleaned.length < 4 || cleaned.length > 80) return null;
+  return titleCaseWords(cleaned);
+}
+
 function normalizeDate(value: string | null | undefined): string | null {
   const cleaned = normalizeWhitespace(value);
   if (!cleaned) return null;
@@ -240,6 +356,56 @@ function normalizePlanType(value: string | null | undefined): string | null {
   );
 
   return matched ? titleCaseWords(matched) : titleCaseWords(cleaned);
+}
+
+function normalizeGender(value: string | null | undefined): string | null {
+  const cleaned = normalizeWhitespace(value);
+  if (!cleaned) return null;
+
+  const upper = cleaned.toUpperCase();
+  if (/^(M|MALE)\b/.test(upper)) return "Male";
+  if (/^(F|FEMALE)\b/.test(upper)) return "Female";
+  if (upper.includes("NON")) return "Non-binary";
+  if (upper.includes("UNKNOWN") || upper === "U") return "Unknown";
+  return null;
+}
+
+function normalizePhone(value: string | null | undefined): string | null {
+  const cleaned = normalizeWhitespace(value);
+  if (!cleaned) return null;
+
+  const digits = cleaned.replace(/\D/g, "");
+  if (digits.length === 10) {
+    return `${digits.slice(0, 3)}${digits.slice(3, 6)}${digits.slice(6)}`;
+  }
+
+  return cleaned;
+}
+
+function normalizeEmail(value: string | null | undefined): string | null {
+  const cleaned = normalizeWhitespace(value);
+  if (!cleaned) return null;
+  return /^[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}$/i.test(cleaned) ? cleaned.toLowerCase() : null;
+}
+
+function normalizeNpi(value: string | null | undefined): string | null {
+  const cleaned = normalizeWhitespace(value);
+  if (!cleaned) return null;
+
+  const digits = cleaned.replace(/\D/g, "");
+  return digits.length >= 10 ? digits.slice(0, 10) : cleaned;
+}
+
+function normalizeRelationship(value: string | null | undefined): string | null {
+  const cleaned = normalizeWhitespace(value);
+  if (!cleaned) return null;
+
+  const upper = cleaned.toUpperCase();
+  if (upper.includes("SELF")) return "Self";
+  if (upper.includes("SPOUSE")) return "Spouse";
+  if (upper.includes("CHILD")) return "Child";
+  if (upper.includes("DEPENDENT")) return "Other Dependent";
+  return titleCaseWords(cleaned);
 }
 
 function normalizeFieldValue(
@@ -384,17 +550,26 @@ function extractKnownPayer(text: string): string | null {
 }
 
 function extractName(text: string): string | null {
-  const labeled = extractLabeledValue(text, ["member name", "subscriber name", "name"], "([A-Z][A-Z ,.'-]{2,50})");
+  const labeled = extractLabeledValue(
+    text,
+    ["member name", "subscriber name", "patient name"],
+    "([A-Z][A-Z ,.'-]{2,50})"
+  );
   if (labeled) {
-    return titleCaseWords(labeled);
+    return sanitizeNameCandidate(labeled);
   }
 
   const lineMatch = text
     .split("\n")
     .map((line) => line.trim())
-    .find((line) => /^[A-Z][A-Z ,.'-]{4,50}$/.test(line) && !KNOWN_PAYERS.some((payer) => line.includes(payer.toUpperCase())));
+    .find(
+      (line) =>
+        /^[A-Z][A-Z ,.'-]{4,50}$/.test(line) &&
+        !KNOWN_PAYERS.some((payer) => line.includes(payer.toUpperCase())) &&
+        Boolean(sanitizeNameCandidate(line))
+    );
 
-  return titleCaseWords(lineMatch);
+  return sanitizeNameCandidate(lineMatch);
 }
 
 function parseInsuranceCardText(rawText: string): InsuranceCardExtraction {
@@ -489,6 +664,71 @@ function extractProcedureCodes(text: string): string[] {
   return [...new Set(text.match(/\b\d{5}\b/g) || [])].slice(0, 5);
 }
 
+function extractPhoneNumber(text: string): string | null {
+  const match = text.match(/(?:\+?1[\s.-]?)?\(?(\d{3})\)?[\s.-]?(\d{3})[\s.-]?(\d{4})/);
+  if (!match) return null;
+  const [, a = "", b = "", c = ""] = match;
+  return normalizePhone(`${a}${b}${c}`);
+}
+
+function extractEmailAddress(text: string): string | null {
+  const labeledMatch = text.match(
+    /(?:email|e-mail|contact email|provider email|referrals? email)[\s:#-]*([A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,})/i
+  );
+  if (labeledMatch?.[1]) {
+    return normalizeEmail(labeledMatch[1]);
+  }
+
+  const match = text.match(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/i);
+  return normalizeEmail(match?.[0] || null);
+}
+
+function extractStateZip(text: string): { state: string | null; zip: string | null } {
+  const match = text.match(/\b([A-Z]{2})\s+(\d{5}(?:-\d{4})?)\b/);
+  return {
+    state: match?.[1] || null,
+    zip: match?.[2] || null,
+  };
+}
+
+function extractCityStateZipFromAddress(text: string): {
+  address: string | null;
+  city: string | null;
+  state: string | null;
+  zip: string | null;
+} {
+  const lines = text
+    .split("\n")
+    .map((line) => line.trim())
+    .filter(Boolean);
+
+  for (let index = 0; index < lines.length; index += 1) {
+    const line = lines[index] || "";
+    if (!/^\d{1,6}\s+.+/.test(line)) continue;
+
+    const nextLine = lines[index + 1] || "";
+    const combined = `${line} ${nextLine}`.trim();
+    const cityStateZipMatch = combined.match(/([A-Z][A-Z .'-]+),?\s+([A-Z]{2})\s+(\d{5}(?:-\d{4})?)/i);
+    if (cityStateZipMatch) {
+      const address = sanitizeAddressLine(line);
+      const city = sanitizeCity(cityStateZipMatch[1]);
+      return {
+        address,
+        city,
+        state: cityStateZipMatch[2] || null,
+        zip: cityStateZipMatch[3] || null,
+      };
+    }
+  }
+
+  return {
+    address: null,
+    city: null,
+    state: null,
+    zip: null,
+  };
+}
+
 function extractCommonDocumentFields(text: string): Record<string, string | null> {
   const patientName =
     extractName(text) || extractLabeledValue(text, ["patient name"], "([A-Z][A-Z ,.'-]{2,50})");
@@ -527,10 +767,36 @@ function extractCommonDocumentFields(text: string): Record<string, string | null
       ["provider", "ordering provider", "referring provider", "physician", "doctor"],
       "([A-Z][A-Z ,.'-]{2,50})"
     ) || null;
+  const providerNpi = extractLabeledValue(text, ["provider npi", "npi", "npi number"], "(\\d{10})");
+  const relationship = extractLabeledValue(
+    text,
+    ["relationship", "relation to subscriber", "subscriber relationship"],
+    "([A-Z][A-Z /-]{2,30})"
+  );
+  const gender = extractLabeledValue(
+    text,
+    ["gender", "sex"],
+    "([A-Z][A-Z /-]{0,20})"
+  );
+  const facilityName = extractLabeledValue(
+    text,
+    ["facility", "facility name", "location", "clinic"],
+    "([A-Z][A-Z0-9 &'./()-]{2,80})"
+  );
+  const cptCode = extractLabeledValue(text, ["cpt", "cpt code", "procedure code"], "(\\d{5})");
+  const addressParts = extractCityStateZipFromAddress(text);
+  const fallbackStateZip = extractStateZip(text);
 
   return {
-    patientName: titleCaseWords(patientName),
+    patientName: sanitizeNameCandidate(patientName),
     patientDob: normalizeDate(patientDob),
+    gender: normalizeGender(gender),
+    phone: extractPhoneNumber(text),
+    email: extractEmailAddress(text),
+    address: sanitizeAddressLine(addressParts.address),
+    city: sanitizeCity(addressParts.city),
+    state: addressParts.state || fallbackStateZip.state,
+    zip: addressParts.zip || fallbackStateZip.zip,
     payerName: titleCaseWords(payerName),
     payerId: extractLabeledValue(text, ["payer id", "payor id"], "([A-Z0-9\\-]{2,20})"),
     memberId: normalizeMemberId(memberId),
@@ -539,7 +805,7 @@ function extractCommonDocumentFields(text: string): Record<string, string | null
     planType: normalizePlanType(
       PLAN_TYPE_PATTERNS.find((planType) => text.toUpperCase().includes(planType.toUpperCase())) || null
     ),
-    subscriberName: titleCaseWords(
+    subscriberName: sanitizeNameCandidate(
       extractLabeledValue(text, ["subscriber name", "member name"], "([A-Z][A-Z ,.'-]{2,50})")
     ),
     subscriberDob: normalizeDate(
@@ -552,7 +818,11 @@ function extractCommonDocumentFields(text: string): Record<string, string | null
       extractLabeledValue(text, ["effective date", "effective"], "(\\d{1,2}[/-]\\d{1,2}[/-]\\d{2,4}|\\d{4}-\\d{2}-\\d{2})")
     ),
     serviceDate: normalizeDate(serviceDate),
-    providerName: titleCaseWords(providerName),
+    providerName: sanitizeNameCandidate(providerName) || titleCaseWords(providerName),
+    providerNpi: normalizeNpi(providerNpi),
+    subscriberRelationship: normalizeRelationship(relationship),
+    cptCode: normalizeWhitespace(cptCode),
+    facilityName: sanitizeFacilityName(facilityName),
     authorizationNumber: normalizeWhitespace(authorizationNumber),
     referralNumber: normalizeWhitespace(referralNumber),
     denialReason: normalizeWhitespace(
@@ -561,6 +831,7 @@ function extractCommonDocumentFields(text: string): Record<string, string | null
     diagnosisCodes: extractDiagnosisCodes(text).join(", ") || null,
     procedureCodes: extractProcedureCodes(text).join(", ") || null,
     extractedTextSnippet: normalizeWhitespace(text.slice(0, 500)),
+    notes: normalizeWhitespace(text.slice(0, 240)),
   };
 }
 

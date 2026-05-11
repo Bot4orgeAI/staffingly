@@ -120,7 +120,7 @@ export const getPatients = async (req: AuthenticatedRequest, res: Response): Pro
       take: limitNum,
       include: {
         client: {
-          select: { id: true, name: true, practiceName: true },
+          select: { id: true, name: true, practiceName: true, npi: true, address: true },
         },
         insurancePolicies: {
           where: { deletedAt: null, isActive: true },
@@ -160,7 +160,7 @@ export const getPatientById = async (req: AuthenticatedRequest, res: Response): 
     },
     include: {
       client: {
-        select: { id: true, name: true, practiceName: true },
+        select: { id: true, name: true, practiceName: true, npi: true, address: true },
       },
       insurancePolicies: {
         where: { deletedAt: null },
@@ -289,7 +289,7 @@ export const updatePatient = async (req: AuthenticatedRequest, res: Response): P
     },
     include: {
       client: {
-        select: { id: true, name: true, practiceName: true },
+        select: { id: true, name: true, practiceName: true, npi: true, address: true },
       },
       insurancePolicies: {
         where: { deletedAt: null, isActive: true },

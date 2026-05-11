@@ -359,37 +359,141 @@ function buildEmrPatientProjection(
     planType: string | null;
     clientId: string;
   },
-  emrName: string
+  emrName: string,
+  enrichment?: {
+    patient?: {
+      id: string;
+      firstName: string;
+      lastName: string;
+      middleName: string | null;
+      dob: Date;
+      gender: string | null;
+      phone: string | null;
+      email: string | null;
+      address: string | null;
+      city: string | null;
+      state: string | null;
+      zip: string | null;
+      client: {
+        id: string;
+        name: string;
+        practiceName: string | null;
+        npi: string | null;
+      };
+    } | null;
+    primaryPolicy?: {
+      payerId: string | null;
+      payerName: string;
+      memberId: string;
+      groupNumber: string | null;
+      subscriberName: string | null;
+      subscriberDob: Date | null;
+      subscriberRelationship: string | null;
+      planName: string | null;
+      planType: string | null;
+      effectiveDate: Date | null;
+      terminationDate: Date | null;
+      rxBin: string | null;
+      rxPcn: string | null;
+      rxGroup: string | null;
+      copayPcp: number | null;
+      copaySpecialist: number | null;
+    } | null;
+    secondaryPolicy?: {
+      payerName: string;
+      memberId: string;
+      groupNumber: string | null;
+      planName: string | null;
+    } | null;
+  }
 ) {
+  const patient = enrichment?.patient || null;
+  const primaryPolicy = enrichment?.primaryPolicy || null;
+  const secondaryPolicy = enrichment?.secondaryPolicy || null;
+  const practiceName = patient?.client?.practiceName || patient?.client?.name || "";
+  const defaultNotes =
+    practiceName && subscriber.memberId
+      ? `EMR pull for ${practiceName} patient ${subscriber.memberId}`
+      : practiceName
+        ? `EMR pull for ${practiceName}`
+        : "EMR patient pull";
+  const today = new Date().toISOString().slice(0, 10);
+
   const foundFields = [
-    subscriber.firstName || subscriber.lastName ? "Name" : null,
-    subscriber.dob ? "DOB" : null,
-    subscriber.memberId ? "Member ID" : null,
-    subscriber.payer || subscriber.payerId ? "Payer" : null,
-    subscriber.groupNumber ? "Group Number" : null,
-    subscriber.planType ? "Plan Type" : null,
+    patient?.firstName || patient?.lastName || subscriber.firstName || subscriber.lastName ? "Name" : null,
+    patient?.dob || subscriber.dob ? "DOB" : null,
+    patient?.gender ? "Gender" : null,
+    patient?.phone ? "Phone" : null,
+    patient?.email ? "Email" : null,
+    patient?.address ? "Address" : null,
+    primaryPolicy?.memberId || subscriber.memberId ? "Member ID" : null,
+    primaryPolicy?.payerName || subscriber.payer || subscriber.payerId ? "Payer" : null,
+    primaryPolicy?.groupNumber || subscriber.groupNumber ? "Group Number" : null,
+    primaryPolicy?.planName ? "Plan Name" : null,
+    primaryPolicy?.planType || subscriber.planType ? "Plan Type" : null,
+    primaryPolicy?.effectiveDate ? "Effective Date" : null,
+    primaryPolicy?.rxBin ? "Rx BIN" : null,
+    primaryPolicy?.subscriberName ? "Subscriber Name" : null,
+    patient?.client?.npi ? "Provider NPI" : null,
+    practiceName ? "Facility Name" : null,
   ].filter((value): value is string => Boolean(value));
 
   const missingFields = [
-    "CPT Code",
-    "Service Date",
-    "Provider NPI",
-  ];
+    !patient?.middleName ? "Middle Name" : null,
+    !primaryPolicy?.payerId && !subscriber.payerId ? "Payer ID" : null,
+    !primaryPolicy?.planName ? "Plan Name" : null,
+    !primaryPolicy?.subscriberDob ? "Subscriber DOB" : null,
+    !primaryPolicy?.rxPcn ? "Rx PCN" : null,
+    !primaryPolicy?.rxGroup ? "Rx Group" : null,
+  ].filter((value): value is string => Boolean(value));
 
   return {
     id: subscriber.id,
     clientId: subscriber.clientId,
     source: emrName,
     mrn: subscriber.id,
-    name: `${subscriber.firstName || ""} ${subscriber.lastName || ""}`.trim(),
-    firstName: subscriber.firstName || "",
-    lastName: subscriber.lastName || "",
-    dob: subscriber.dob || "",
-    payer: subscriber.payer || "",
-    payerId: subscriber.payerId || "",
-    memberId: subscriber.memberId || "",
-    groupNumber: subscriber.groupNumber || "",
-    planType: subscriber.planType || "",
+    name:
+      `${patient?.firstName || subscriber.firstName || ""} ${patient?.lastName || subscriber.lastName || ""}`.trim(),
+    firstName: patient?.firstName || subscriber.firstName || "",
+    lastName: patient?.lastName || subscriber.lastName || "",
+    middleName: patient?.middleName || "",
+    dob: patient?.dob?.toISOString().slice(0, 10) || subscriber.dob || "",
+    gender: patient?.gender || "",
+    phone: patient?.phone || "",
+    email: patient?.email || "",
+    address: patient?.address || "",
+    city: patient?.city || "",
+    state: patient?.state || "",
+    zip: patient?.zip || "",
+    payer: primaryPolicy?.payerName || subscriber.payer || "",
+    payerId: primaryPolicy?.payerId || subscriber.payerId || "",
+    memberId: primaryPolicy?.memberId || subscriber.memberId || "",
+    groupNumber: primaryPolicy?.groupNumber || subscriber.groupNumber || "",
+    planName: primaryPolicy?.planName || "",
+    planType: primaryPolicy?.planType || subscriber.planType || "",
+    effectiveDate: primaryPolicy?.effectiveDate?.toISOString().slice(0, 10) || "",
+    terminationDate: primaryPolicy?.terminationDate?.toISOString().slice(0, 10) || "",
+    rxBin: primaryPolicy?.rxBin || "",
+    rxPcn: primaryPolicy?.rxPcn || "",
+    rxGroup: primaryPolicy?.rxGroup || "",
+    copayPcp: primaryPolicy?.copayPcp != null ? String(primaryPolicy.copayPcp) : "",
+    copaySpecialist:
+      primaryPolicy?.copaySpecialist != null ? String(primaryPolicy.copaySpecialist) : "",
+    subscriberName:
+      primaryPolicy?.subscriberName ||
+      `${patient?.firstName || subscriber.firstName || ""} ${patient?.lastName || subscriber.lastName || ""}`.trim(),
+    subscriberDob: primaryPolicy?.subscriberDob?.toISOString().slice(0, 10) || "",
+    subscriberRelationship: primaryPolicy?.subscriberRelationship || "Self",
+    secondaryPayer: secondaryPolicy?.payerName || "",
+    secondaryMemberId: secondaryPolicy?.memberId || "",
+    secondaryGroupNumber: secondaryPolicy?.groupNumber || "",
+    secondaryPlanName: secondaryPolicy?.planName || "",
+    providerNpi: patient?.client?.npi || "",
+    serviceDate: today,
+    serviceType: "Specialist Visit",
+    cptCode: "99214",
+    facilityName: practiceName,
+    notes: defaultNotes,
     foundFields,
     missingFields,
   };
@@ -838,8 +942,78 @@ export async function getEmrPatient(req: AuthenticatedRequest, res: Response): P
     return;
   }
 
+  const matchedPatient = await prisma.patient.findFirst({
+    where: {
+      clientId: subscriber.clientId,
+      deletedAt: null,
+      OR: [
+        ...(subscriber.memberId
+          ? [
+              {
+                insurancePolicies: {
+                  some: {
+                    deletedAt: null,
+                    memberId: subscriber.memberId,
+                  },
+                },
+              },
+            ]
+          : []),
+        {
+          firstName: subscriber.firstName || undefined,
+          lastName: subscriber.lastName,
+          ...(subscriber.dob ? { dob: new Date(subscriber.dob) } : {}),
+        },
+      ],
+    },
+    include: {
+      client: {
+        select: {
+          id: true,
+          name: true,
+          practiceName: true,
+          npi: true,
+        },
+      },
+      insurancePolicies: {
+        where: { deletedAt: null, isActive: true },
+        orderBy: { createdAt: "asc" },
+        select: {
+          policyType: true,
+          payerId: true,
+          payerName: true,
+          memberId: true,
+          groupNumber: true,
+          subscriberName: true,
+          subscriberDob: true,
+          subscriberRelationship: true,
+          planName: true,
+          planType: true,
+          effectiveDate: true,
+          terminationDate: true,
+          rxBin: true,
+          rxPcn: true,
+          rxGroup: true,
+          copayPcp: true,
+          copaySpecialist: true,
+        },
+      },
+    },
+  });
+
+  const primaryPolicy =
+    matchedPatient?.insurancePolicies.find((policy) => policy.policyType === "PRIMARY") ||
+    matchedPatient?.insurancePolicies[0] ||
+    null;
+  const secondaryPolicy =
+    matchedPatient?.insurancePolicies.find((policy) => policy.policyType === "SECONDARY") || null;
+
   res.json({
-    data: buildEmrPatientProjection(subscriber, ehrSystem.name),
+    data: buildEmrPatientProjection(subscriber, ehrSystem.name, {
+      patient: matchedPatient,
+      primaryPolicy,
+      secondaryPolicy,
+    }),
   });
 }
 
