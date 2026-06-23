@@ -3,7 +3,8 @@ datasource db {
 }
 
 generator client {
-  provider = "prisma-client-js"
+  provider      = "prisma-client-js"
+  binaryTargets = ["native", "debian-openssl-3.0.x", "linux-musl-openssl-3.0.x"]
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -35,6 +36,7 @@ model User {
   notifications     Notification[]
   priorAuthCases    PriorAuthCase[]    @relation("AssignedSpecialist")
   eligibilityChecks EligibilityCheck[]
+  priorAuthActionResults PriorAuthActionResult[]
 }
 
 model UserSession {
@@ -95,6 +97,7 @@ model Client {
   billingProfile     BillingProfile?
   storageConfig      ClientStorageConfig?
   priorAuthCases     PriorAuthCase[]
+  priorAuthActionResults PriorAuthActionResult[]
   eligibilityChecks  EligibilityCheck[]
   invoices           Invoice[]
   notifications      Notification[]
@@ -277,42 +280,69 @@ enum CoverageStatus {
 // ─────────────────────────────────────────────────────────────────────────────
 
 model PriorAuthCase {
-  id                    String          @id @default(cuid())
-  caseNumber            String          @unique
-  clientId              String
-  client                Client          @relation(fields: [clientId], references: [id])
-  gatewayPatientId      String?
-  patientName           String?
-  patientInitials       String?
-  patientDob            DateTime?
-  insuranceId           String?
-  payerName             String?
-  payerId               String?
-  serviceType           String?
-  diagnosisCodes        String[]
-  procedureCodes        String[]
-  requestingProvider    String?
-  requestingProviderNpi String?
-  urgency               CaseUrgency     @default(ROUTINE)
-  status                PriorAuthStatus @default(INTAKE)
-  assignedSpecialistId  String?
-  assignedSpecialist    User?           @relation("AssignedSpecialist", fields: [assignedSpecialistId], references: [id])
-  eligibilityVerified   Boolean         @default(false)
-  eligibilityCheckId    String?
-  submittedAt           DateTime?
-  approvedAt            DateTime?
-  deniedAt              DateTime?
-  denialReason          String?
-  appealSubmittedAt     DateTime?
-  authorizationNumber   String?
-  authValidFrom         DateTime?
-  authValidTo           DateTime?
-  createdAt             DateTime        @default(now())
-  updatedAt             DateTime        @updatedAt
+  id                      String          @id @default(cuid())
+  caseNumber              String          @unique
+  clientId                String
+  client                  Client          @relation(fields: [clientId], references: [id])
+  gatewayPatientId        String?
+  patientName             String?
+  patientInitials         String?
+  patientDob              DateTime?
+  insuranceId             String?
+  payerName               String?
+  payerId                 String?
+  serviceType             String?
+  diagnosisCodes          String[]
+  procedureCodes          String[]
+  requestingProvider      String?
+  requestingProviderNpi   String?
+  urgency                 CaseUrgency     @default(ROUTINE)
+  status                  PriorAuthStatus @default(INTAKE)
+  assignedSpecialistId    String?
+  assignedSpecialist      User?           @relation("AssignedSpecialist", fields: [assignedSpecialistId], references: [id])
+  eligibilityVerified     Boolean         @default(false)
+  eligibilityCheckId      String?
+  submittedAt             DateTime?
+  approvedAt              DateTime?
+  deniedAt                DateTime?
+  denialReason            String?
+  denialCode              String?
+  appealSubmittedAt       DateTime?
+  appealDeadline          DateTime?
+  appealLetter            String?         @db.Text
+  authorizationNumber     String?
+  authValidFrom           DateTime?
+  authValidTo             DateTime?
+  submissionMethod        String?
+  confirmationNumber      String?
+  covermymedsReference    String?
+  aiReviewResultJson      String?         @db.Text
+  aiConfidenceScore       Int?
+  medicalNecessitySummary String?         @db.Text
+  intakeNotes             String?         @db.Text
+  facilityName            String?
+  facilityNpi             String?
+  isMedicationPa          Boolean         @default(false)
+  medicationName          String?
+  ndcCode                 String?
+  daysSupply              String?
+  quantityRequested       String?
+  pharmacyNpi             String?
+  stepTherapyConfirmed    Boolean         @default(false)
+  p2pPhysicianName        String?
+  p2pPhysicianNpi         String?
+  p2pReviewerName         String?
+  p2pScheduledAt          DateTime?
+  p2pContactNumber        String?
+  p2pOutcome              String?
+  createdAt               DateTime        @default(now())
+  updatedAt               DateTime        @updatedAt
 
-  documents PriorAuthDocument[]
+  documents     PriorAuthDocument[]
+  actionResults PriorAuthActionResult[]
 
   @@index([gatewayPatientId])
+  @@index([eligibilityCheckId])
 }
 
 enum CaseUrgency {
@@ -347,6 +377,34 @@ model PriorAuthDocument {
   uploadedBy          String?
   createdAt           DateTime       @default(now())
   updatedAt           DateTime       @updatedAt
+}
+
+model PriorAuthActionResult {
+  id                      String        @id @default(cuid())
+  caseId                  String
+  case                    PriorAuthCase @relation(fields: [caseId], references: [id])
+  clientId                String
+  client                  Client        @relation(fields: [clientId], references: [id])
+  gatewayPatientId        String?
+  action                  String
+  status                  String?
+  message                 String?       @db.Text
+  confirmationNumber      String?
+  appealLetter            String?       @db.Text
+  checklistItemsJson      String?       @db.Text
+  missingItemsJson        String?       @db.Text
+  confidenceScore         Int?
+  medicalNecessitySummary String?       @db.Text
+  rawResponse             String?       @db.Text
+  errorMessage            String?       @db.Text
+  performedById           String?
+  performedBy             User?         @relation(fields: [performedById], references: [id])
+  createdAt               DateTime      @default(now())
+
+  @@index([caseId])
+  @@index([clientId])
+  @@index([gatewayPatientId])
+  @@index([action])
 }
 
 enum DocumentStatus {

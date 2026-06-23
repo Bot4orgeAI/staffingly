@@ -253,6 +253,10 @@ export const deleteClient = async (req: AuthenticatedRequest, res: Response): Pr
     const priorAuthCaseIds = priorAuthCases.map((item) => item.id);
 
     if (priorAuthCaseIds.length > 0) {
+      await tx.priorAuthActionResult.deleteMany({
+        where: { caseId: { in: priorAuthCaseIds } },
+      });
+
       await tx.priorAuthDocument.deleteMany({
         where: { caseId: { in: priorAuthCaseIds } },
       });

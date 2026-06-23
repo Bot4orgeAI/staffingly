@@ -105,10 +105,32 @@ export interface PriorAuthGatewayInput {
   gatewayPatientId: string;
   caseId: string;
   action: PriorAuthGatewayAction;
+  eligibilityCheckId?: string | null;
+  patientName?: string | null;
+  patientDob?: string | null;
+  memberId?: string | null;
+  payerName?: string | null;
+  payerId?: string | null;
+  coverageStatus?: string | null;
+  priorAuthRequired?: boolean | null;
+  providerNpi?: string | null;
+  requestingProvider?: string | null;
+  requestingProviderNpi?: string | null;
+  serviceDate?: string | null;
+  serviceType?: string | null;
+  procedureCodes?: string[];
+  diagnosisCodes?: string[];
+  urgency?: string | null;
+  submissionMethod?: string | null;
+  payerRule?: Record<string, unknown> | null;
+  documents?: Array<Record<string, unknown>>;
+  clientContext?: Record<string, unknown> | null;
   procedureName?: string;
   icd10?: string;
   extractedDocumentText?: string;
   denialReason?: string;
+  denialCode?: string | null;
+  appealDeadline?: string | null;
 }
 
 function ensureGatewayConfigured(): string {
@@ -429,12 +451,34 @@ export async function sendPriorAuthAction(input: PriorAuthGatewayInput): Promise
       action: input.action,
     },
     data: {
-      patient_id: input.gatewayPatientId,
-      case_id: input.caseId,
+      patientId: input.gatewayPatientId,
+      caseId: input.caseId,
+      eligibilityCheckId: input.eligibilityCheckId || "",
+      patientName: input.patientName || "",
+      patientDob: input.patientDob || "",
+      memberId: input.memberId || "",
+      payerName: input.payerName || "",
+      payerId: input.payerId || "",
+      coverageStatus: input.coverageStatus || "",
+      priorAuthRequired: input.priorAuthRequired ?? null,
+      providerNpi: input.providerNpi || "",
+      requestingProvider: input.requestingProvider || "",
+      requestingProviderNpi: input.requestingProviderNpi || "",
+      serviceDate: input.serviceDate || "",
+      serviceType: input.serviceType || input.procedureName || "",
+      procedureCodes: input.procedureCodes || [],
+      diagnosisCodes: input.diagnosisCodes || [],
+      urgency: input.urgency || "",
+      submissionMethod: input.submissionMethod || "",
+      payerRule: input.payerRule || null,
+      documents: input.documents || [],
+      clientContext: input.clientContext || null,
       procedureName: input.procedureName || "",
       icd10: input.icd10 || "",
-      extracted_document_text: input.extractedDocumentText || "",
+      extractedDocumentText: input.extractedDocumentText || "",
       denialReason: input.denialReason || "",
+      denialCode: input.denialCode || "",
+      appealDeadline: input.appealDeadline || "",
     },
   });
 }
@@ -446,29 +490,42 @@ export function normalizePriorAuthGatewayResponse(raw: unknown): Record<string, 
     : isRecord(rootPayload.result)
       ? rootPayload.result
       : rootPayload;
+  const rawError =
+    asString(payload.error) ||
+    asString(payload.errorMessage) ||
+    (asString(payload.status)?.toLowerCase() === "error" ? asString(payload.message) : null) ||
+    asString(rootPayload.error) ||
+    asString(rootPayload.errorMessage) ||
+    (asString(rootPayload.status)?.toLowerCase() === "error"
+      ? asString(rootPayload.message)
+      : null);
+  const explicitSuccess = asBoolean(payload.success) ?? asBoolean(rootPayload.success);
 
   return {
+    success: explicitSuccess ?? !rawError,
     action: asString(payload.action) || asString(rootPayload.action),
     status: asString(payload.status) || asString(rootPayload.status),
     message: asString(payload.message) || asString(rootPayload.message),
     confirmationNumber:
       asString(payload.confirmationNumber) || asString(payload.confirmation_number),
-    confirmation_number:
-      asString(payload.confirmationNumber) || asString(payload.confirmation_number),
     appealLetter: asString(payload.appealLetter) || asString(payload.appeal_letter),
-    appeal_letter: asString(payload.appealLetter) || asString(payload.appeal_letter),
     checklistItems: payload.checklistItems || payload.checklist_items || null,
-    checklist_items: payload.checklistItems || payload.checklist_items || null,
     missingItems: payload.missingItems || payload.missing_items || null,
-    missing_items: payload.missingItems || payload.missing_items || null,
     confidenceScore: asNumber(payload.confidenceScore) ?? asNumber(payload.confidence_score),
-    confidence_score: asNumber(payload.confidenceScore) ?? asNumber(payload.confidence_score),
+    confidenceTier: asString(payload.confidenceTier) || asString(payload.confidence_tier),
+    requiresHumanReview:
+      asBoolean(payload.requiresHumanReview) ?? asBoolean(payload.requires_human_review) ?? false,
+    humanReviewReason:
+      asString(payload.humanReviewReason) || asString(payload.human_review_reason),
+    payerRequirements: payload.payerRequirements || payload.payer_requirements || null,
+    routingTrace: payload.routingTrace || payload.routing_trace || null,
+    automation: payload.automation || null,
+    denialRisk: payload.denialRisk || payload.denial_risk || null,
+    audit: payload.audit || null,
     medicalNecessitySummary:
       asString(payload.medicalNecessitySummary) || asString(payload.medical_necessity_summary),
-    medical_necessity_summary:
-      asString(payload.medicalNecessitySummary) || asString(payload.medical_necessity_summary),
     rawResponse: raw,
-    raw_response: raw,
+    error: rawError,
   };
 }
 

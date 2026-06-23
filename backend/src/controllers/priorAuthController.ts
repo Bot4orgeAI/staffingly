@@ -13,7 +13,7 @@ interface GetCasesQuery {
   page?: string;
   limit?: string;
   status?: PriorAuthStatus;
-  urgency?: CaseUrgency;
+  urgency?: CaseUrgency | string;
   clientId?: string;
   assignedSpecialistId?: string;
   search?: string;
@@ -49,7 +49,7 @@ interface CreateCaseBody {
   procedureCodes?: string[];
   requestingProvider?: string;
   requestingProviderNpi?: string;
-  urgency?: CaseUrgency;
+  urgency?: CaseUrgency | string;
   status?: PriorAuthStatus;
   assignedSpecialistId?: string;
 }
@@ -79,6 +79,31 @@ interface UpdateCaseBody {
   approvedAt?: string;
   deniedAt?: string;
   appealSubmittedAt?: string;
+  appealDeadline?: string;
+  appealLetter?: string;
+  denialCode?: string;
+  submissionMethod?: string;
+  confirmationNumber?: string;
+  covermymedsReference?: string;
+  aiReviewResultJson?: string;
+  aiConfidenceScore?: number;
+  medicalNecessitySummary?: string;
+  intakeNotes?: string;
+  facilityName?: string;
+  facilityNpi?: string;
+  isMedicationPa?: boolean;
+  medicationName?: string;
+  ndcCode?: string;
+  daysSupply?: string;
+  quantityRequested?: string;
+  pharmacyNpi?: string;
+  stepTherapyConfirmed?: boolean;
+  p2pPhysicianName?: string;
+  p2pPhysicianNpi?: string;
+  p2pReviewerName?: string;
+  p2pScheduledAt?: string;
+  p2pContactNumber?: string;
+  p2pOutcome?: string;
 }
 
 interface UploadDocumentBody {
@@ -102,10 +127,16 @@ interface PriorAuthGatewayActionBody {
   icd10?: string;
   extractedDocumentText?: string;
   denialReason?: string;
+  denialCode?: string;
+  appealDeadline?: string;
 }
 
 async function attachPriorAuthScores<
-  T extends { eligibilityCheckId: string | null; insuranceId?: string | null },
+  T extends {
+    eligibilityCheckId: string | null;
+    insuranceId?: string | null;
+    aiConfidenceScore?: number | null;
+  },
 >(
   records: T[]
 ): Promise<Array<T & { ai_confidence_score: number | null; aiConfidenceScore: number | null }>> {
@@ -179,7 +210,7 @@ async function attachPriorAuthScores<
     const historyScore = record.insuranceId
       ? (scoreByMemberId.get(record.insuranceId) ?? null)
       : null;
-    const score = eligibilityScore ?? historyScore ?? null;
+    const score = record.aiConfidenceScore ?? eligibilityScore ?? historyScore ?? null;
 
     return {
       ...record,
@@ -230,7 +261,7 @@ export const getCases = async (req: AuthenticatedRequest, res: Response): Promis
   }
 
   if (urgency) {
-    where.urgency = urgency;
+    where.urgency = normalizeCaseUrgency(urgency);
   }
 
   if (assignedSpecialistId) {
@@ -306,6 +337,10 @@ export const getCaseById = async (req: AuthenticatedRequest, res: Response): Pro
       documents: {
         orderBy: { createdAt: "desc" },
       },
+      actionResults: {
+        orderBy: { createdAt: "desc" },
+        take: 20,
+      },
     },
   });
 
@@ -336,6 +371,104 @@ export const getCaseById = async (req: AuthenticatedRequest, res: Response): Pro
 
 const VALID_STATUSES = Object.values(PriorAuthStatus);
 
+const STATUS_LABEL_TO_ENUM: Record<string, PriorAuthStatus> = {
+  New: PriorAuthStatus.INTAKE,
+  "In Progress": PriorAuthStatus.INTAKE,
+  "Awaiting Documents": PriorAuthStatus.PENDING_DOCUMENTS,
+  "Awaiting AI Review": PriorAuthStatus.PENDING_DOCUMENTS,
+  "Pending Supervisor Approval": PriorAuthStatus.READY_FOR_SUBMISSION,
+  Submitted: PriorAuthStatus.SUBMITTED,
+  Approved: PriorAuthStatus.APPROVED,
+  Denied: PriorAuthStatus.DENIED,
+  "Appeal In Progress": PriorAuthStatus.APPEAL_IN_PROGRESS,
+  "Peer To Peer Requested": PriorAuthStatus.PEER_TO_PEER_REQUESTED,
+  Closed: PriorAuthStatus.CLOSED,
+};
+
+function normalizePriorAuthStatus(status?: string | null): PriorAuthStatus | undefined {
+  if (!status) return undefined;
+  if (VALID_STATUSES.includes(status as PriorAuthStatus)) return status as PriorAuthStatus;
+  return STATUS_LABEL_TO_ENUM[status];
+}
+
+function normalizeCaseUrgency(urgency?: string | null): CaseUrgency | undefined {
+  if (!urgency) return undefined;
+  if (urgency === "Routine") return CaseUrgency.ROUTINE;
+  if (urgency === "Urgent") return CaseUrgency.URGENT;
+  if (Object.values(CaseUrgency).includes(urgency as CaseUrgency)) return urgency as CaseUrgency;
+  return undefined;
+}
+
+function parseOptionalDate(value?: string | null): Date | undefined {
+  if (!value) return undefined;
+  const parsed = new Date(value);
+  return Number.isNaN(parsed.getTime()) ? undefined : parsed;
+}
+
+function stringifyJson(value: unknown): string | null {
+  if (value === null || value === undefined) return null;
+  return JSON.stringify(value);
+}
+
+function parseJsonRecord(value?: string | null): Record<string, unknown> | null {
+  if (!value) return null;
+  try {
+    const parsed = JSON.parse(value);
+    return parsed && typeof parsed === "object" ? (parsed as Record<string, unknown>) : null;
+  } catch {
+    return null;
+  }
+}
+
+function buildGatewayCaseUpdates(
+  action: PriorAuthGatewayAction,
+  normalized: Record<string, unknown>,
+  requestedDenialReason?: string
+): Prisma.PriorAuthCaseUpdateInput {
+  const updates: Prisma.PriorAuthCaseUpdateInput = {};
+  const confirmationNumber =
+    typeof normalized.confirmationNumber === "string" ? normalized.confirmationNumber : undefined;
+  const appealLetter =
+    typeof normalized.appealLetter === "string" ? normalized.appealLetter : undefined;
+  const medicalNecessitySummary =
+    typeof normalized.medicalNecessitySummary === "string"
+      ? normalized.medicalNecessitySummary
+      : undefined;
+  const confidenceScore =
+    typeof normalized.confidenceScore === "number" ? normalized.confidenceScore : undefined;
+
+  if (action === "run_ai_review") {
+    updates.aiReviewResultJson = JSON.stringify({
+      checklistItems: normalized.checklistItems || [],
+      missingItems: normalized.missingItems || [],
+      confidenceScore: confidenceScore ?? null,
+      medicalNecessitySummary: medicalNecessitySummary || null,
+    });
+    if (confidenceScore !== undefined) updates.aiConfidenceScore = confidenceScore;
+    if (medicalNecessitySummary) updates.medicalNecessitySummary = medicalNecessitySummary;
+    updates.status = PriorAuthStatus.PENDING_DOCUMENTS;
+  }
+
+  if (action === "submit_to_cmm") {
+    if (confirmationNumber) updates.confirmationNumber = confirmationNumber;
+    updates.submittedAt = new Date();
+    updates.status = PriorAuthStatus.SUBMITTED;
+  }
+
+  if (action === "save_denial") {
+    if (requestedDenialReason) updates.denialReason = requestedDenialReason;
+    updates.deniedAt = new Date();
+    updates.status = PriorAuthStatus.DENIED;
+  }
+
+  if (action === "draft_appeal") {
+    if (appealLetter) updates.appealLetter = appealLetter;
+    updates.status = PriorAuthStatus.APPEAL_IN_PROGRESS;
+  }
+
+  return updates;
+}
+
 export const createCase = async (req: AuthenticatedRequest, res: Response): Promise<void> => {
   const data = req.body as CreateCaseBody;
 
@@ -350,9 +483,7 @@ export const createCase = async (req: AuthenticatedRequest, res: Response): Prom
   const count = await prisma.priorAuthCase.count();
   const caseNumber = `PA-${String(count + 1).padStart(6, "0")}`;
 
-  // Validate status is a valid enum value
-  const status =
-    data.status && VALID_STATUSES.includes(data.status) ? data.status : PriorAuthStatus.INTAKE;
+  const status = normalizePriorAuthStatus(data.status) || PriorAuthStatus.INTAKE;
 
   let gatewayPatientId = data.gatewayPatientId;
   if (!gatewayPatientId && data.eligibilityCheckId) {
@@ -387,7 +518,7 @@ export const createCase = async (req: AuthenticatedRequest, res: Response): Prom
       procedureCodes: data.procedureCodes || [],
       requestingProvider: data.requestingProvider,
       requestingProviderNpi: data.requestingProviderNpi,
-      urgency: data.urgency || "ROUTINE",
+      urgency: normalizeCaseUrgency(data.urgency) || CaseUrgency.ROUTINE,
       status,
       assignedSpecialistId: data.assignedSpecialistId,
       eligibilityCheckId: data.eligibilityCheckId,
@@ -427,18 +558,43 @@ export const updateCase = async (req: AuthenticatedRequest, res: Response): Prom
       procedureCodes: data.procedureCodes,
       requestingProvider: data.requestingProvider,
       requestingProviderNpi: data.requestingProviderNpi,
-      urgency: data.urgency,
-      status: data.status,
+      urgency: normalizeCaseUrgency(data.urgency),
+      status: normalizePriorAuthStatus(data.status),
+      appealDeadline: parseOptionalDate(data.appealDeadline),
+      appealLetter: data.appealLetter,
+      denialCode: data.denialCode,
+      submissionMethod: data.submissionMethod,
+      confirmationNumber: data.confirmationNumber,
+      covermymedsReference: data.covermymedsReference,
+      aiReviewResultJson: data.aiReviewResultJson,
+      aiConfidenceScore: data.aiConfidenceScore,
+      medicalNecessitySummary: data.medicalNecessitySummary,
+      intakeNotes: data.intakeNotes,
+      facilityName: data.facilityName,
+      facilityNpi: data.facilityNpi,
+      isMedicationPa: data.isMedicationPa,
+      medicationName: data.medicationName,
+      ndcCode: data.ndcCode,
+      daysSupply: data.daysSupply,
+      quantityRequested: data.quantityRequested,
+      pharmacyNpi: data.pharmacyNpi,
+      stepTherapyConfirmed: data.stepTherapyConfirmed,
+      p2pPhysicianName: data.p2pPhysicianName,
+      p2pPhysicianNpi: data.p2pPhysicianNpi,
+      p2pReviewerName: data.p2pReviewerName,
+      p2pScheduledAt: parseOptionalDate(data.p2pScheduledAt),
+      p2pContactNumber: data.p2pContactNumber,
+      p2pOutcome: data.p2pOutcome,
       assignedSpecialistId: data.assignedSpecialistId,
       eligibilityVerified: data.eligibilityVerified,
       denialReason: data.denialReason,
       authorizationNumber: data.authorizationNumber,
-      authValidFrom: data.authValidFrom ? new Date(data.authValidFrom) : undefined,
-      authValidTo: data.authValidTo ? new Date(data.authValidTo) : undefined,
-      submittedAt: data.submittedAt ? new Date(data.submittedAt) : undefined,
-      approvedAt: data.approvedAt ? new Date(data.approvedAt) : undefined,
-      deniedAt: data.deniedAt ? new Date(data.deniedAt) : undefined,
-      appealSubmittedAt: data.appealSubmittedAt ? new Date(data.appealSubmittedAt) : undefined,
+      authValidFrom: parseOptionalDate(data.authValidFrom),
+      authValidTo: parseOptionalDate(data.authValidTo),
+      submittedAt: parseOptionalDate(data.submittedAt),
+      approvedAt: parseOptionalDate(data.approvedAt),
+      deniedAt: parseOptionalDate(data.deniedAt),
+      appealSubmittedAt: parseOptionalDate(data.appealSubmittedAt),
     },
     include: {
       client: true,
@@ -465,6 +621,15 @@ export const triggerGatewayAction = async (
   const priorAuthCase = await prisma.priorAuthCase.findUnique({
     where: { id },
     include: {
+      client: {
+        select: {
+          id: true,
+          name: true,
+          practiceName: true,
+          escalationRules: true,
+          reportingPreferences: true,
+        },
+      },
       documents: {
         orderBy: { createdAt: "desc" },
       },
@@ -490,27 +655,202 @@ export const triggerGatewayAction = async (
       memberId: priorAuthCase.insuranceId,
     });
 
-  if (!priorAuthCase.gatewayPatientId) {
-    await prisma.priorAuthCase.update({
-      where: { id },
-      data: { gatewayPatientId },
-    });
-  }
-
   const extractedDocumentText =
     body.extractedDocumentText ||
     priorAuthCase.documents
       .map((document) => `${document.documentType}: ${document.fileName}`)
       .join("\n");
 
-  const gatewayResponse = await sendPriorAuthAction({
+  const [eligibilityCheck, payerRule] = await Promise.all([
+    priorAuthCase.eligibilityCheckId
+      ? prisma.eligibilityCheck.findUnique({
+          where: { id: priorAuthCase.eligibilityCheckId },
+          select: {
+            id: true,
+            coverageStatus: true,
+            confidenceScore: true,
+            requiresHumanReview: true,
+            flags: true,
+            serviceDate: true,
+            serviceTypeCode: true,
+            rawResponse: true,
+          },
+        })
+      : Promise.resolve(null),
+    prisma.payerRule.findFirst({
+      where: {
+        OR: [
+          priorAuthCase.payerId ? { payerId: priorAuthCase.payerId } : undefined,
+          priorAuthCase.payerName
+            ? { payerName: { contains: priorAuthCase.payerName, mode: "insensitive" } }
+            : undefined,
+        ].filter(Boolean) as Prisma.PayerRuleWhereInput[],
+      },
+      orderBy: [{ payerId: "desc" }, { payerName: "asc" }],
+    }),
+  ]);
+
+  const parsedEligibilityRaw = parseJsonRecord(eligibilityCheck?.rawResponse);
+  const eligibilityPayload =
+    parsedEligibilityRaw && typeof parsedEligibilityRaw === "object"
+      ? ((parsedEligibilityRaw as Record<string, unknown>).data as Record<string, unknown>) ||
+        (parsedEligibilityRaw as Record<string, unknown>)
+      : null;
+  const priorAuthRequired =
+    typeof eligibilityPayload?.priorAuthRequired === "boolean"
+      ? eligibilityPayload.priorAuthRequired
+      : typeof eligibilityPayload?.prior_auth_required === "boolean"
+        ? eligibilityPayload.prior_auth_required
+        : null;
+
+  const gatewayRequest = {
     gatewayPatientId,
     caseId: priorAuthCase.caseNumber || priorAuthCase.id,
     action: body.action,
+    eligibilityCheckId: priorAuthCase.eligibilityCheckId,
+    patientName: priorAuthCase.patientName,
+    patientDob: priorAuthCase.patientDob?.toISOString().slice(0, 10),
+    memberId: priorAuthCase.insuranceId,
+    payerName: priorAuthCase.payerName,
+    payerId: priorAuthCase.payerId,
+    coverageStatus: eligibilityCheck?.coverageStatus || null,
+    priorAuthRequired,
+    providerNpi: priorAuthCase.requestingProviderNpi,
+    requestingProvider: priorAuthCase.requestingProvider,
+    requestingProviderNpi: priorAuthCase.requestingProviderNpi,
+    serviceDate: eligibilityCheck?.serviceDate?.toISOString().slice(0, 10) || "",
+    serviceType: priorAuthCase.serviceType,
+    procedureCodes: priorAuthCase.procedureCodes || [],
+    diagnosisCodes: priorAuthCase.diagnosisCodes || [],
+    urgency: priorAuthCase.urgency,
+    submissionMethod: priorAuthCase.submissionMethod || payerRule?.submissionMethod || "",
+    payerRule: payerRule
+      ? {
+          id: payerRule.id,
+          payerName: payerRule.payerName,
+          payerId: payerRule.payerId,
+          serviceType: payerRule.serviceType,
+          requiresPriorAuth: payerRule.requiresPriorAuth,
+          submissionMethod: payerRule.submissionMethod,
+          portalUrl: payerRule.portalUrl,
+          phoneNumber: payerRule.phoneNumber,
+          faxNumber: payerRule.faxNumber,
+          turnaroundDays: payerRule.turnaroundDays,
+          requiredDocuments: payerRule.requiredDocuments,
+          automationSupported: payerRule.automationSupported,
+          notes: payerRule.notes,
+        }
+      : null,
+    documents: priorAuthCase.documents.map((document) => ({
+      id: document.id,
+      documentType: document.documentType,
+      checklistItemKey: document.checklistItemKey,
+      fileName: document.fileName,
+      fileUrl: document.fileUrl,
+      status: document.status,
+      aiClassification: document.aiClassification,
+      aiExtractedData: parseJsonRecord(document.aiExtractedDataJson),
+    })),
+    clientContext: {
+      clientId: priorAuthCase.clientId,
+      clientName: priorAuthCase.client?.name || "",
+      practiceName: priorAuthCase.client?.practiceName || "",
+      escalationRules: priorAuthCase.client?.escalationRules || "",
+      reportingPreferences: priorAuthCase.client?.reportingPreferences || "",
+      eligibilityConfidenceScore: eligibilityCheck?.confidenceScore ?? null,
+      eligibilityRequiresHumanReview: eligibilityCheck?.requiresHumanReview ?? false,
+      eligibilityFlags: eligibilityCheck?.flags || [],
+    },
     procedureName: body.procedureName || priorAuthCase.serviceType || "",
     icd10: body.icd10 || priorAuthCase.diagnosisCodes?.[0] || "",
     extractedDocumentText,
     denialReason: body.denialReason || priorAuthCase.denialReason || "",
+    denialCode: body.denialCode || priorAuthCase.denialCode || "",
+    appealDeadline:
+      body.appealDeadline || priorAuthCase.appealDeadline?.toISOString().slice(0, 10) || "",
+  };
+
+  let gatewayResponse: unknown;
+  let normalizedResponse: Record<string, unknown>;
+
+  try {
+    gatewayResponse = await sendPriorAuthAction(gatewayRequest);
+    normalizedResponse = normalizePriorAuthGatewayResponse(gatewayResponse);
+  } catch (error) {
+    const message = (error as Error).message || "Prior authorization gateway action failed";
+    const actionResult = await prisma.priorAuthActionResult.create({
+      data: {
+        caseId: priorAuthCase.id,
+        clientId: priorAuthCase.clientId,
+        gatewayPatientId,
+        action: body.action,
+        status: "error",
+        errorMessage: message,
+        performedById: req.user?.userId,
+      },
+    });
+
+    res.status(502).json({
+      success: false,
+      error: message,
+      data: {
+        action: body.action,
+        gatewayPatientId,
+        actionResult,
+      },
+    });
+    return;
+  }
+
+  const actionResult = await prisma.priorAuthActionResult.create({
+    data: {
+      caseId: priorAuthCase.id,
+      clientId: priorAuthCase.clientId,
+      gatewayPatientId,
+      action: body.action,
+      status: typeof normalizedResponse.status === "string" ? normalizedResponse.status : null,
+      message: typeof normalizedResponse.message === "string" ? normalizedResponse.message : null,
+      confirmationNumber:
+        typeof normalizedResponse.confirmationNumber === "string"
+          ? normalizedResponse.confirmationNumber
+          : null,
+      appealLetter:
+        typeof normalizedResponse.appealLetter === "string" ? normalizedResponse.appealLetter : null,
+      checklistItemsJson: stringifyJson(
+        normalizedResponse.checklistItems
+      ),
+      missingItemsJson: stringifyJson(
+        normalizedResponse.missingItems
+      ),
+      confidenceScore:
+        typeof normalizedResponse.confidenceScore === "number"
+          ? normalizedResponse.confidenceScore
+          : null,
+      medicalNecessitySummary:
+        typeof normalizedResponse.medicalNecessitySummary === "string"
+          ? normalizedResponse.medicalNecessitySummary
+          : null,
+      rawResponse: stringifyJson(gatewayResponse),
+      errorMessage: typeof normalizedResponse.error === "string" ? normalizedResponse.error : null,
+      performedById: req.user?.userId,
+    },
+  });
+
+  const updatedCase = await prisma.priorAuthCase.update({
+    where: { id },
+    data: {
+      gatewayPatientId,
+      ...buildGatewayCaseUpdates(body.action, normalizedResponse, body.denialReason),
+    },
+    include: {
+      client: true,
+      assignedSpecialist: true,
+      documents: true,
+      actionResults: {
+        orderBy: { createdAt: "desc" },
+        take: 10,
+      },
+    },
   });
 
   res.json({
@@ -518,7 +858,9 @@ export const triggerGatewayAction = async (
     data: {
       action: body.action,
       gatewayPatientId,
-      gatewayResponse: normalizePriorAuthGatewayResponse(gatewayResponse),
+      gatewayResponse: normalizedResponse,
+      actionResult,
+      priorAuthCase: updatedCase,
     },
   });
 };
@@ -526,8 +868,18 @@ export const triggerGatewayAction = async (
 export const deleteCase = async (req: AuthenticatedRequest, res: Response): Promise<void> => {
   const { id } = req.params as { id: string };
 
-  await prisma.priorAuthCase.delete({
-    where: { id },
+  await prisma.$transaction(async (tx) => {
+    await tx.priorAuthActionResult.deleteMany({
+      where: { caseId: id },
+    });
+
+    await tx.priorAuthDocument.deleteMany({
+      where: { caseId: id },
+    });
+
+    await tx.priorAuthCase.delete({
+      where: { id },
+    });
   });
 
   res.json({

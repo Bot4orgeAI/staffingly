@@ -1,0 +1,12 @@
+steps:
+  - name: 'gcr.io/cloud-builders/docker'
+    args:
+      - 'build'
+      - '--build-arg'
+      - 'VITE_API_URL=https://staffverify-backend-59021984001.us-central1.run.app'
+      - '-t'
+      - 'us-central1-docker.pkg.dev/peppy-ratio-497410-e7/staffverify-repo/frontend:latest'
+      - '.'
+
+images:
+  - 'us-central1-docker.pkg.dev/peppy-ratio-497410-e7/staffverify-repo/frontend:latest'

@@ -130,7 +130,9 @@ export const triggerJobSchema = Joi.object({
   jobType: Joi.string().required(),
   payerName: Joi.string().required(),
   caseId: Joi.string().allow("", null),
-  urgency: Joi.string().valid("ROUTINE", "URGENT", "EXPEDITED").default("ROUTINE"),
+  urgency: Joi.string()
+    .valid("ROUTINE", "URGENT", "EXPEDITED", "Routine", "Urgent")
+    .default("ROUTINE"),
   payload: Joi.object().allow(null),
 });
 
@@ -272,7 +274,9 @@ export const createPriorAuthSchema = Joi.object({
   procedureCodes: Joi.array().items(Joi.string()).default([]),
   requestingProvider: Joi.string().allow("", null),
   requestingProviderNpi: Joi.string().allow("", null),
-  urgency: Joi.string().valid("ROUTINE", "URGENT", "EXPEDITED").default("ROUTINE"),
+  urgency: Joi.string()
+    .valid("ROUTINE", "URGENT", "EXPEDITED", "Routine", "Urgent")
+    .default("ROUTINE"),
   status: Joi.string().allow("", null),
   assignedSpecialistId: Joi.string().allow("", null),
 });
@@ -290,11 +294,12 @@ export const updatePriorAuthSchema = Joi.object({
   procedureCodes: Joi.array().items(Joi.string()),
   requestingProvider: Joi.string().allow("", null),
   requestingProviderNpi: Joi.string().allow("", null),
-  urgency: Joi.string().valid("ROUTINE", "URGENT", "EXPEDITED"),
+  urgency: Joi.string().valid("ROUTINE", "URGENT", "EXPEDITED", "Routine", "Urgent"),
   status: Joi.string().allow("", null),
   assignedSpecialistId: Joi.string().allow("", null),
   eligibilityVerified: Joi.boolean(),
   denialReason: Joi.string().allow("", null),
+  denialCode: Joi.string().allow("", null),
   authorizationNumber: Joi.string().allow("", null),
   authValidFrom: Joi.string().allow("", null),
   authValidTo: Joi.string().allow("", null),
@@ -302,6 +307,30 @@ export const updatePriorAuthSchema = Joi.object({
   approvedAt: Joi.string().allow("", null),
   deniedAt: Joi.string().allow("", null),
   appealSubmittedAt: Joi.string().allow("", null),
+  appealDeadline: Joi.string().allow("", null),
+  appealLetter: Joi.string().allow("", null),
+  submissionMethod: Joi.string().allow("", null),
+  confirmationNumber: Joi.string().allow("", null),
+  covermymedsReference: Joi.string().allow("", null),
+  aiReviewResultJson: Joi.string().allow("", null),
+  aiConfidenceScore: Joi.number().integer().min(0).max(100).allow(null),
+  medicalNecessitySummary: Joi.string().allow("", null),
+  intakeNotes: Joi.string().allow("", null),
+  facilityName: Joi.string().allow("", null),
+  facilityNpi: Joi.string().allow("", null),
+  isMedicationPa: Joi.boolean(),
+  medicationName: Joi.string().allow("", null),
+  ndcCode: Joi.string().allow("", null),
+  daysSupply: Joi.string().allow("", null),
+  quantityRequested: Joi.string().allow("", null),
+  pharmacyNpi: Joi.string().allow("", null),
+  stepTherapyConfirmed: Joi.boolean(),
+  p2pPhysicianName: Joi.string().allow("", null),
+  p2pPhysicianNpi: Joi.string().allow("", null),
+  p2pReviewerName: Joi.string().allow("", null),
+  p2pScheduledAt: Joi.string().allow("", null),
+  p2pContactNumber: Joi.string().allow("", null),
+  p2pOutcome: Joi.string().allow("", null),
 });
 
 export const priorAuthGatewayActionSchema = Joi.object({
@@ -313,6 +342,8 @@ export const priorAuthGatewayActionSchema = Joi.object({
   icd10: Joi.string().allow("", null),
   extractedDocumentText: Joi.string().allow("", null),
   denialReason: Joi.string().allow("", null),
+  denialCode: Joi.string().allow("", null),
+  appealDeadline: Joi.string().allow("", null),
 });
 
 export const uploadDocumentSchema = Joi.object({

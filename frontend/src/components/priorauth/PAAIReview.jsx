@@ -28,7 +28,7 @@ export default function PAAIReview({ paCase, onUpdate }) {
   const [result, setResult] = useState(() => {
     if (!paCase.ai_review_result_json) return null;
     try {
-      return JSON.parse(paCase.ai_review_result_json);
+      return normalizeAiReviewResponse(JSON.parse(paCase.ai_review_result_json));
     } catch {
       return null;
     }
