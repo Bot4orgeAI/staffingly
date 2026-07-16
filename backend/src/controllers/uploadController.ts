@@ -72,6 +72,42 @@ export const extractDataFromFile = async (
     return;
   }
 
+  // Validate card front/back constraints using Claude classifier
+  if (
+    documentType === "Insurance Card Front" ||
+    documentType === "Insurance Card Back"
+  ) {
+    const classification = await ocrService.classifyInsuranceCardSide(file.buffer, file.mimetype);
+
+    if (documentType === "Insurance Card Front") {
+      // Front side must be recognized as a card, and must not be the back
+      if (!classification.isCard && classification.side !== "front") {
+        res.status(400).json({
+          success: false,
+          error: `Document verification failed: The uploaded file is not recognized as a health insurance card. Please make sure you are uploading a valid insurance card image.`,
+        });
+        return;
+      }
+      if (classification.side === "back") {
+        res.status(400).json({
+          success: false,
+          error: `Side mismatch validation failed: You uploaded the back of the card in the slot designated for the Front of the card. Please flip the card and try again.`,
+        });
+        return;
+      }
+    } else {
+      // Back side: We don't strictly require isCard to be true (since card backs are often just text/barcodes),
+      // but we reject if it is explicitly classified as a "front" side.
+      if (classification.side === "front") {
+        res.status(400).json({
+          success: false,
+          error: `Side mismatch validation failed: You uploaded the front of the card in the slot designated for the Back of the card. Please upload the side containing disclaimers/phone numbers.`,
+        });
+        return;
+      }
+    }
+  }
+
   const extraction = await ocrService.extractDocumentData(
     file.buffer,
     file.mimetype,

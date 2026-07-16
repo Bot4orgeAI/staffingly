@@ -8,6 +8,8 @@
  * 4. No mock fallback - real OCR only
  */
 
+import Anthropic from "@anthropic-ai/sdk";
+
 type HeicConvertFn = (_options: {
   buffer: Buffer;
   format: "JPEG" | "PNG";
@@ -41,12 +43,12 @@ export interface ExtractionResult {
   overallConfidence: number;
   requiresReview: boolean;
   lowConfidenceFields: string[];
-  channelUsed: "ocr-space" | "google-cloud-vision" | "azure";
+  channelUsed: "ocr-space" | "google-cloud-vision" | "azure" | "claude";
   processingTimeMs: number;
   error?: string;
 }
 
-export type OcrProvider = "auto" | "ocr-space" | "google-cloud-vision" | "azure";
+export type OcrProvider = "auto" | "ocr-space" | "google-cloud-vision" | "azure" | "claude";
 export type SupportedDocumentType =
   | "Insurance Card Front"
   | "Insurance Card Back"
@@ -63,7 +65,7 @@ export interface GenericExtractionResult {
   overallConfidence: number;
   requiresReview: boolean;
   lowConfidenceFields: string[];
-  channelUsed: "ocr-space" | "google-cloud-vision" | "azure" | "pdf-text";
+  channelUsed: "ocr-space" | "google-cloud-vision" | "azure" | "pdf-text" | "claude";
   processingTimeMs: number;
   error?: string;
 }
@@ -1174,6 +1176,205 @@ async function extractGenericTextWithProvider(
   };
 }
 
+let anthropicClient: Anthropic | null = null;
+
+function getAnthropic(): Anthropic {
+  if (!anthropicClient) {
+    const apiKey = process.env.ANTHROPIC_API_KEY;
+    if (!apiKey) {
+      throw new Error("ANTHROPIC_API_KEY is not configured in .env");
+    }
+    anthropicClient = new Anthropic({ apiKey });
+  }
+  return anthropicClient;
+}
+
+export function isClaudeAvailable(): boolean {
+  return Boolean(process.env.ANTHROPIC_API_KEY);
+}
+
+export interface SideClassificationResult {
+  isCard: boolean;
+  side: "front" | "back" | "unknown";
+  confidence: number;
+}
+
+export async function classifyInsuranceCardSide(
+  imageBuffer: Buffer,
+  mimeType = "image/jpeg"
+): Promise<SideClassificationResult> {
+  if (!isClaudeAvailable()) {
+    console.warn("Claude is not configured. Skipping side classification validation.");
+    return { isCard: true, side: "unknown", confidence: 100 }; // Bypass if not configured
+  }
+
+  try {
+    const anthropic = getAnthropic();
+    const prepared = await preprocessImage(imageBuffer, mimeType);
+    const base64Image = prepared.buffer.toString("base64");
+    const mediaType = prepared.mimeType === "image/png" ? "image/png" : "image/jpeg";
+
+    const systemPrompt = `You are a medical document classification assistant.
+Analyze the provided image and classify whether it is a health insurance card, and which side of the card it represents.
+
+Return a JSON object with:
+- isCard: boolean (true if this is a health insurance card or similar identification card, false if it is any other document like a certificate, letter, report, driver license, or unrelated image)
+- side: string (must be exactly "front", "back", or "unknown")
+- confidence: number (from 0 to 100 representing your confidence score)
+
+Do not include any reasoning or markdown wrapping in your response. Return ONLY the JSON object.`;
+
+    const response = await anthropic.messages.create({
+      model: "claude-sonnet-4-20250514",
+      max_tokens: 256,
+      system: systemPrompt,
+      messages: [
+        {
+          role: "user",
+          content: [
+            {
+              type: "image",
+              source: {
+                type: "base64",
+                media_type: mediaType as any,
+                data: base64Image,
+              },
+            },
+            {
+              type: "text",
+              text: "Classify this image and return the JSON structure.",
+            },
+          ],
+        },
+      ],
+    });
+
+    const textBlock = response.content.find((block) => block.type === "text");
+    if (!textBlock || textBlock.type !== "text") {
+      throw new Error("No text response from Claude");
+    }
+
+    const jsonMatch = textBlock.text.match(/\{[\s\S]*\}/);
+    if (!jsonMatch) {
+      throw new Error("No JSON found in response");
+    }
+
+    const parsed = JSON.parse(jsonMatch[0]);
+    return {
+      isCard: Boolean(parsed.isCard),
+      side: (parsed.side || "unknown").toLowerCase() as any,
+      confidence: typeof parsed.confidence === "number" ? parsed.confidence : 50,
+    };
+  } catch (error) {
+    console.error("Failed to classify card side:", error);
+    return {
+      isCard: false,
+      side: "unknown",
+      confidence: 0,
+    };
+  }
+}
+
+async function extractWithClaude(
+  imageBuffer: Buffer,
+  mimeType: string,
+  documentType: SupportedDocumentType
+): Promise<ExtractionResult> {
+  const startTime = Date.now();
+  if (!isClaudeAvailable()) {
+    return createProviderUnavailableResult("claude", "Anthropic Claude is not configured");
+  }
+
+  try {
+    const anthropic = getAnthropic();
+    const base64Image = imageBuffer.toString("base64");
+    const mediaType = mimeType === "image/png" ? "image/png" : "image/jpeg";
+
+    const systemPrompt = `You are an expert US health insurance card parser.
+Analyze the provided image of an insurance card (${documentType}) and extract all relevant billing and patient details.
+
+Return a JSON object containing precisely these fields. If a field is not found or not present in the image, return null:
+- payerName: string or null (e.g. "UnitedHealthcare", "Aetna")
+- payerId: string or null (payer identifier for claims routing)
+- memberId: string or null (Member ID / Subscriber ID / Policy ID)
+- groupNumber: string or null (Group number)
+- subscriberName: string or null (First and last name of the policy holder)
+- subscriberDob: string or null (Subscriber date of birth in YYYY-MM-DD format)
+- planName: string or null (e.g. "Choice Plus", "Select HMO")
+- planType: string or null (PPO, HMO, EPO, POS, etc.)
+- rxBin: string or null (6-digit pharmacy identification number, digits only)
+- rxPcn: string or null (Pharmacy processor control number)
+- rxGroup: string or null (Pharmacy group code)
+- copay: string or null (Copay amount, e.g., "$30")
+- effectiveDate: string or null (Plan start date in YYYY-MM-DD format)
+
+Do not include any reasoning or markdown wrapping in your response. Return ONLY the JSON object.`;
+
+    const response = await anthropic.messages.create({
+      model: "claude-sonnet-4-20250514",
+      max_tokens: 1024,
+      system: systemPrompt,
+      messages: [
+        {
+          role: "user",
+          content: [
+            {
+              type: "image",
+              source: {
+                type: "base64",
+                media_type: mediaType as any,
+                data: base64Image,
+              },
+            },
+            {
+              type: "text",
+              text: `Extract the insurance card details from this ${documentType} image.`,
+            },
+          ],
+        },
+      ],
+    });
+
+    const textBlock = response.content.find((block) => block.type === "text");
+    if (!textBlock || textBlock.type !== "text") {
+      throw new Error("No text response from Claude");
+    }
+
+    const jsonMatch = textBlock.text.match(/\{[\s\S]*\}/);
+    if (!jsonMatch) {
+      throw new Error("No JSON found in response");
+    }
+
+    const parsed = JSON.parse(jsonMatch[0]);
+
+    const fields: InsuranceCardExtraction = {
+      payerName: buildField("payerName", parsed.payerName, 0.95),
+      payerId: buildField("payerId", parsed.payerId, 0.95),
+      memberId: buildField("memberId", parsed.memberId, 0.95),
+      groupNumber: buildField("groupNumber", parsed.groupNumber, 0.95),
+      subscriberName: buildField("subscriberName", parsed.subscriberName, 0.95),
+      subscriberDob: buildField("subscriberDob", parsed.subscriberDob, 0.95),
+      planName: buildField("planName", parsed.planName, 0.95),
+      planType: buildField("planType", parsed.planType, 0.95),
+      rxBin: buildField("rxBin", parsed.rxBin, 0.95),
+      rxPcn: buildField("rxPcn", parsed.rxPcn, 0.95),
+      rxGroup: buildField("rxGroup", parsed.rxGroup, 0.95),
+      copay: buildField("copay", parsed.copay, 0.95),
+      effectiveDate: buildField("effectiveDate", parsed.effectiveDate, 0.95),
+    };
+
+    return finalizeResult(fields, "claude", Date.now() - startTime);
+  } catch (error) {
+    console.error("Claude insurance card extraction failed:", error);
+    return finalizeResult(
+      createEmptyExtraction(),
+      "claude",
+      Date.now() - startTime,
+      (error as Error).message
+    );
+  }
+}
+
 function getOcrSpaceApiKey(): string | null {
   return process.env.OCR_SPACE_API_KEY || null;
 }
@@ -1487,6 +1688,7 @@ export async function getAvailableOcrProviders(): Promise<
   Array<{ id: Exclude<OcrProvider, "auto">; label: string; available: boolean }>
 > {
   return [
+    { id: "claude", label: "Anthropic Claude", available: isClaudeAvailable() },
     { id: "ocr-space", label: "OCR.space", available: isOcrSpaceAvailable() },
     {
       id: "google-cloud-vision",
@@ -1500,20 +1702,36 @@ export async function getAvailableOcrProviders(): Promise<
 export async function extractInsuranceCard(
   imageBuffer: Buffer,
   mimeType?: string,
-  provider: OcrProvider = "auto"
+  provider: OcrProvider = "auto",
+  documentType: SupportedDocumentType = "Insurance Card Front"
 ): Promise<ExtractionResult> {
   const prepared = await preprocessImage(imageBuffer, mimeType);
 
-  if (provider === "ocr-space") {
+  const envProvider = process.env.INSURANCE_OCR_PROVIDER as OcrProvider | undefined;
+  const activeProvider = provider === "auto" ? (envProvider || "claude") : provider;
+
+  if (activeProvider === "claude") {
+    return extractWithClaude(prepared.buffer, prepared.mimeType, documentType);
+  }
+
+  if (activeProvider === "ocr-space") {
     return extractWithOcrSpace(prepared.buffer, prepared.mimeType);
   }
 
-  if (provider === "google-cloud-vision") {
+  if (activeProvider === "google-cloud-vision") {
     return extractWithGoogleCloudVision(prepared.buffer, prepared.mimeType);
   }
 
-  if (provider === "azure") {
+  if (activeProvider === "azure") {
     return extractWithAzure(prepared.buffer);
+  }
+
+  if (isClaudeAvailable()) {
+    const claudeResult = await extractWithClaude(prepared.buffer, prepared.mimeType, documentType);
+    if (shouldAcceptResult(claudeResult)) {
+      console.log("Using Claude Vision for insurance card extraction");
+      return claudeResult;
+    }
   }
 
   const ocrSpaceResult = await extractWithOcrSpace(prepared.buffer, prepared.mimeType);
@@ -1541,7 +1759,7 @@ export async function extractInsuranceCard(
   const error =
     configuredProviders.length > 0
       ? "Configured OCR providers could not extract usable insurance data from this image."
-      : "No OCR provider is configured. Configure OCR.space, Google Cloud Vision, or Azure Document Intelligence.";
+      : "No OCR provider is configured. Configure Claude, OCR.space, Google Cloud Vision, or Azure Document Intelligence.";
 
   return finalizeResult(createEmptyExtraction(), "ocr-space", 0, error);
 }
@@ -1558,7 +1776,7 @@ export async function extractDocumentData(
     normalizedDocumentType === "Insurance Card Front" ||
     normalizedDocumentType === "Insurance Card Back"
   ) {
-    const insuranceExtraction = await extractInsuranceCard(fileBuffer, mimeType, provider);
+    const insuranceExtraction = await extractInsuranceCard(fileBuffer, mimeType, provider, normalizedDocumentType);
     return buildInsuranceCardGenericResult(insuranceExtraction);
   }
 
@@ -1612,5 +1830,7 @@ export default {
   isOcrSpaceAvailable,
   isGoogleCloudVisionAvailable,
   isAzureAvailable,
+  isClaudeAvailable,
   getAvailableOcrProviders,
+  classifyInsuranceCardSide,
 };

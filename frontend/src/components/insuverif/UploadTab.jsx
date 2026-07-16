@@ -31,10 +31,6 @@ import ManualEntryTab from "./ManualEntryTab";
 const DOC_TYPES = [
   "Insurance Card Front",
   "Insurance Card Back",
-  "Explanation of Benefits (EOB)",
-  "Prior Authorization Letter",
-  "Referral Letter",
-  "Lab/Radiology Report",
   "Other Document",
 ];
 const MULTI_ALLOWED_DOC_TYPES = new Set(["Other Document"]);
@@ -314,12 +310,12 @@ function splitName(fullName = "") {
   };
 }
 
-function createDocument(id = Date.now(), sequence = 1) {
+function createDocument(id = Date.now(), sequence = 1, docType = "Insurance Card Front") {
   return {
     id,
     sequence,
     expanded: true,
-    docType: "Insurance Card Front",
+    docType,
     file: null,
     preview: null,
     extraction: null,
@@ -582,7 +578,10 @@ export default function UploadTab({ onSubmit, clientId = "" }) {
     queryFn: () => api.upload.getInsuranceCardOcrProviders(),
     staleTime: 5 * 60 * 1000,
   });
-  const [documents, setDocuments] = useState([createDocument(Date.now(), 1)]);
+  const [documents, setDocuments] = useState([
+    createDocument(Date.now(), 1, "Insurance Card Front"),
+    createDocument(Date.now() + 1, 2, "Insurance Card Back"),
+  ]);
   const [extracting, setExtracting] = useState(false);
   const [editedData, setEditedData] = useState({});
   const [confidenceScores, setConfidenceScores] = useState({});
@@ -593,9 +592,15 @@ export default function UploadTab({ onSubmit, clientId = "" }) {
   const [selectedOcrProvider, setSelectedOcrProvider] = useState("auto");
   const fileRefs = useRef({});
   const cameraRefs = useRef({});
-  const nextDocumentSequenceRef = useRef(2);
+  const nextDocumentSequenceRef = useRef(3);
 
-  const canExtract = documents.some((document) => document.file);
+  const hasFront = documents.some((document) => document.docType === "Insurance Card Front" && document.file);
+  const hasBack = documents.some((document) => document.docType === "Insurance Card Back" && document.file);
+  const isFrontMissing = hasBack && !hasFront;
+  const isBackMissing = hasFront && !hasBack;
+  const isInsuranceMissing = isFrontMissing || isBackMissing;
+  const hasSomeFile = documents.some((document) => document.file);
+  const canExtract = hasSomeFile && !isInsuranceMissing;
   const hasExtractedData = Object.keys(editedData).length > 0;
   const availableOcrProviders = ocrProvidersResponse?.data?.providers || [];
   const ocrProviderOptions = [
@@ -668,14 +673,14 @@ export default function UploadTab({ onSubmit, clientId = "" }) {
     setDocuments((current) =>
       current.map((document) =>
         document.id === id
-          ? {
-              ...document,
-              docType,
-            }
+          ? { ...document, docType }
           : document.docType === docType
             ? {
                 ...document,
                 docType: "Other Document",
+                file: null,
+                preview: null,
+                extraction: null,
               }
             : document
       )
@@ -885,10 +890,14 @@ export default function UploadTab({ onSubmit, clientId = "" }) {
                       );
 
                       if (duplicate) {
-                        setDuplicateDialog({
-                          documentId: document.id,
-                          docType: value,
-                        });
+                        if (duplicate.file) {
+                          setDuplicateDialog({
+                            documentId: document.id,
+                            docType: value,
+                          });
+                        } else {
+                          replaceDuplicateDocument(document.id, value);
+                        }
                         return;
                       }
 
@@ -999,25 +1008,43 @@ export default function UploadTab({ onSubmit, clientId = "" }) {
         </div>
       ) : null}
 
-      {canExtract && !hasExtractedData ? (
-        <button
-          type="button"
-          onClick={handleExtract}
-          disabled={extracting}
-          className="flex items-center gap-2 rounded-xl px-6 py-3 text-sm font-bold text-white"
-          style={{ backgroundColor: "#0a7e87" }}
-        >
-          {extracting ? (
-            <>
-              <Loader2 className="h-4 w-4 animate-spin" /> Analyzing document(s) with AI...
-            </>
-          ) : (
-            <>
-              <Brain className="h-4 w-4" />
-              Extract Data with AI
-            </>
-          )}
-        </button>
+      {hasSomeFile && !hasExtractedData ? (
+        <div className="flex flex-col items-start gap-3">
+          {isBackMissing ? (
+            <div className="flex items-start gap-2 rounded-xl border border-amber-200 bg-amber-50 p-3 max-w-xl">
+              <AlertTriangle className="mt-0.5 h-5 w-5 flex-shrink-0 text-amber-500" />
+              <p className="text-sm text-amber-700">
+                <strong>Back side missing:</strong> You uploaded the Front of the Insurance Card. Please also add the Back of the card to enable AI data extraction.
+              </p>
+            </div>
+          ) : null}
+          {isFrontMissing ? (
+            <div className="flex items-start gap-2 rounded-xl border border-amber-200 bg-amber-50 p-3 max-w-xl">
+              <AlertTriangle className="mt-0.5 h-5 w-5 flex-shrink-0 text-amber-500" />
+              <p className="text-sm text-amber-700">
+                <strong>Front side missing:</strong> You uploaded the Back of the Insurance Card. Please also add the Front of the card to enable AI data extraction.
+              </p>
+            </div>
+          ) : null}
+          <button
+            type="button"
+            onClick={handleExtract}
+            disabled={extracting || isInsuranceMissing}
+            className="flex items-center gap-2 rounded-xl px-6 py-3 text-sm font-bold text-white disabled:cursor-not-allowed disabled:opacity-50"
+            style={{ backgroundColor: "#0a7e87" }}
+          >
+            {extracting ? (
+              <>
+                <Loader2 className="h-4 w-4 animate-spin" /> Analyzing document(s) with AI...
+              </>
+            ) : (
+              <>
+                <Brain className="h-4 w-4" />
+                Extract Data with AI
+              </>
+            )}
+          </button>
+        </div>
       ) : null}
 
       {canExtract && hasExtractedData ? (
