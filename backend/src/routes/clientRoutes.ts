@@ -8,7 +8,7 @@ import { createClientSchema, updateClientSchema, paginationSchema } from "../lib
 const router = Router();
 
 const ADMIN_ROLES = ["SUPER_ADMIN", "STAFFINGLY_ADMIN"];
-const VIEW_ROLES = ["SUPER_ADMIN", "STAFFINGLY_ADMIN", "STAFFINGLY_SUPERVISOR", "CLIENT_USER"];
+const VIEW_ROLES = ["SUPER_ADMIN", "STAFFINGLY_ADMIN", "STAFFINGLY_SUPERVISOR", "STAFFINGLY_SPECIALIST", "CLIENT_USER"];
 
 router.use(authenticate);
 

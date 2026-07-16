@@ -98,6 +98,16 @@ const upload = {
   file: (formData) => apiClient.postFormData("/api/upload/file", formData),
 };
 
+// Roster Import API
+const roster = {
+  // Upload a patient roster CSV (Staffingly ops roles only)
+  importRoster: (formData) => apiClient.postFormData("/api/roster/import", formData),
+  // List past roster imports for a client (metadata only)
+  listImports: (params = {}) => apiClient.get("/api/roster/imports", params),
+  // Get pending patient work queue for a client
+  getQueue: (clientId, params = {}) => apiClient.get(`/api/roster/queue/${clientId}`, params),
+};
+
 export const api = {
   auth: authService,
   clients: clientService,
@@ -111,6 +121,7 @@ export const api = {
   settings,
   priorAuth,
   upload,
+  roster,
 };
 
 // Re-export for convenience

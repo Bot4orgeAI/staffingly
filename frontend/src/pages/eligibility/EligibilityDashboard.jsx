@@ -11,6 +11,7 @@ import {
   ClipboardList,
   Activity,
   Clock,
+  FileSpreadsheet,
 } from "lucide-react";
 const METHOD_CONFIG = {
   Availity: { icon: Wifi, color: "#15803d", bg: "#f0fdf4" },
@@ -24,6 +25,15 @@ function isToday(value) {
   const date = new Date(value);
   return !Number.isNaN(date.getTime()) && date.toDateString() === new Date().toDateString();
 }
+
+import { Link } from "react-router-dom";
+
+const STAFFINGLY_ROLES = new Set([
+  "SUPER_ADMIN",
+  "STAFFINGLY_ADMIN",
+  "STAFFINGLY_SUPERVISOR",
+  "STAFFINGLY_SPECIALIST",
+]);
 
 export default function EligibilityDashboard() {
   const { data: user } = useAuthUserQuery({ withDefaultRole: "staffingly_supervisor" });
@@ -130,6 +140,8 @@ export default function EligibilityDashboard() {
     },
   ];
 
+  const showImportLink = user && STAFFINGLY_ROLES.has(user.role);
+
   return (
     <StaffinglyLayout
       user={user}
@@ -139,14 +151,33 @@ export default function EligibilityDashboard() {
     >
       <div className="space-y-6 max-w-[1400px] mx-auto">
         <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-          <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+          <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
             <div>
               <h1 className="text-2xl font-bold text-slate-900">
                 Eligibility Enterprise Dashboard
               </h1>
-              <p className="mt-2 text-sm text-slate-500">
+              <p className="mt-1 text-sm text-slate-500">
                 Monitor real-time verification performance, success rates, and connection methods.
               </p>
+            </div>
+            <div className="flex flex-wrap items-center gap-3">
+              <Link
+                to="/roster-queue"
+                className="flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-xs font-bold text-slate-700 transition-all hover:bg-slate-50"
+              >
+                <ClipboardList className="h-4 w-4 text-slate-400" />
+                Work Queue
+              </Link>
+              {showImportLink && (
+                <Link
+                  to="/roster-import"
+                  className="flex items-center gap-1.5 rounded-xl px-4 py-2.5 text-xs font-bold text-white transition-all"
+                  style={{ backgroundColor: "#0a7e87" }}
+                >
+                  <FileSpreadsheet className="h-4 w-4" />
+                  Import Roster
+                </Link>
+              )}
             </div>
           </div>
         </div>

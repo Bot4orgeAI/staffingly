@@ -25,6 +25,7 @@
     "@prisma/client": "^7.5.0",
     "bcryptjs": "^3.0.3",
     "cors": "^2.8.6",
+    "csv-parse": "^7.0.1",
     "dotenv": "^17.3.1",
     "express": "^5.2.1",
     "google-auth-library": "^10.6.2",
@@ -52,7 +53,8 @@
     "prettier": "^3.5.3",
     "prisma": "^7.5.0",
     "tsx": "^4.19.4",
-    "typescript": "^5.8.3"
+    "typescript": "^5.8.3",
+    "vitest": "^4.1.10"
   },
   "prisma": {
     "seed": "node ./prisma/seeds/index.js"

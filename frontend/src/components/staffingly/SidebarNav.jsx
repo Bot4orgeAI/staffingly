@@ -27,6 +27,7 @@ import {
   ChevronLeft,
   ChevronRightIcon,
   UserPlus,
+  FileSpreadsheet,
 } from "lucide-react";
 
 const ROLE_LABELS = {
@@ -51,16 +52,21 @@ const COMMON_NAV = [
   { label: "Dashboard", icon: LayoutDashboard, page: "home" },
   { label: "Patients", icon: UserPlus, page: "patients" },
   { label: "Eligibility", icon: Search, page: "new-verification" },
+  { label: "Patient Queue", icon: ClipboardList, page: "roster-queue" },
   { label: "Elig. History", icon: BarChart2, page: "eligibility-history" },
   { label: "Prior Authorization", icon: ClipboardList, page: "prior-auth" },
 ];
 
 const ROLE_EXTRA_NAV = {
-  staffingly_specialist: [{ label: "My Cases", icon: Briefcase, page: "specialist-case-view" }],
+  staffingly_specialist: [
+    { label: "My Cases", icon: Briefcase, page: "specialist-case-view" },
+    { label: "Roster Import", icon: FileSpreadsheet, page: "roster-import" },
+  ],
   staffingly_supervisor: [
     { label: "Approval Queue", icon: ClipboardList, page: "supervisor-approval-queue" },
     { label: "Unmatched Docs", icon: AlertTriangle, page: "unmatched-documents" },
     { label: "Elig. Dashboard", icon: BarChart2, page: "eligibility-dashboard" },
+    { label: "Roster Import", icon: FileSpreadsheet, page: "roster-import" },
     { label: "Staff Tracker", icon: UserCheck, page: "staff-tracker" },
     { label: "Automation Queue", icon: Activity, page: "automation-queue" },
     { label: "Payroll", icon: DollarSign, page: "fa-payroll" },
@@ -70,6 +76,7 @@ const ROLE_EXTRA_NAV = {
     { label: "All Clients", icon: Building2, page: "sa-clients" },
     { label: "Payer Rules", icon: Globe, page: "payer-rules" },
     { label: "Unmatched Docs", icon: AlertTriangle, page: "unmatched-documents" },
+    { label: "Roster Import", icon: FileSpreadsheet, page: "roster-import" },
     { label: "Sync Logs", icon: Activity, page: "drive-sync-logs" },
     { label: "KB Analytics", icon: BookOpen, page: "knowledge-base-analytics" },
     { label: "User Management", icon: Users, page: "sa-users" },
@@ -79,6 +86,7 @@ const ROLE_EXTRA_NAV = {
     { label: "All Clients", icon: Building2, page: "sa-clients" },
     { label: "Client Branding", icon: Package, page: "client-branding-admin" },
     { label: "Unmatched Docs", icon: AlertTriangle, page: "unmatched-documents" },
+    { label: "Roster Import", icon: FileSpreadsheet, page: "roster-import" },
     { label: "KB Analytics", icon: BookOpen, page: "knowledge-base-analytics" },
     { label: "Automation Queue", icon: Activity, page: "automation-queue" },
     { label: "User Management", icon: Users, page: "sa-users" },
@@ -101,6 +109,7 @@ const FINANCE_NAV = [
 
 const CLIENT_NAV = [
   { label: "Dashboard", icon: LayoutDashboard, page: "client-portal" },
+  { label: "Patient Queue", icon: ClipboardList, page: "roster-queue" },
   { label: "My Cases", icon: Briefcase, page: "client-cases" },
   { label: "Reports", icon: BarChart2, page: "client-reports" },
   { label: "Billing", icon: CreditCard, page: "client-billing" },

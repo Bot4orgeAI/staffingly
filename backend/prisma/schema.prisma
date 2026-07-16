@@ -37,6 +37,7 @@ model User {
   priorAuthCases    PriorAuthCase[]    @relation("AssignedSpecialist")
   eligibilityChecks EligibilityCheck[]
   priorAuthActionResults PriorAuthActionResult[]
+  rosterImports     RosterImport[]
 }
 
 model UserSession {
@@ -105,6 +106,7 @@ model Client {
   driveSyncLogs      DriveSyncLog[]
   automationJobs     AutomationJob[]
   patients           Patient[]
+  rosterImports      RosterImport[]
 }
 
 enum ClientStatus {
@@ -832,6 +834,25 @@ model Patient {
   @@index([clientId])
   @@index([lastName, firstName])
   @@index([deletedAt])
+}
+
+model RosterImport {
+  id           String   @id @default(cuid())
+  clientId     String
+  client       Client   @relation(fields: [clientId], references: [id])
+  uploadedById String
+  uploadedBy   User     @relation(fields: [uploadedById], references: [id])
+  fileName     String
+  rowCount     Int
+  importedCount Int     @default(0)
+  skippedCount  Int     @default(0)
+  status       String   @default("active") // active | archived
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@index([clientId])
+  @@index([uploadedById])
+  @@index([createdAt])
 }
 
 model InsurancePolicy {

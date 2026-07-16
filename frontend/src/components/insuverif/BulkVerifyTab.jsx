@@ -830,7 +830,7 @@ Records: ${JSON.stringify(clean.map((row, index) => ({ index, ...row })))}`,
               onValueChange={setSelectedClientId}
               placeholder={clientsLoading ? "Loading clients..." : "Select client"}
               options={availableClients.map((client) => ({
-                label: client.name,
+                label: client.practiceName || client.name,
                 value: client.id,
               }))}
               disabled={clientsLoading || availableClients.length === 0}

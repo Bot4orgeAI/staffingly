@@ -89,6 +89,8 @@ import SpecialistCaseView from "./pages/cases/SpecialistCaseView";
 import StaffTracker from "./pages/staff/StaffTracker";
 import SupervisorApprovalQueue from "./pages/cases/SupervisorApprovalQueue";
 import UnmatchedDocuments from "./pages/cases/UnmatchedDocuments";
+import RosterImport from "./pages/admin/RosterImport";
+import RosterQueue from "./pages/eligibility/RosterQueue";
 import __Layout from "./Layout.jsx";
 
 export const PAGES = {
@@ -135,6 +137,8 @@ export const PAGES = {
   "staff-tracker": StaffTracker,
   "supervisor-approval-queue": SupervisorApprovalQueue,
   "unmatched-documents": UnmatchedDocuments,
+  "roster-import": RosterImport,
+  "roster-queue": RosterQueue,
 };
 
 export const pagesConfig = {

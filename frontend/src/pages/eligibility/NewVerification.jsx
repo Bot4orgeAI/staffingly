@@ -24,14 +24,14 @@ import {
 const WORKFLOWS = [
   {
     id: "manual",
-    label: "Manual",
-    description: "Fastest for a single check.",
+    label: "Manual Entry",
+    description: "Key in insurance details by hand.",
     icon: ClipboardCheck,
   },
   {
     id: "upload",
     label: "Upload Documents",
-    description: "Extract details from uploaded documents.",
+    description: "Instantly scan front & back of cards using AI Vision.",
     icon: FileUp,
   },
   {
